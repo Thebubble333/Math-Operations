@@ -1,0 +1,72 @@
+import React from 'react';
+import { GameMode, CurrentStats } from '../types';
+
+interface SummaryScreenProps {
+  session: CurrentStats;
+  accuracy: number;
+  startNewGame: (mode: GameMode) => void;
+  setMode: (mode: GameMode) => void;
+  mode: GameMode;
+}
+
+const SummaryScreen: React.FC<SummaryScreenProps> = ({
+  session,
+  accuracy,
+  startNewGame,
+  setMode,
+  mode,
+}) => {
+  const timeElapsed = Math.round((session.endTime! - (session.startTime || 0)) / 1000);
+  const currentDate = new Date().toLocaleDateString(undefined, { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900 animate-in fade-in duration-500">
+      <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-[3rem] p-10 shadow-2xl border-b-8 border-slate-200 dark:border-slate-700 text-center">
+        <div className="mb-6">
+          <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center text-white text-3xl mx-auto mb-4 shadow-xl">✓</div>
+          <h2 className="text-4xl font-black text-slate-800 dark:text-slate-100 italic">SESSION CLEAR</h2>
+          <p className="text-[11px] uppercase font-black text-slate-400 mt-2 tracking-widest">{currentDate}</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-3xl">
+            <div className="text-3xl font-black text-indigo-500">{accuracy}%</div>
+            <div className="text-[9px] uppercase font-bold text-slate-400">Accuracy</div>
+          </div>
+          <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-3xl">
+            <div className="text-3xl font-black text-orange-500">{session.qpm}</div>
+            <div className="text-[9px] uppercase font-bold text-slate-400">Avg QPM</div>
+          </div>
+          <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-3xl">
+            <div className="text-3xl font-black text-emerald-500">{timeElapsed}s</div>
+            <div className="text-[9px] uppercase font-bold text-slate-400">Time</div>
+          </div>
+          <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-3xl">
+            <div className="text-3xl font-black text-violet-500">{session.combo}</div>
+            <div className="text-[9px] uppercase font-bold text-slate-400">Final Streak</div>
+          </div>
+        </div>
+
+        <button 
+          onClick={() => startNewGame(mode)}
+          className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-3xl shadow-lg transition-all active:scale-95 mb-4 uppercase tracking-tight"
+        >
+          Play Again
+        </button>
+        <button 
+          onClick={() => setMode(GameMode.NONE)}
+          className="w-full py-5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-black rounded-3xl transition-all uppercase tracking-tight"
+        >
+          Main Menu
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default SummaryScreen;
