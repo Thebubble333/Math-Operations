@@ -37,26 +37,52 @@ const MainMenu: React.FC<MainMenuProps> = ({
         <p className="text-slate-500 dark:text-slate-400 font-medium tracking-wide">Race against yourself</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 w-full max-w-3xl">
-        {[
-          { id: GameMode.ADDITION, label: 'Add', icon: '+', color: 'bg-emerald-500' },
-          { id: GameMode.SUBTRACTION, label: 'Sub', icon: '-', color: 'bg-sky-500' },
-          { id: GameMode.MULTIPLICATION, label: 'Mult', icon: '×', color: 'bg-violet-500' },
-          { id: GameMode.DIVISION, label: 'Div', icon: '÷', color: 'bg-rose-500' },
-          { id: GameMode.MIXED, label: 'Mixed', icon: '?', color: 'bg-amber-500' },
-          { id: GameMode.METHODS_GRAPHS, label: 'Graphs', icon: '📈', color: 'bg-pink-500' },
-        ].map(btn => (
-          <button
-            key={btn.id}
-            onClick={() => startNewGame(btn.id)}
-            className="group relative h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-800 border-b-4 border-slate-200 dark:border-slate-700 hover:border-indigo-500 rounded-3xl shadow-lg transition-all active:scale-95"
-          >
-            <div className={`w-10 h-10 rounded-xl ${btn.color} text-white flex items-center justify-center mb-3 shadow-md transform group-hover:rotate-12 transition-transform`}>
-              <span className="text-xl font-bold">{btn.icon}</span>
-            </div>
-            <span className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">{btn.label}</span>
-          </button>
-        ))}
+      <div className="w-full max-w-4xl space-y-8">
+        {/* Year 8 Section */}
+        <div>
+          <h2 className="text-xl font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 px-2">Year 8 Core Skills</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            {[
+              { id: GameMode.ADDITION, label: 'Add', icon: '+', color: 'bg-emerald-500' },
+              { id: GameMode.SUBTRACTION, label: 'Sub', icon: '-', color: 'bg-sky-500' },
+              { id: GameMode.MULTIPLICATION, label: 'Mult', icon: '×', color: 'bg-violet-500' },
+              { id: GameMode.DIVISION, label: 'Div', icon: '÷', color: 'bg-rose-500' },
+              { id: GameMode.MIXED, label: 'Mixed', icon: '?', color: 'bg-amber-500' },
+            ].map(btn => (
+              <button
+                key={btn.id}
+                onClick={() => startNewGame(btn.id)}
+                className="group relative h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-800 border-b-4 border-slate-200 dark:border-slate-700 hover:border-indigo-500 rounded-3xl shadow-lg transition-all active:scale-95"
+              >
+                <div className={`w-10 h-10 rounded-xl ${btn.color} text-white flex items-center justify-center mb-3 shadow-md transform group-hover:rotate-12 transition-transform`}>
+                  <span className="text-xl font-bold">{btn.icon}</span>
+                </div>
+                <span className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">{btn.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Year 12 Section */}
+        <div>
+          <h2 className="text-xl font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 px-2">Year 12 Methods</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            {[
+              { id: GameMode.METHODS_GRAPHS, label: 'Graphs', icon: '📈', color: 'bg-pink-500' },
+            ].map(btn => (
+              <button
+                key={btn.id}
+                onClick={() => startNewGame(btn.id)}
+                className="group relative h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-800 border-b-4 border-slate-200 dark:border-slate-700 hover:border-indigo-500 rounded-3xl shadow-lg transition-all active:scale-95"
+              >
+                <div className={`w-10 h-10 rounded-xl ${btn.color} text-white flex items-center justify-center mb-3 shadow-md transform group-hover:rotate-12 transition-transform`}>
+                  <span className="text-xl font-bold">{btn.icon}</span>
+                </div>
+                <span className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">{btn.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="mt-16 text-center text-slate-400 dark:text-slate-600 w-full max-w-lg">
