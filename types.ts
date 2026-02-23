@@ -5,7 +5,10 @@ export enum GameMode {
   MULTIPLICATION = 'multiplication',
   DIVISION = 'division',
   MIXED = 'mixed',
+  ADD_SUB_NEGATIVES = 'add_sub_negatives',
+  MULT_DIV_NEGATIVES = 'mult_div_negatives',
   METHODS_GRAPHS = 'methods_graphs',
+  TRIG_EXACT_VALUES = 'trig_exact_values',
   NONE = 'none'
 }
 
@@ -45,5 +48,6 @@ export interface MathProblem {
   question: string;
   answer: number | string;
   options?: GraphParams[];
-  type?: 'arithmetic' | 'graph';
+  type?: 'arithmetic' | 'graph' | 'trig';
+  angle?: number; // For trig unit circle visualization (in radians)
 }

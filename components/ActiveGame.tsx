@@ -3,6 +3,7 @@ import Latex from 'react-latex-next';
 import { GameMode, GameStats, CurrentStats, MathProblem, GraphConfig } from '../types';
 import Numpad from './Numpad';
 import GraphCard from './GraphCard';
+import TrigGame from './TrigGame';
 
 interface ActiveGameProps {
   mode: GameMode;
@@ -81,8 +82,8 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
             <div className="text-[12px] absolute -top-8 left-1/2 -translate-x-1/2 font-black text-slate-300 dark:text-slate-700 uppercase tracking-[0.4em]">
               Problem {session.correctCount + 1} / {targetProblems}
             </div>
-            <div className={`${mode === GameMode.METHODS_GRAPHS ? 'text-4xl sm:text-6xl py-4' : 'text-8xl sm:text-[10rem]'} font-black tracking-tighter text-slate-800 dark:text-slate-50 tabular-nums select-none drop-shadow-sm`}>
-              {mode === GameMode.METHODS_GRAPHS ? (
+            <div className={`${mode === GameMode.METHODS_GRAPHS || mode === GameMode.TRIG_EXACT_VALUES ? 'text-4xl sm:text-6xl py-4' : 'text-8xl sm:text-[10rem]'} font-black tracking-tighter text-slate-800 dark:text-slate-50 tabular-nums select-none drop-shadow-sm`}>
+              {mode === GameMode.METHODS_GRAPHS || mode === GameMode.TRIG_EXACT_VALUES ? (
                 <Latex>{`$${problem?.question}$`}</Latex>
               ) : (
                 problem?.question
@@ -105,6 +106,13 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                 />
               ))}
             </div>
+          ) : mode === GameMode.TRIG_EXACT_VALUES && problem ? (
+            <TrigGame 
+              problem={problem}
+              onAnswer={handleInputChange}
+              isSuccess={isSuccess}
+              isError={isError}
+            />
           ) : (
             <>
               <div className="relative w-full max-w-xs mx-auto">

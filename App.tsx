@@ -49,6 +49,10 @@ const App: React.FC = () => {
   const [isError, setIsError] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);
+  
+  // Trig Mode State
+  const [forceQuadrant1, setForceQuadrant1] = useState(false);
+  const hasErrorOnCurrent = useRef(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -84,7 +88,14 @@ const App: React.FC = () => {
 
   const startNewGame = (selectedMode: GameMode) => {
     setMode(selectedMode);
-    const firstProblem = generateProblem(selectedMode);
+    
+    // Initial problem generation
+    const isTrig = selectedMode === GameMode.TRIG_EXACT_VALUES;
+    const initialForceQ1 = isTrig; // First 3 questions are Q1, so start with true
+    setForceQuadrant1(initialForceQ1);
+    hasErrorOnCurrent.current = false;
+
+    const firstProblem = generateProblem(selectedMode, { forceQuadrant1: initialForceQ1 });
     setProblem(firstProblem);
     setInput('');
     setIsSuccess(false);
@@ -97,8 +108,8 @@ const App: React.FC = () => {
       startTime: Date.now(),
       endTime: null,
     });
-    // Only focus input if not in graph mode
-    if (selectedMode !== GameMode.METHODS_GRAPHS) {
+    // Only focus input if not in graph/trig mode
+    if (selectedMode !== GameMode.METHODS_GRAPHS && selectedMode !== GameMode.TRIG_EXACT_VALUES) {
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
@@ -120,6 +131,27 @@ const App: React.FC = () => {
 
       const isFinished = newCorrectCount >= TARGET_PROBLEMS;
 
+      // Determine next problem params
+      if (!isFinished) {
+        let nextForceQ1 = false;
+        if (mode === GameMode.TRIG_EXACT_VALUES) {
+           // Force Q1 if:
+           // 1. We are in the first 3 questions (newCorrectCount < 3)
+           // 2. An error occurred on the current question
+           if (newCorrectCount < 3 || hasErrorOnCurrent.current) {
+             nextForceQ1 = true;
+           } else {
+             nextForceQ1 = false;
+           }
+        }
+        
+        setForceQuadrant1(nextForceQ1);
+        setProblem(generateProblem(mode, { forceQuadrant1: nextForceQ1 }));
+        hasErrorOnCurrent.current = false;
+      } else {
+        setProblem(null);
+      }
+
       return {
         ...prev,
         combo: newCombo,
@@ -130,16 +162,18 @@ const App: React.FC = () => {
     });
 
     setInput('');
-    if (session.correctCount + 1 < TARGET_PROBLEMS) {
-      setProblem(generateProblem(mode));
-    } else {
-      setProblem(null);
-    }
-  }, [mode, stats.highScore, session.correctCount]);
+  }, [mode, stats.highScore, session.correctCount, forceQuadrant1]);
 
-  const triggerError = () => {
+  const triggerError = (isSignError: boolean = false) => {
     setIsShaking(true);
     setIsError(true);
+    
+    // Mark error for Trig mode logic
+    // Only if NOT a sign error (magnitude was wrong)
+    if (!isSignError) {
+      hasErrorOnCurrent.current = true;
+    }
+
     setSession(prev => ({ 
       ...prev, 
       combo: 0,
@@ -156,17 +190,38 @@ const App: React.FC = () => {
   const handleInputChange = (val: string) => {
     if (!problem || session.endTime || isSuccess || isError) return;
     
-    const cleanVal = val.replace(/[^0-9]/g, '');
+    let cleanVal = val;
+
+    // Only clean input for arithmetic modes
+    if (mode !== GameMode.TRIG_EXACT_VALUES && mode !== GameMode.METHODS_GRAPHS) {
+      // Allow digits and minus sign
+      cleanVal = val.replace(/[^0-9-]/g, '');
+    }
+    
     setInput(cleanVal);
 
     if (cleanVal === problem.answer.toString()) {
       setIsSuccess(true);
+      const delay = mode === GameMode.TRIG_EXACT_VALUES ? 1000 : 250;
       setTimeout(() => {
         handleCorrect();
         setIsSuccess(false);
-      }, 250);
-    } else if (cleanVal.length >= problem.answer.toString().length) {
-      triggerError();
+      }, delay);
+    } else if (mode !== GameMode.TRIG_EXACT_VALUES && mode !== GameMode.METHODS_GRAPHS) {
+      // Arithmetic mode error handling (length based)
+      if (cleanVal.length >= problem.answer.toString().length) {
+        triggerError();
+      }
+    } else {
+      // Immediate error for button-click modes (Trig/Graphs)
+      let isSignError = false;
+      if (mode === GameMode.TRIG_EXACT_VALUES) {
+        const ans = problem.answer.toString();
+        if (cleanVal === '-' + ans || ans === '-' + cleanVal) {
+          isSignError = true;
+        }
+      }
+      triggerError(isSignError);
     }
   };
 
@@ -212,15 +267,6 @@ const App: React.FC = () => {
 
   return (
     <>
-      {/* Dev Tools Toggle (Hidden or Small) */}
-      <button 
-        onClick={() => setShowDevTools(!showDevTools)}
-        className="fixed bottom-4 right-4 z-50 p-3 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 text-xl hover:scale-110 transition-transform"
-        title="Open Diagnostics"
-      >
-        🛠️
-      </button>
-
       {showDevTools && (
         <DevTools 
           config={graphConfig} 

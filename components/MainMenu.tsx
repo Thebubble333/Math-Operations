@@ -48,13 +48,15 @@ const MainMenu: React.FC<MainMenuProps> = ({
               { id: GameMode.MULTIPLICATION, label: 'Mult', icon: '×', color: 'bg-violet-500' },
               { id: GameMode.DIVISION, label: 'Div', icon: '÷', color: 'bg-rose-500' },
               { id: GameMode.MIXED, label: 'Mixed', icon: '?', color: 'bg-amber-500' },
+              { id: GameMode.ADD_SUB_NEGATIVES, label: '+/- Neg', icon: '±', color: 'bg-teal-500' },
+              { id: GameMode.MULT_DIV_NEGATIVES, label: '×/÷ Neg', icon: '×÷', color: 'bg-cyan-500' },
             ].map(btn => (
               <button
                 key={btn.id}
                 onClick={() => startNewGame(btn.id)}
-                className="group relative h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-800 border-b-4 border-slate-200 dark:border-slate-700 hover:border-indigo-500 rounded-3xl shadow-lg transition-all active:scale-95"
+                className="group relative h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-800 border-b-4 border-slate-200 dark:border-slate-700 hover:border-indigo-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-3xl shadow-lg transition-all duration-150 hover:translate-y-0.5 hover:border-b-2 active:scale-95 active:translate-y-1 active:border-b-0 z-0 hover:z-10"
               >
-                <div className={`w-10 h-10 rounded-xl ${btn.color} text-white flex items-center justify-center mb-3 shadow-md transform group-hover:rotate-12 transition-transform`}>
+                <div className={`w-12 h-12 rounded-2xl ${btn.color} text-white flex items-center justify-center mb-3 shadow-md transform group-hover:scale-95 transition-all duration-300`}>
                   <span className="text-xl font-bold">{btn.icon}</span>
                 </div>
                 <span className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">{btn.label}</span>
@@ -69,13 +71,14 @@ const MainMenu: React.FC<MainMenuProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
             {[
               { id: GameMode.METHODS_GRAPHS, label: 'Graphs', icon: '📈', color: 'bg-pink-500' },
+              { id: GameMode.TRIG_EXACT_VALUES, label: 'Trig', icon: '📐', color: 'bg-purple-500' },
             ].map(btn => (
               <button
                 key={btn.id}
                 onClick={() => startNewGame(btn.id)}
-                className="group relative h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-800 border-b-4 border-slate-200 dark:border-slate-700 hover:border-indigo-500 rounded-3xl shadow-lg transition-all active:scale-95"
+                className="group relative h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-800 border-b-4 border-slate-200 dark:border-slate-700 hover:border-indigo-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-3xl shadow-lg transition-all duration-150 hover:translate-y-0.5 hover:border-b-2 active:scale-95 active:translate-y-1 active:border-b-0 z-0 hover:z-10"
               >
-                <div className={`w-10 h-10 rounded-xl ${btn.color} text-white flex items-center justify-center mb-3 shadow-md transform group-hover:rotate-12 transition-transform`}>
+                <div className={`w-12 h-12 rounded-2xl ${btn.color} text-white flex items-center justify-center mb-3 shadow-md transform group-hover:scale-95 transition-all duration-300`}>
                   <span className="text-xl font-bold">{btn.icon}</span>
                 </div>
                 <span className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">{btn.label}</span>
@@ -141,16 +144,6 @@ const MainMenu: React.FC<MainMenuProps> = ({
                 className="w-full py-5 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black rounded-2xl transition-all uppercase tracking-tighter"
               >
                 Close
-              </button>
-              
-              <button 
-                onClick={() => {
-                  onOpenDevTools();
-                  closeSettings();
-                }}
-                className="w-full py-3 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-              >
-                🛠️ Open Diagnostics
               </button>
             </div>
             <p className="mt-6 text-center text-xs font-bold text-slate-400 dark:text-slate-600 uppercase tracking-widest">
