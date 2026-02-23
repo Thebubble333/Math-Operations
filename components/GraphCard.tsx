@@ -257,9 +257,9 @@ const GraphCard: React.FC<GraphCardProps> = ({
     <div 
       onClick={onClick}
       className={`
-        relative aspect-square bg-white dark:bg-slate-50 rounded-xl border-2 cursor-pointer transition-all
+        relative aspect-square bg-white dark:bg-slate-800 rounded-xl border-2 cursor-pointer transition-all
         hover:border-blue-400 hover:shadow-md
-        ${selected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200'}
+        ${selected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200 dark:border-slate-700'}
         ${className}
       `}
     >

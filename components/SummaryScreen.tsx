@@ -24,13 +24,33 @@ const SummaryScreen: React.FC<SummaryScreenProps> = ({
     day: 'numeric' 
   });
 
+  const getModeName = (m: GameMode) => {
+    switch (m) {
+      case GameMode.ADDITION: return 'Addition';
+      case GameMode.SUBTRACTION: return 'Subtraction';
+      case GameMode.MULTIPLICATION: return 'Multiplication';
+      case GameMode.DIVISION: return 'Division';
+      case GameMode.MIXED: return 'Mixed Operations';
+      case GameMode.ADD_SUB_NEGATIVES: return '+/- Negatives';
+      case GameMode.MULT_DIV_NEGATIVES: return '×/÷ Negatives';
+      case GameMode.METHODS_GRAPHS: return 'Methods Graphs';
+      case GameMode.TRIG_EXACT_VALUES: return 'Trig Exact Values';
+      default: return '';
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900 animate-in fade-in duration-500">
       <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-[3rem] p-10 shadow-2xl border-b-8 border-slate-200 dark:border-slate-700 text-center">
         <div className="mb-6">
           <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center text-white text-3xl mx-auto mb-4 shadow-xl">✓</div>
           <h2 className="text-4xl font-black text-slate-800 dark:text-slate-100 italic">SESSION CLEAR</h2>
-          <p className="text-[11px] uppercase font-black text-slate-400 mt-2 tracking-widest">{currentDate}</p>
+          <div className="mt-2 flex flex-col items-center gap-1">
+            <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 text-xs font-bold uppercase tracking-widest rounded-full">
+              {getModeName(mode)}
+            </span>
+            <p className="text-[11px] uppercase font-black text-slate-400 tracking-widest">{currentDate}</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-8">
