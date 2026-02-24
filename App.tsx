@@ -1,9 +1,12 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import 'katex/dist/katex.min.css';
 import { GameMode, GameStats, CurrentStats, MathProblem, GraphConfig } from './types';
 import { generateProblem } from './utils/gameLogic';
 import MainMenu from './components/MainMenu';
+import Seal8Menu from './components/Seal8Menu';
+import Methods12Menu from './components/Methods12Menu';
 import SummaryScreen from './components/SummaryScreen';
 import ActiveGame from './components/ActiveGame';
 import DevTools from './components/DevTools';
@@ -97,7 +100,7 @@ const App: React.FC = () => {
     setForceQuadrant1(initialForceQ1);
     hasErrorOnCurrent.current = false;
 
-    const firstProblem = generateProblem(selectedMode, { forceQuadrant1: initialForceQ1 });
+    const firstProblem = generateProblem(selectedMode, { forceQuadrant1: initialForceQ1, combo: 0 });
     setProblem(firstProblem);
     setInput('');
     setIsSuccess(false);
@@ -148,7 +151,7 @@ const App: React.FC = () => {
         }
         
         setForceQuadrant1(nextForceQ1);
-        setProblem(generateProblem(mode, { forceQuadrant1: nextForceQ1 }));
+        setProblem(generateProblem(mode, { forceQuadrant1: nextForceQ1, combo: newCombo }));
         hasErrorOnCurrent.current = false;
       } else {
         setProblem(null);
@@ -195,12 +198,21 @@ const App: React.FC = () => {
     let cleanVal = val;
 
     // Only clean input for arithmetic modes
-    if (mode !== GameMode.TRIG_EXACT_VALUES && mode !== GameMode.METHODS_GRAPHS) {
+    if (mode !== GameMode.TRIG_EXACT_VALUES && mode !== GameMode.METHODS_GRAPHS && mode !== GameMode.SIMPLIFY_SURDS) {
       // Allow digits and minus sign
       cleanVal = val.replace(/[^0-9-]/g, '');
+    } else if (mode === GameMode.SIMPLIFY_SURDS) {
+      // Allow digits and 'r'
+      cleanVal = val.replace(/[^0-9rR]/g, '').toLowerCase();
     }
     
     setInput(cleanVal);
+
+    if (mode === GameMode.SIMPLIFY_SURDS) {
+      // We handle surd logic in ActiveGame now, so this branch shouldn't be reached for SIMPLIFY_SURDS
+      // But just in case, we do nothing here.
+      return;
+    }
 
     if (cleanVal === problem.answer.toString()) {
       setIsSuccess(true);
@@ -277,21 +289,27 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Main Menu */}
+      {/* Menus */}
       {mode === GameMode.NONE && (
-        <MainMenu
-          stats={stats}
-          darkMode={darkMode}
-          setDarkMode={setDarkMode}
-          showSettings={showSettings}
-          setShowSettings={setShowSettings}
-          startNewGame={startNewGame}
-          exportStandalone={exportStandalone}
-          executeReset={executeReset}
-          isConfirmingReset={isConfirmingReset}
-          closeSettings={closeSettings}
-          onOpenDevTools={() => setShowDevTools(true)}
-        />
+        <Routes>
+          <Route path="/" element={
+            <MainMenu
+              stats={stats}
+              darkMode={darkMode}
+              setDarkMode={setDarkMode}
+              showSettings={showSettings}
+              setShowSettings={setShowSettings}
+              startNewGame={startNewGame}
+              exportStandalone={exportStandalone}
+              executeReset={executeReset}
+              isConfirmingReset={isConfirmingReset}
+              closeSettings={closeSettings}
+              onOpenDevTools={() => setShowDevTools(true)}
+            />
+          } />
+          <Route path="/8seal" element={<Seal8Menu startNewGame={startNewGame} />} />
+          <Route path="/12methods" element={<Methods12Menu startNewGame={startNewGame} />} />
+        </Routes>
       )}
 
       {/* Summary Screen */}
@@ -312,13 +330,17 @@ const App: React.FC = () => {
           setMode={setMode}
           session={session}
           problem={problem}
+          setProblem={setProblem}
           input={input}
           setInput={setInput}
           isShaking={isShaking}
           isCorrectFlash={isCorrectFlash}
           isSuccess={isSuccess}
+          setIsSuccess={setIsSuccess}
           isError={isError}
           handleInputChange={handleInputChange}
+          handleCorrect={handleCorrect}
+          triggerError={triggerError}
           stats={stats}
           accuracy={accuracy}
           targetProblems={TARGET_PROBLEMS}

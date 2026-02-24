@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Latex from 'react-latex-next';
 import { GameMode, GameStats, CurrentStats, MathProblem, GraphConfig } from '../types';
 import Numpad from './Numpad';
@@ -10,13 +10,17 @@ interface ActiveGameProps {
   setMode: (mode: GameMode) => void;
   session: CurrentStats;
   problem: MathProblem | null;
+  setProblem: React.Dispatch<React.SetStateAction<MathProblem | null>>;
   input: string;
   setInput: (val: string) => void;
   isShaking: boolean;
   isCorrectFlash: boolean;
   isSuccess: boolean;
+  setIsSuccess: React.Dispatch<React.SetStateAction<boolean>>;
   isError: boolean;
   handleInputChange: (val: string) => void;
+  handleCorrect: () => void;
+  triggerError: (isSignError?: boolean) => void;
   stats: GameStats;
   accuracy: number;
   targetProblems: number;
@@ -29,13 +33,17 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
   setMode,
   session,
   problem,
+  setProblem,
   input,
   setInput,
   isShaking,
   isCorrectFlash,
   isSuccess,
+  setIsSuccess,
   isError,
   handleInputChange,
+  handleCorrect,
+  triggerError,
   stats,
   accuracy,
   targetProblems,
@@ -43,6 +51,136 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
   graphConfig,
 }) => {
   const progressPercentage = (session.correctCount / targetProblems) * 100;
+
+  const [surdOutside, setSurdOutside] = useState('');
+  const [surdInside, setSurdInside] = useState('');
+  const [surdFocus, setSurdFocus] = useState<'outside'|'inside'>('outside');
+
+  useEffect(() => {
+    setSurdOutside('');
+    setSurdInside('');
+    setSurdFocus('outside');
+    setInput('');
+  }, [problem, setInput]);
+
+  useEffect(() => {
+    if (!isError && mode === GameMode.SIMPLIFY_SURDS) {
+      setSurdOutside('');
+      setSurdInside('');
+      setSurdFocus('outside');
+    }
+  }, [isError, mode]);
+
+  const handleSurdInput = (val: string) => {
+    if (!problem || session.endTime || isSuccess || isError) return;
+
+    if (val === 'Backspace' || val === 'C') {
+      if (surdFocus === 'inside') {
+        if (surdInside.length > 0) {
+          setSurdInside(surdInside.slice(0, -1));
+        } else {
+          setSurdFocus('outside');
+        }
+      } else {
+        setSurdOutside(surdOutside.slice(0, -1));
+      }
+      return;
+    }
+
+    if (val === 'r' || val === 'R' || val === '√') {
+      setSurdFocus('inside');
+      return;
+    }
+
+    if (!/[0-9]/.test(val)) return;
+
+    const ans = JSON.parse(problem.answer);
+    const expectedV = ans.v;
+    const expectedO = ans.o;
+    const expectedI = ans.i;
+
+    if (surdFocus === 'outside') {
+      const newOut = surdOutside + val;
+      const o = parseInt(newOut);
+      
+      if (o * o > expectedV) {
+        triggerError();
+        return;
+      }
+
+      const canAppend = (o * 10) * (o * 10) <= expectedV;
+      const isValidNow = expectedV % (o * o) === 0;
+
+      setSurdOutside(newOut);
+
+      if (o === expectedO) {
+        setTimeout(() => setSurdFocus('inside'), 50);
+      } else if (!canAppend) {
+        if (isValidNow) {
+          setTimeout(() => setSurdFocus('inside'), 50);
+        } else {
+          triggerError();
+        }
+      }
+    } else {
+      const newIn = surdInside + val;
+      setSurdInside(newIn);
+      
+      const o = parseInt(surdOutside) || 1;
+      const i = parseInt(newIn);
+      const userV = o * o * i;
+
+      if (userV === expectedV) {
+        if (o === expectedO && i === expectedI) {
+          setIsSuccess(true);
+          setTimeout(() => {
+            handleCorrect();
+            setIsSuccess(false);
+          }, 250);
+        } else if (o > ans.a) {
+          setIsSuccess(true);
+          setTimeout(() => {
+            setProblem(prev => {
+              if (!prev) return prev;
+              const newAns = { ...ans, a: o, n: i };
+              return {
+                ...prev,
+                question: o === 1 ? `\\sqrt{${i}}` : `${o}\\sqrt{${i}}`,
+                answer: JSON.stringify(newAns)
+              };
+            });
+            setSurdOutside('');
+            setSurdInside('');
+            setSurdFocus('outside');
+            setIsSuccess(false);
+          }, 500);
+        } else {
+          triggerError();
+        }
+      } else {
+        if (userV > expectedV || userV * 10 > expectedV) {
+          triggerError();
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (mode !== GameMode.SIMPLIFY_SURDS) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Backspace') {
+        handleSurdInput('Backspace');
+      } else if (e.key.toLowerCase() === 'r') {
+        handleSurdInput('r');
+      } else if (/[0-9]/.test(e.key) && e.key.length === 1) {
+        handleSurdInput(e.key);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mode, surdOutside, surdInside, surdFocus, problem, isSuccess, isError]);
 
   return (
     <div className={`min-h-screen transition-all duration-300 flex flex-col p-4 ${isCorrectFlash ? 'success-glow' : ''} bg-slate-50 dark:bg-slate-900`}>
@@ -82,8 +220,8 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
             <div className="text-[12px] absolute -top-8 left-1/2 -translate-x-1/2 font-black text-slate-300 dark:text-slate-700 uppercase tracking-[0.4em]">
               Problem {session.correctCount + 1} / {targetProblems}
             </div>
-            <div className={`${mode === GameMode.METHODS_GRAPHS || mode === GameMode.TRIG_EXACT_VALUES ? 'text-4xl sm:text-6xl py-4' : 'text-8xl sm:text-[10rem]'} font-black tracking-tighter text-slate-800 dark:text-slate-50 tabular-nums select-none drop-shadow-sm`}>
-              {mode === GameMode.METHODS_GRAPHS || mode === GameMode.TRIG_EXACT_VALUES ? (
+            <div className={`${mode === GameMode.METHODS_GRAPHS || mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INDEX_LAWS || mode === GameMode.SIMPLIFY_SURDS ? 'text-4xl sm:text-6xl py-4' : 'text-8xl sm:text-[10rem]'} font-black tracking-tighter text-slate-800 dark:text-slate-50 tabular-nums select-none drop-shadow-sm`}>
+              {mode === GameMode.METHODS_GRAPHS || mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INDEX_LAWS || mode === GameMode.SIMPLIFY_SURDS ? (
                 <Latex>{`$${problem?.question}$`}</Latex>
               ) : (
                 problem?.question
@@ -113,6 +251,39 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
               isSuccess={isSuccess}
               isError={isError}
             />
+          ) : mode === GameMode.SIMPLIFY_SURDS ? (
+            <>
+              <div className="flex items-center justify-center text-5xl sm:text-7xl font-black py-4">
+                <div 
+                  className={`px-2 min-w-[1ch] text-right border-b-8 transition-all ${
+                    isSuccess ? 'border-emerald-500 text-emerald-500' :
+                    isError ? 'border-rose-500 text-rose-500' :
+                    surdFocus === 'outside' ? 'border-indigo-500 text-indigo-500' : 'border-transparent text-slate-900 dark:text-white'
+                  }`}
+                  onClick={() => setSurdFocus('outside')}
+                >
+                  {surdOutside || (surdFocus === 'outside' ? <span className="opacity-20">?</span> : '')}
+                </div>
+                <div className={`text-slate-900 dark:text-white pb-2 mx-1 select-none ${isSuccess ? 'text-emerald-500' : isError ? 'text-rose-500' : ''}`}>
+                  √
+                </div>
+                <div 
+                  className={`px-2 min-w-[1ch] text-left border-b-8 transition-all ${
+                    isSuccess ? 'border-emerald-500 text-emerald-500' :
+                    isError ? 'border-rose-500 text-rose-500' :
+                    surdFocus === 'inside' ? 'border-indigo-500 text-indigo-500' : 'border-transparent text-slate-900 dark:text-white'
+                  }`}
+                  onClick={() => setSurdFocus('inside')}
+                >
+                  {surdInside || (surdFocus === 'inside' ? <span className="opacity-20">?</span> : '')}
+                </div>
+              </div>
+              <Numpad 
+                onKeyPress={(key) => handleSurdInput(key)} 
+                onClear={() => handleSurdInput('C')}
+                mode={mode}
+              />
+            </>
           ) : (
             <>
               <div className="relative w-full max-w-xs mx-auto">
@@ -136,6 +307,7 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
               <Numpad 
                 onKeyPress={(key) => handleInputChange(input + key)} 
                 onClear={() => setInput('')}
+                mode={mode}
               />
             </>
           )}

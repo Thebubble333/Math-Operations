@@ -194,7 +194,114 @@ const generateTrigProblem = (forceQuadrant1: boolean = false): MathProblem => {
   };
 };
 
-export const generateProblem = (mode: GameMode, options?: { forceQuadrant1?: boolean }): MathProblem => {
+const generateIndexLawsProblem = (): MathProblem => {
+  const types = ['multiply', 'divide', 'power'];
+  const type = types[Math.floor(Math.random() * types.length)];
+  
+  let a = Math.floor(Math.random() * 11) - 5; // -5 to 5
+  let b = Math.floor(Math.random() * 11) - 5; // -5 to 5
+  
+  // Ensure we don't get 0 for both to make it slightly more interesting
+  if (a === 0 && b === 0) a = 2;
+
+  let question = '';
+  let answer = 0;
+
+  switch (type) {
+    case 'multiply':
+      question = `x^{${a}} \\times x^{${b}} = x^{?}`;
+      answer = a + b;
+      break;
+    case 'divide':
+      question = `\\frac{x^{${a}}}{x^{${b}}} = x^{?}`;
+      answer = a - b;
+      break;
+    case 'power':
+      question = `(x^{${a}})^{${b}} = x^{?}`;
+      answer = a * b;
+      break;
+  }
+
+  return {
+    question,
+    answer: answer.toString(),
+    type: 'arithmetic' // We can treat it as arithmetic since the answer is just a number
+  };
+};
+
+const generateSurdsProblem = (combo: number): MathProblem => {
+  let a = 1;
+  let perfectSquareBase = 2;
+  let nonSquareFactor = 2;
+
+  if (combo >= 7) {
+    const largeOptions = [
+      { sq: 10, ns: 2 }, // 200 -> 10r2
+      { sq: 10, ns: 3 }, // 300 -> 10r3
+      { sq: 10, ns: 5 }, // 500 -> 10r5
+      { sq: 2, ns: 111 }, // 444 -> 2r111
+      { sq: 3, ns: 111 }, // 999 -> 3r111
+    ];
+    const pick = largeOptions[Math.floor(Math.random() * largeOptions.length)];
+    perfectSquareBase = pick.sq;
+    nonSquareFactor = pick.ns;
+    if (Math.random() < 0.5) {
+      a = Math.floor(Math.random() * 4) + 2; // 2 to 5
+    }
+  } else if (combo >= 4) {
+    a = Math.floor(Math.random() * 3) + 1; // 1 to 3
+    const bases = [4, 6, 8, 9]; 
+    perfectSquareBase = bases[Math.floor(Math.random() * bases.length)];
+    const nsOptions = [2, 3, 5];
+    nonSquareFactor = nsOptions[Math.floor(Math.random() * nsOptions.length)];
+  } else if (combo >= 2) {
+    a = Math.floor(Math.random() * 3) + 2; // 2 to 4
+    const bases = [2, 3, 5]; 
+    perfectSquareBase = bases[Math.floor(Math.random() * bases.length)];
+    const nsOptions = [2, 3, 5, 6, 7, 10];
+    nonSquareFactor = nsOptions[Math.floor(Math.random() * nsOptions.length)];
+  } else {
+    const bases = [2, 3, 5]; 
+    perfectSquareBase = bases[Math.floor(Math.random() * bases.length)];
+    const nsOptions = [2, 3, 5, 6, 7, 10];
+    nonSquareFactor = nsOptions[Math.floor(Math.random() * nsOptions.length)];
+  }
+
+  const n = (perfectSquareBase * perfectSquareBase) * nonSquareFactor;
+  
+  let question = '';
+  if (a === 1) {
+    question = `\\sqrt{${n}}`;
+  } else {
+    question = `${a}\\sqrt{${n}}`;
+  }
+
+  const outA = a * perfectSquareBase;
+  
+  const answerObj = {
+    v: a * a * n,
+    o: outA,
+    i: nonSquareFactor,
+    a: a,
+    n: n
+  };
+
+  return {
+    question,
+    answer: JSON.stringify(answerObj),
+    type: 'arithmetic'
+  };
+};
+
+export const generateProblem = (mode: GameMode, options?: { forceQuadrant1?: boolean, combo?: number }): MathProblem => {
+  if (mode === GameMode.SIMPLIFY_SURDS) {
+    return generateSurdsProblem(options?.combo || 0);
+  }
+
+  if (mode === GameMode.INDEX_LAWS) {
+    return generateIndexLawsProblem();
+  }
+
   if (mode === GameMode.METHODS_GRAPHS) {
     return generateGraphProblem();
   }

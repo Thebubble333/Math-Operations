@@ -35,6 +35,8 @@ const SummaryScreen: React.FC<SummaryScreenProps> = ({
       case GameMode.MULT_DIV_NEGATIVES: return '×/÷ Negatives';
       case GameMode.METHODS_GRAPHS: return 'Methods Graphs';
       case GameMode.TRIG_EXACT_VALUES: return 'Trig Exact Values';
+      case GameMode.INDEX_LAWS: return 'Index Laws';
+      case GameMode.SIMPLIFY_SURDS: return 'Simplify Surds';
       default: return '';
     }
   };
@@ -82,7 +84,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = ({
           onClick={() => setMode(GameMode.NONE)}
           className="w-full py-5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-black rounded-3xl transition-all uppercase tracking-tight"
         >
-          Main Menu
+          Back to Menu
         </button>
       </div>
     </div>

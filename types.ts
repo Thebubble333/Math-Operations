@@ -9,6 +9,8 @@ export enum GameMode {
   MULT_DIV_NEGATIVES = 'mult_div_negatives',
   METHODS_GRAPHS = 'methods_graphs',
   TRIG_EXACT_VALUES = 'trig_exact_values',
+  INDEX_LAWS = 'index_laws',
+  SIMPLIFY_SURDS = 'simplify_surds',
   NONE = 'none'
 }
 
