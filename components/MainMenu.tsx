@@ -71,7 +71,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
         {/* Navigation Section */}
         <div>
           <h2 className="text-xl font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 px-2">Advanced Modules</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <button
               onClick={() => navigate('/8seal')}
               className="group relative h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-800 border-b-4 border-slate-200 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:border-indigo-300 dark:hover:border-indigo-800 rounded-3xl shadow-lg transition-all duration-150 hover:translate-y-1 hover:border-b-0 active:scale-95 z-0 hover:z-10"
@@ -82,6 +82,16 @@ const MainMenu: React.FC<MainMenuProps> = ({
               <span className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">8 SEAL</span>
             </button>
             
+            <button
+              onClick={() => navigate('/11spec')}
+              className="group relative h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-800 border-b-4 border-slate-200 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:border-indigo-300 dark:hover:border-indigo-800 rounded-3xl shadow-lg transition-all duration-150 hover:translate-y-1 hover:border-b-0 active:scale-95 z-0 hover:z-10"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center mb-3 shadow-md transform group-hover:scale-90 transition-all duration-200">
+                <span className="text-xl font-bold">11</span>
+              </div>
+              <span className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">11 Spec</span>
+            </button>
+
             <button
               onClick={() => navigate('/12methods')}
               className="group relative h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-800 border-b-4 border-slate-200 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:border-indigo-300 dark:hover:border-indigo-800 rounded-3xl shadow-lg transition-all duration-150 hover:translate-y-1 hover:border-b-0 active:scale-95 z-0 hover:z-10"

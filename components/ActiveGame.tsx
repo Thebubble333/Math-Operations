@@ -56,20 +56,111 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
   const [surdInside, setSurdInside] = useState('');
   const [surdFocus, setSurdFocus] = useState<'outside'|'inside'>('outside');
 
+  const [sciA, setSciA] = useState('');
+  const [sciN, setSciN] = useState('');
+  const [sciFocus, setSciFocus] = useState<'a'|'n'>('a');
+
   useEffect(() => {
     setSurdOutside('');
     setSurdInside('');
     setSurdFocus('outside');
+    setSciA('');
+    setSciN('');
+    setSciFocus('a');
     setInput('');
   }, [problem, setInput]);
 
   useEffect(() => {
-    if (!isError && mode === GameMode.SIMPLIFY_SURDS) {
-      setSurdOutside('');
-      setSurdInside('');
-      setSurdFocus('outside');
+    if (!isError) {
+      if (mode === GameMode.SIMPLIFY_SURDS) {
+        setSurdOutside('');
+        setSurdInside('');
+        setSurdFocus('outside');
+      } else if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
+        setSciA('');
+        setSciN('');
+        setSciFocus('a');
+        setInput('');
+      }
     }
-  }, [isError, mode]);
+  }, [isError, mode, setInput]);
+
+  const handleSciInput = (val: string) => {
+    if (!problem || session.endTime || isSuccess || isError) return;
+
+    const ans = JSON.parse(problem.answer);
+    const isSci = ans.type === 'sci';
+
+    if (val === 'Backspace' || val === 'C') {
+      if (isSci) {
+        if (sciFocus === 'n') {
+          if (sciN.length > 0) {
+            setSciN(sciN.slice(0, -1));
+          } else {
+            setSciFocus('a');
+          }
+        } else {
+          setSciA(sciA.slice(0, -1));
+        }
+      } else {
+        setInput(input.slice(0, -1));
+      }
+      return;
+    }
+
+    if (isSci && (val === 'EXP' || val === 'e' || val === 'E')) {
+      setSciFocus('n');
+      return;
+    }
+
+    if (!/[0-9.-]/.test(val)) return;
+
+    if (isSci) {
+      if (sciFocus === 'a') {
+        if (val === '-' && sciA.length > 0) return;
+        if (val === '.' && sciA.includes('.')) return;
+        const newA = sciA + val;
+        setSciA(newA);
+        
+        if (newA === ans.a) {
+          setTimeout(() => setSciFocus('n'), 50);
+        } else if (newA.length >= ans.a.length && newA !== ans.a) {
+          triggerError();
+        }
+      } else {
+        if (val === '-' && sciN.length > 0) return;
+        if (val === '.') return; // No decimals in exponent
+        const newN = sciN + val;
+        setSciN(newN);
+        
+        if (newN === ans.n && sciA === ans.a) {
+          setIsSuccess(true);
+          setTimeout(() => {
+            handleCorrect();
+            setIsSuccess(false);
+          }, 250);
+        } else if (newN.length >= ans.n.length && newN !== ans.n) {
+          triggerError();
+        }
+      }
+    } else {
+      if (val === '-' && input.length > 0) return;
+      if (val === '.' && input.includes('.')) return;
+      
+      const newVal = input + val;
+      setInput(newVal);
+      
+      if (newVal === ans.value) {
+        setIsSuccess(true);
+        setTimeout(() => {
+          handleCorrect();
+          setIsSuccess(false);
+        }, ans.type === 'count_sf' ? 500 : 250);
+      } else if (newVal.length >= ans.value.length && newVal !== ans.value) {
+        triggerError();
+      }
+    }
+  };
 
   const handleSurdInput = (val: string) => {
     if (!problem || session.endTime || isSuccess || isError) return;
@@ -166,21 +257,35 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
   };
 
   useEffect(() => {
-    if (mode !== GameMode.SIMPLIFY_SURDS) return;
-    
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Backspace') {
-        handleSurdInput('Backspace');
-      } else if (e.key.toLowerCase() === 'r') {
-        handleSurdInput('r');
-      } else if (/[0-9]/.test(e.key) && e.key.length === 1) {
-        handleSurdInput(e.key);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mode, surdOutside, surdInside, surdFocus, problem, isSuccess, isError]);
+    if (mode === GameMode.SIMPLIFY_SURDS) {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Backspace') {
+          handleSurdInput('Backspace');
+        } else if (e.key.toLowerCase() === 'r') {
+          handleSurdInput('r');
+        } else if (/[0-9]/.test(e.key) && e.key.length === 1) {
+          handleSurdInput(e.key);
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    } else if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        // Only handle keydown if we are not focused on the input element
+        if (document.activeElement === inputRef.current) return;
+        
+        if (e.key === 'Backspace') {
+          handleSciInput('Backspace');
+        } else if (e.key.toLowerCase() === 'e') {
+          handleSciInput('EXP');
+        } else if (/[0-9.-]/.test(e.key) && e.key.length === 1) {
+          handleSciInput(e.key);
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [mode, surdOutside, surdInside, surdFocus, sciA, sciN, sciFocus, input, problem, isSuccess, isError]);
 
   return (
     <div className={`min-h-screen transition-all duration-300 flex flex-col p-4 ${isCorrectFlash ? 'success-glow' : ''} bg-slate-50 dark:bg-slate-900`}>
@@ -220,9 +325,34 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
             <div className="text-[12px] absolute -top-8 left-1/2 -translate-x-1/2 font-black text-slate-300 dark:text-slate-700 uppercase tracking-[0.4em]">
               Problem {session.correctCount + 1} / {targetProblems}
             </div>
-            <div className={`${mode === GameMode.METHODS_GRAPHS || mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INDEX_LAWS || mode === GameMode.SIMPLIFY_SURDS ? 'text-4xl sm:text-6xl py-4' : 'text-8xl sm:text-[10rem]'} font-black tracking-tighter text-slate-800 dark:text-slate-50 tabular-nums select-none drop-shadow-sm`}>
-              {mode === GameMode.METHODS_GRAPHS || mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INDEX_LAWS || mode === GameMode.SIMPLIFY_SURDS ? (
-                <Latex>{`$${problem?.question}$`}</Latex>
+            <div className={`${mode === GameMode.METHODS_GRAPHS || mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INVERSE_TRIG_EXACT_VALUES || mode === GameMode.INDEX_LAWS || mode === GameMode.SIMPLIFY_SURDS || mode === GameMode.SIG_FIGS_SCI_NOTATION ? 'text-4xl sm:text-6xl py-4' : 'text-8xl sm:text-[10rem]'} font-black tracking-tighter text-slate-800 dark:text-slate-50 tabular-nums select-none drop-shadow-sm`}>
+              {mode === GameMode.METHODS_GRAPHS || mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INVERSE_TRIG_EXACT_VALUES || mode === GameMode.INDEX_LAWS || mode === GameMode.SIMPLIFY_SURDS || mode === GameMode.SIG_FIGS_SCI_NOTATION ? (
+                problem && mode === GameMode.SIG_FIGS_SCI_NOTATION && JSON.parse(problem.answer).type === 'count_sf' ? (
+                  <div className="flex items-center justify-center">
+                    <Latex>{`$\\text{Sig figs in }$`}</Latex>
+                    <span className="ml-2 font-mono tracking-widest relative">
+                      {(() => {
+                        const ans = JSON.parse(problem.answer);
+                        const numStr = ans.numStr;
+                        const sigStart = ans.sigStart;
+                        const sigEnd = ans.sigEnd;
+                        
+                        return (
+                          <>
+                            <span>{numStr.slice(0, sigStart)}</span>
+                            <span className={`${isSuccess ? 'bg-emerald-300/50 dark:bg-emerald-500/50 rounded px-0.5 transition-colors duration-300' : ''}`}>
+                              {numStr.slice(sigStart, sigEnd)}
+                            </span>
+                            <span>{numStr.slice(sigEnd)}</span>
+                          </>
+                        );
+                      })()}
+                    </span>
+                    <Latex>{`$?$`}</Latex>
+                  </div>
+                ) : (
+                  <Latex>{`$${problem?.question}$`}</Latex>
+                )
               ) : (
                 problem?.question
               )}
@@ -244,12 +374,13 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                 />
               ))}
             </div>
-          ) : mode === GameMode.TRIG_EXACT_VALUES && problem ? (
+          ) : (mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INVERSE_TRIG_EXACT_VALUES) && problem ? (
             <TrigGame 
               problem={problem}
               onAnswer={handleInputChange}
               isSuccess={isSuccess}
               isError={isError}
+              isInverse={mode === GameMode.INVERSE_TRIG_EXACT_VALUES}
             />
           ) : mode === GameMode.SIMPLIFY_SURDS ? (
             <>
@@ -284,15 +415,81 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                 mode={mode}
               />
             </>
+          ) : mode === GameMode.SIG_FIGS_SCI_NOTATION && problem && JSON.parse(problem.answer).type === 'sci' ? (
+            <>
+              <div className="flex items-center justify-center text-5xl sm:text-7xl font-black py-4">
+                <div 
+                  className={`px-2 min-w-[1ch] text-right border-b-8 transition-all ${
+                    isSuccess ? 'border-emerald-500 text-emerald-500' :
+                    isError ? 'border-rose-500 text-rose-500' :
+                    sciFocus === 'a' ? 'border-indigo-500 text-indigo-500' : 'border-transparent text-slate-900 dark:text-white'
+                  }`}
+                  onClick={() => setSciFocus('a')}
+                >
+                  {sciA || (sciFocus === 'a' ? <span className="opacity-20">?</span> : '')}
+                </div>
+                <div className={`text-slate-900 dark:text-white pb-2 mx-1 select-none text-3xl sm:text-5xl ${isSuccess ? 'text-emerald-500' : isError ? 'text-rose-500' : ''}`}>
+                  ×10
+                </div>
+                <div className="flex flex-col justify-start h-full pb-8">
+                  <div 
+                    className={`px-1 min-w-[1ch] text-left border-b-4 transition-all text-2xl sm:text-4xl ${
+                      isSuccess ? 'border-emerald-500 text-emerald-500' :
+                      isError ? 'border-rose-500 text-rose-500' :
+                      sciFocus === 'n' ? 'border-indigo-500 text-indigo-500' : 'border-transparent text-slate-900 dark:text-white'
+                    }`}
+                    onClick={() => setSciFocus('n')}
+                  >
+                    {sciN || (sciFocus === 'n' ? <span className="opacity-20">?</span> : '')}
+                  </div>
+                </div>
+              </div>
+              <Numpad 
+                onKeyPress={(key) => handleSciInput(key)} 
+                onClear={() => handleSciInput('C')}
+                mode={mode}
+              />
+            </>
           ) : (
             <>
               <div className="relative w-full max-w-xs mx-auto">
                 <input
                   ref={inputRef}
-                  type="tel"
+                  type={mode === GameMode.SIG_FIGS_SCI_NOTATION ? "text" : "tel"}
+                  inputMode={mode === GameMode.SIG_FIGS_SCI_NOTATION ? "decimal" : "numeric"}
                   autoFocus
                   value={input}
-                  onChange={(e) => handleInputChange(e.target.value)}
+                  onChange={(e) => {
+                    if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
+                      const val = e.target.value;
+                      // If the user pasted or typed multiple characters at once
+                      if (Math.abs(val.length - input.length) > 1) {
+                        setInput(val.replace(/[^0-9.-]/g, ''));
+                        
+                        // Check if it matches
+                        if (!problem) return;
+                        const ans = JSON.parse(problem.answer);
+                        if (ans.type !== 'sci') {
+                          const cleanVal = val.replace(/[^0-9.-]/g, '');
+                          if (cleanVal === ans.value) {
+                            setIsSuccess(true);
+                            setTimeout(() => {
+                              handleCorrect();
+                              setIsSuccess(false);
+                            }, ans.type === 'count_sf' ? 500 : 250);
+                          } else if (cleanVal.length >= ans.value.length && cleanVal !== ans.value) {
+                            triggerError();
+                          }
+                        }
+                      } else if (val.length < input.length) {
+                        handleSciInput('Backspace');
+                      } else {
+                        handleSciInput(val.slice(-1));
+                      }
+                    } else {
+                      handleInputChange(e.target.value);
+                    }
+                  }}
                   className={`w-full bg-transparent text-center text-7xl font-black py-4 outline-none border-b-8 transition-all caret-indigo-500 ${
                     isSuccess 
                       ? 'text-emerald-500 border-emerald-500' 
@@ -305,8 +502,20 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                 />
               </div>
               <Numpad 
-                onKeyPress={(key) => handleInputChange(input + key)} 
-                onClear={() => setInput('')}
+                onKeyPress={(key) => {
+                  if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
+                    handleSciInput(key);
+                  } else {
+                    handleInputChange(input + key);
+                  }
+                }} 
+                onClear={() => {
+                  if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
+                    handleSciInput('C');
+                  } else {
+                    setInput('');
+                  }
+                }}
                 mode={mode}
               />
             </>

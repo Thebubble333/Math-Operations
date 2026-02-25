@@ -37,6 +37,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = ({
       case GameMode.TRIG_EXACT_VALUES: return 'Trig Exact Values';
       case GameMode.INDEX_LAWS: return 'Index Laws';
       case GameMode.SIMPLIFY_SURDS: return 'Simplify Surds';
+      case GameMode.SIG_FIGS_SCI_NOTATION: return 'Sig Figs & Sci Notation';
       default: return '';
     }
   };

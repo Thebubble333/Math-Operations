@@ -20,7 +20,7 @@ const Seal8Menu: React.FC<Seal8MenuProps> = ({ startNewGame }) => {
 
       <div className="w-full max-w-4xl space-y-8">
         <div>
-          <h2 className="text-xl font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 px-2">Index Laws</h2>
+          <h2 className="text-xl font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 px-2">Index Laws & Surds</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
               { id: GameMode.INDEX_LAWS, label: 'Neg Powers', icon: 'x⁻ⁿ', color: 'bg-indigo-500' },
@@ -30,6 +30,26 @@ const Seal8Menu: React.FC<Seal8MenuProps> = ({ startNewGame }) => {
                 key={btn.id}
                 onClick={() => startNewGame(btn.id)}
                 className="group relative h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-800 border-b-4 border-slate-200 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:border-indigo-300 dark:hover:border-indigo-800 rounded-3xl shadow-lg transition-all duration-150 hover:translate-y-1 hover:border-b-0 active:scale-95 z-0 hover:z-10"
+              >
+                <div className={`w-12 h-12 rounded-2xl ${btn.color} text-white flex items-center justify-center mb-3 shadow-md transform group-hover:scale-90 transition-all duration-200`}>
+                  <span className="text-xl font-bold">{btn.icon}</span>
+                </div>
+                <span className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">{btn.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-xl font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 px-2">Number</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[
+              { id: GameMode.SIG_FIGS_SCI_NOTATION, label: 'Sig Figs & Sci', icon: '10ⁿ', color: 'bg-emerald-500' },
+            ].map(btn => (
+              <button
+                key={btn.id}
+                onClick={() => startNewGame(btn.id)}
+                className="group relative h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-800 border-b-4 border-slate-200 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-300 dark:hover:border-emerald-800 rounded-3xl shadow-lg transition-all duration-150 hover:translate-y-1 hover:border-b-0 active:scale-95 z-0 hover:z-10"
               >
                 <div className={`w-12 h-12 rounded-2xl ${btn.color} text-white flex items-center justify-center mb-3 shadow-md transform group-hover:scale-90 transition-all duration-200`}>
                   <span className="text-xl font-bold">{btn.icon}</span>

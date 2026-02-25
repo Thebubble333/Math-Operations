@@ -194,6 +194,62 @@ const generateTrigProblem = (forceQuadrant1: boolean = false): MathProblem => {
   };
 };
 
+const generateInverseTrigProblem = (): MathProblem => {
+  const funcs = ['\\sin^{-1}', '\\cos^{-1}', '\\tan^{-1}', '\\arcsin', '\\arccos', '\\arctan'];
+  const func = funcs[Math.floor(Math.random() * funcs.length)];
+  
+  const isSin = func.includes('sin');
+  const isCos = func.includes('cos');
+  const isTan = func.includes('tan');
+
+  let values: { val: string, ans: string, rad: number }[] = [];
+
+  if (isSin) {
+    values = [
+      { val: '0', ans: '0', rad: 0 },
+      { val: '\\frac{1}{2}', ans: '\\frac{\\pi}{6}', rad: Math.PI/6 },
+      { val: '\\frac{\\sqrt{2}}{2}', ans: '\\frac{\\pi}{4}', rad: Math.PI/4 },
+      { val: '\\frac{\\sqrt{3}}{2}', ans: '\\frac{\\pi}{3}', rad: Math.PI/3 },
+      { val: '1', ans: '\\frac{\\pi}{2}', rad: Math.PI/2 },
+      { val: '-\\frac{1}{2}', ans: '-\\frac{\\pi}{6}', rad: -Math.PI/6 },
+      { val: '-\\frac{\\sqrt{2}}{2}', ans: '-\\frac{\\pi}{4}', rad: -Math.PI/4 },
+      { val: '-\\frac{\\sqrt{3}}{2}', ans: '-\\frac{\\pi}{3}', rad: -Math.PI/3 },
+      { val: '-1', ans: '-\\frac{\\pi}{2}', rad: -Math.PI/2 },
+    ];
+  } else if (isCos) {
+    values = [
+      { val: '1', ans: '0', rad: 0 },
+      { val: '\\frac{\\sqrt{3}}{2}', ans: '\\frac{\\pi}{6}', rad: Math.PI/6 },
+      { val: '\\frac{\\sqrt{2}}{2}', ans: '\\frac{\\pi}{4}', rad: Math.PI/4 },
+      { val: '\\frac{1}{2}', ans: '\\frac{\\pi}{3}', rad: Math.PI/3 },
+      { val: '0', ans: '\\frac{\\pi}{2}', rad: Math.PI/2 },
+      { val: '-\\frac{1}{2}', ans: '\\frac{2\\pi}{3}', rad: 2*Math.PI/3 },
+      { val: '-\\frac{\\sqrt{2}}{2}', ans: '\\frac{3\\pi}{4}', rad: 3*Math.PI/4 },
+      { val: '-\\frac{\\sqrt{3}}{2}', ans: '\\frac{5\\pi}{6}', rad: 5*Math.PI/6 },
+      { val: '-1', ans: '\\pi', rad: Math.PI },
+    ];
+  } else if (isTan) {
+    values = [
+      { val: '0', ans: '0', rad: 0 },
+      { val: '\\frac{1}{\\sqrt{3}}', ans: '\\frac{\\pi}{6}', rad: Math.PI/6 },
+      { val: '1', ans: '\\frac{\\pi}{4}', rad: Math.PI/4 },
+      { val: '\\sqrt{3}', ans: '\\frac{\\pi}{3}', rad: Math.PI/3 },
+      { val: '-\\frac{1}{\\sqrt{3}}', ans: '-\\frac{\\pi}{6}', rad: -Math.PI/6 },
+      { val: '-1', ans: '-\\frac{\\pi}{4}', rad: -Math.PI/4 },
+      { val: '-\\sqrt{3}', ans: '-\\frac{\\pi}{3}', rad: -Math.PI/3 },
+    ];
+  }
+
+  const selected = values[Math.floor(Math.random() * values.length)];
+
+  return {
+    question: `${func}\\left(${selected.val}\\right)`,
+    answer: selected.ans,
+    type: 'trig',
+    angle: selected.rad
+  };
+};
+
 const generateIndexLawsProblem = (): MathProblem => {
   const types = ['multiply', 'divide', 'power'];
   const type = types[Math.floor(Math.random() * types.length)];
@@ -293,9 +349,185 @@ const generateSurdsProblem = (combo: number): MathProblem => {
   };
 };
 
+const generateSigFigsProblem = (combo: number): MathProblem => {
+  const types = ['round_dp', 'round_sf', 'count_sf', 'to_decimal', 'to_sci'];
+  const type = types[Math.floor(Math.random() * types.length)];
+
+  let question = '';
+  let answerObj: any = {};
+
+  const roundToDp = (numStr: string, dp: number) => {
+    const num = parseFloat(numStr);
+    const rounded = Number(Math.round(Number(num + 'e' + dp)) + 'e' + -dp);
+    return rounded.toFixed(dp);
+  };
+
+  const roundToSf = (numStr: string, sf: number) => {
+    const num = parseFloat(numStr);
+    if (num === 0) return '0';
+    const magnitude = Math.floor(Math.log10(Math.abs(num)));
+    const dp = sf - 1 - magnitude;
+    const rounded = Number(Math.round(Number(num + 'e' + dp)) + 'e' + -dp);
+    
+    if (dp > 0) {
+      return rounded.toFixed(dp);
+    } else {
+      // For large numbers, toFixed(0) prevents scientific notation and ensures trailing zeros are kept
+      return rounded.toFixed(0);
+    }
+  };
+
+  if (type === 'round_dp') {
+    const whole = Math.floor(Math.random() * 100);
+    const dp = Math.floor(Math.random() * 3) + 1; // 1 to 3
+    const extraDp = dp + Math.floor(Math.random() * 2) + 1; // dp + 1 or dp + 2
+    let fracStr = '';
+    for (let i=0; i<extraDp; i++) fracStr += Math.floor(Math.random() * 10).toString();
+    const numStr = `${whole}.${fracStr}`;
+    
+    const ansStr = roundToDp(numStr, dp);
+    
+    question = `\\text{Round } ${numStr} \\text{ to } ${dp} \\text{ d.p.}`;
+    answerObj = { type: 'normal', value: ansStr };
+  } else if (type === 'round_sf') {
+    const isDecimal = Math.random() < 0.5;
+    const sf = Math.floor(Math.random() * 3) + 1; // 1 to 3
+    
+    let numStr = '';
+    if (isDecimal) {
+      const zeros = Math.floor(Math.random() * 3) + 1;
+      let digits = '';
+      for(let i=0; i<sf + 2; i++) {
+        digits += (i===0 ? Math.floor(Math.random()*9)+1 : Math.floor(Math.random()*10)).toString();
+      }
+      numStr = `0.${'0'.repeat(zeros)}${digits}`;
+    } else {
+      let digits = '';
+      for(let i=0; i<sf + 2; i++) {
+        digits += (i===0 ? Math.floor(Math.random()*9)+1 : Math.floor(Math.random()*10)).toString();
+      }
+      const extraZeros = Math.floor(Math.random() * 3);
+      numStr = digits + '0'.repeat(extraZeros);
+    }
+    
+    const ansStr = roundToSf(numStr, sf);
+    
+    question = `\\text{Round } ${numStr} \\text{ to } ${sf} \\text{ s.f.}`;
+    answerObj = { type: 'normal', value: ansStr };
+  } else if (type === 'count_sf') {
+    const isDecimal = Math.random() < 0.7;
+    let numStr = '';
+    let sfCount = 0;
+    let sigStart = 0;
+    let sigEnd = 0;
+    
+    if (isDecimal) {
+      const leadingZeros = Math.floor(Math.random() * 4); // 0 to 3
+      const sigDigits = Math.floor(Math.random() * 4) + 1; // 1 to 4
+      const trailingZeros = Math.floor(Math.random() * 3); // 0 to 2
+      
+      let digits = (Math.floor(Math.random()*9)+1).toString();
+      for(let i=1; i<sigDigits; i++) digits += Math.floor(Math.random()*10).toString();
+      
+      if (leadingZeros > 0) {
+        numStr = `0.${'0'.repeat(leadingZeros - 1)}${digits}${'0'.repeat(trailingZeros)}`;
+        sigStart = 2 + leadingZeros - 1;
+      } else {
+        numStr = `${digits[0]}.${digits.slice(1)}${'0'.repeat(trailingZeros)}`;
+        sigStart = 0;
+      }
+      sigEnd = numStr.length;
+      sfCount = sigDigits + trailingZeros;
+    } else {
+      const sigDigits = Math.floor(Math.random() * 4) + 2; // 2 to 5
+      let digits = (Math.floor(Math.random()*9)+1).toString();
+      for(let i=1; i<sigDigits-1; i++) digits += Math.floor(Math.random()*10).toString();
+      digits += (Math.floor(Math.random()*9)+1).toString(); // Ensure last digit is non-zero
+      
+      const trailingZeros = Math.floor(Math.random() * 3);
+      numStr = digits + '0'.repeat(trailingZeros);
+      sigStart = 0;
+      sigEnd = digits.length;
+      sfCount = sigDigits;
+    }
+    question = `\\text{Sig figs in } ${numStr}?`;
+    answerObj = { type: 'count_sf', value: sfCount.toString(), numStr, sigStart, sigEnd };
+  } else if (type === 'to_decimal') {
+    const aWhole = Math.floor(Math.random() * 9) + 1;
+    let aFrac = Math.floor(Math.random() * 100);
+    let aStr = aWhole.toString();
+    if (aFrac > 0) {
+      if (aFrac % 10 === 0) {
+        aStr += `.${aFrac / 10}`;
+      } else {
+        aStr += `.${aFrac.toString().padStart(2, '0')}`;
+      }
+    }
+    const n = Math.floor(Math.random() * 9) - 4; // -4 to 4
+    
+    question = `\\text{Decimal form of } ${aStr} \\times 10^{${n}}`;
+    const val = parseFloat(aStr) * Math.pow(10, n);
+    
+    let ansStr = '';
+    if (n >= 0) {
+      ansStr = val.toString();
+      // Avoid scientific notation from JS
+      if (ansStr.includes('e')) {
+        ansStr = val.toFixed(0);
+      }
+    } else {
+      ansStr = val.toFixed(Math.abs(n) + (aFrac > 0 ? aStr.split('.')[1].length : 0));
+      // Remove trailing zeros after decimal point
+      if (ansStr.includes('.')) {
+        ansStr = ansStr.replace(/0+$/, '').replace(/\.$/, '');
+      }
+    }
+    
+    answerObj = { type: 'normal', value: ansStr };
+  } else if (type === 'to_sci') {
+    const n = Math.floor(Math.random() * 11) - 5; // -5 to 5
+    const aWhole = Math.floor(Math.random() * 9) + 1;
+    let aFrac = Math.floor(Math.random() * 100);
+    let aStr = aWhole.toString();
+    if (aFrac > 0) {
+      if (aFrac % 10 === 0) {
+        aStr += `.${aFrac / 10}`;
+      } else {
+        aStr += `.${aFrac.toString().padStart(2, '0')}`;
+      }
+    }
+    
+    const val = parseFloat(aStr) * Math.pow(10, n);
+    let numStr = '';
+    if (n >= 0) {
+      numStr = val.toString();
+      if (numStr.includes('e')) {
+        numStr = val.toFixed(0);
+      }
+    } else {
+      numStr = val.toFixed(Math.abs(n) + (aFrac > 0 ? aStr.split('.')[1].length : 0));
+      if (numStr.includes('.')) {
+        numStr = numStr.replace(/0+$/, '').replace(/\.$/, '');
+      }
+    }
+    
+    question = `\\text{Sci notation of } ${numStr}`;
+    answerObj = { type: 'sci', a: aStr, n: n.toString() };
+  }
+
+  return {
+    question,
+    answer: JSON.stringify(answerObj),
+    type: 'arithmetic'
+  };
+};
+
 export const generateProblem = (mode: GameMode, options?: { forceQuadrant1?: boolean, combo?: number }): MathProblem => {
   if (mode === GameMode.SIMPLIFY_SURDS) {
     return generateSurdsProblem(options?.combo || 0);
+  }
+  if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
+    return generateSigFigsProblem(options?.combo || 0);
   }
 
   if (mode === GameMode.INDEX_LAWS) {
@@ -306,6 +538,10 @@ export const generateProblem = (mode: GameMode, options?: { forceQuadrant1?: boo
     return generateGraphProblem();
   }
   
+  if (mode === GameMode.INVERSE_TRIG_EXACT_VALUES) {
+    return generateInverseTrigProblem();
+  }
+
   if (mode === GameMode.TRIG_EXACT_VALUES) {
     // If forceQuadrant1 is true, we only want angles in [0, pi/2]
     // That means 0, pi/6, pi/4, pi/3, pi/2

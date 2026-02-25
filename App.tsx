@@ -7,6 +7,7 @@ import { generateProblem } from './utils/gameLogic';
 import MainMenu from './components/MainMenu';
 import Seal8Menu from './components/Seal8Menu';
 import Methods12Menu from './components/Methods12Menu';
+import Spec11Menu from './components/Spec11Menu';
 import SummaryScreen from './components/SummaryScreen';
 import ActiveGame from './components/ActiveGame';
 import DevTools from './components/DevTools';
@@ -114,7 +115,7 @@ const App: React.FC = () => {
       endTime: null,
     });
     // Only focus input if not in graph/trig mode
-    if (selectedMode !== GameMode.METHODS_GRAPHS && selectedMode !== GameMode.TRIG_EXACT_VALUES) {
+    if (selectedMode !== GameMode.METHODS_GRAPHS && selectedMode !== GameMode.TRIG_EXACT_VALUES && selectedMode !== GameMode.INVERSE_TRIG_EXACT_VALUES) {
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
@@ -198,7 +199,7 @@ const App: React.FC = () => {
     let cleanVal = val;
 
     // Only clean input for arithmetic modes
-    if (mode !== GameMode.TRIG_EXACT_VALUES && mode !== GameMode.METHODS_GRAPHS && mode !== GameMode.SIMPLIFY_SURDS) {
+    if (mode !== GameMode.TRIG_EXACT_VALUES && mode !== GameMode.INVERSE_TRIG_EXACT_VALUES && mode !== GameMode.METHODS_GRAPHS && mode !== GameMode.SIMPLIFY_SURDS) {
       // Allow digits and minus sign
       cleanVal = val.replace(/[^0-9-]/g, '');
     } else if (mode === GameMode.SIMPLIFY_SURDS) {
@@ -208,20 +209,20 @@ const App: React.FC = () => {
     
     setInput(cleanVal);
 
-    if (mode === GameMode.SIMPLIFY_SURDS) {
-      // We handle surd logic in ActiveGame now, so this branch shouldn't be reached for SIMPLIFY_SURDS
+    if (mode === GameMode.SIMPLIFY_SURDS || mode === GameMode.SIG_FIGS_SCI_NOTATION) {
+      // We handle surd and sci notation logic in ActiveGame now, so this branch shouldn't be reached
       // But just in case, we do nothing here.
       return;
     }
 
     if (cleanVal === problem.answer.toString()) {
       setIsSuccess(true);
-      const delay = mode === GameMode.TRIG_EXACT_VALUES ? 1000 : 250;
+      const delay = (mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INVERSE_TRIG_EXACT_VALUES) ? 1000 : 250;
       setTimeout(() => {
         handleCorrect();
         setIsSuccess(false);
       }, delay);
-    } else if (mode !== GameMode.TRIG_EXACT_VALUES && mode !== GameMode.METHODS_GRAPHS) {
+    } else if (mode !== GameMode.TRIG_EXACT_VALUES && mode !== GameMode.INVERSE_TRIG_EXACT_VALUES && mode !== GameMode.METHODS_GRAPHS) {
       // Arithmetic mode error handling (length based)
       if (cleanVal.length >= problem.answer.toString().length) {
         triggerError();
@@ -229,7 +230,7 @@ const App: React.FC = () => {
     } else {
       // Immediate error for button-click modes (Trig/Graphs)
       let isSignError = false;
-      if (mode === GameMode.TRIG_EXACT_VALUES) {
+      if (mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INVERSE_TRIG_EXACT_VALUES) {
         const ans = problem.answer.toString();
         if (cleanVal === '-' + ans || ans === '-' + cleanVal) {
           isSignError = true;
@@ -308,6 +309,7 @@ const App: React.FC = () => {
             />
           } />
           <Route path="/8seal" element={<Seal8Menu startNewGame={startNewGame} />} />
+          <Route path="/11spec" element={<Spec11Menu startNewGame={startNewGame} />} />
           <Route path="/12methods" element={<Methods12Menu startNewGame={startNewGame} />} />
         </Routes>
       )}

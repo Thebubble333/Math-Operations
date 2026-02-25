@@ -6,16 +6,24 @@ interface TrigGameProps {
   problem: MathProblem;
   onAnswer: (val: string) => void;
   isSuccess: boolean;
+  isInverse?: boolean;
 }
 
-const TrigGame: React.FC<TrigGameProps> = ({ problem, onAnswer, isSuccess }) => {
+const TrigGame: React.FC<TrigGameProps> = ({ problem, onAnswer, isSuccess, isInverse }) => {
   // Flattened options for grid layout
   // Row 1: 0, 1/2, 1/sqrt(3), sqrt(2)/2, sqrt(3)/2, 1, sqrt(3)
   // Row 2: Undefined, -1/2, -1/sqrt(3), -sqrt(2)/2, -sqrt(3)/2, -1, -sqrt(3)
-  const options = [
+  const regularOptions = [
     '0', '\\frac{1}{2}', '\\frac{1}{\\sqrt{3}}', '\\frac{\\sqrt{2}}{2}', '\\frac{\\sqrt{3}}{2}', '1', '\\sqrt{3}',
     'Undefined', '-\\frac{1}{2}', '-\\frac{1}{\\sqrt{3}}', '-\\frac{\\sqrt{2}}{2}', '-\\frac{\\sqrt{3}}{2}', '-1', '-\\sqrt{3}'
   ];
+
+  const inverseOptions = [
+    '0', '\\frac{\\pi}{6}', '\\frac{\\pi}{4}', '\\frac{\\pi}{3}', '\\frac{\\pi}{2}', '\\frac{2\\pi}{3}', '\\frac{3\\pi}{4}', '\\frac{5\\pi}{6}', '\\pi',
+    'Undefined', '-\\frac{\\pi}{6}', '-\\frac{\\pi}{4}', '-\\frac{\\pi}{3}', '-\\frac{\\pi}{2}', '-\\frac{2\\pi}{3}', '-\\frac{3\\pi}{4}', '-\\frac{5\\pi}{6}', '-\\pi'
+  ];
+
+  const options = isInverse ? inverseOptions : regularOptions;
 
   // Unit Circle Visualization
   const renderUnitCircle = () => {
@@ -33,21 +41,23 @@ const TrigGame: React.FC<TrigGameProps> = ({ problem, onAnswer, isSuccess }) => 
     const y = center - radius * Math.sin(angle);
 
     return (
-      <svg width="200" height="200" className="mx-auto mb-6 overflow-visible">
-        {/* Circle */}
-        <circle cx={center} cy={center} r={radius} fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-300 dark:text-slate-600" />
-        {/* Axes */}
-        <line x1={center - radius - 20} y1={center} x2={center + radius + 20} y2={center} stroke="currentColor" strokeWidth="1" className="text-slate-300 dark:text-slate-600" />
-        <line x1={center} y1={center - radius - 20} x2={center} y2={center + radius + 20} stroke="currentColor" strokeWidth="1" className="text-slate-300 dark:text-slate-600" />
-        
-        {/* Angle Ray and Point - Only show if success */}
-        {isSuccess && (
-          <>
-            <line x1={center} y1={center} x2={x} y2={y} stroke="#6366f1" strokeWidth="3" />
-            <circle cx={x} cy={y} r="6" fill="#6366f1" />
-          </>
-        )}
-      </svg>
+      <div className="flex flex-col items-center">
+        <svg width="200" height="200" className="mx-auto mb-6 overflow-visible">
+          {/* Circle */}
+          <circle cx={center} cy={center} r={radius} fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-300 dark:text-slate-600" />
+          {/* Axes */}
+          <line x1={center - radius - 20} y1={center} x2={center + radius + 20} y2={center} stroke="currentColor" strokeWidth="1" className="text-slate-300 dark:text-slate-600" />
+          <line x1={center} y1={center - radius - 20} x2={center} y2={center + radius + 20} stroke="currentColor" strokeWidth="1" className="text-slate-300 dark:text-slate-600" />
+          
+          {/* Angle Ray and Point - Only show if success */}
+          {isSuccess && (
+            <>
+              <line x1={center} y1={center} x2={x} y2={y} stroke="#6366f1" strokeWidth="3" />
+              <circle cx={x} cy={y} r="6" fill="#6366f1" />
+            </>
+          )}
+        </svg>
+      </div>
     );
   };
 
@@ -55,15 +65,15 @@ const TrigGame: React.FC<TrigGameProps> = ({ problem, onAnswer, isSuccess }) => 
     <div className="w-full max-w-5xl mx-auto flex flex-col items-center">
       {renderUnitCircle()}
       
-      <div className="grid grid-cols-7 gap-3 w-full">
+      <div className={`grid ${isInverse ? 'grid-cols-9' : 'grid-cols-7'} gap-2 sm:gap-3 w-full`}>
         {options.map((opt) => (
           <button
             key={opt}
             onClick={() => onAnswer(opt)}
-            className="aspect-[4/3] p-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm hover:shadow-md hover:bg-indigo-50 dark:hover:bg-slate-700 transition-all active:scale-95 border border-slate-200 dark:border-slate-700 text-lg sm:text-xl font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center"
+            className="aspect-[4/3] p-1 sm:p-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm hover:shadow-md hover:bg-indigo-50 dark:hover:bg-slate-700 transition-all active:scale-95 border border-slate-200 dark:border-slate-700 text-sm sm:text-xl font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center"
           >
              {opt === 'Undefined' ? (
-               <span className="text-sm sm:text-base font-bold uppercase tracking-wider">Undefined</span>
+               <span className="text-[10px] sm:text-sm font-bold uppercase tracking-wider">Undef</span>
              ) : (
                <Latex>{`$${opt}$`}</Latex>
              )}

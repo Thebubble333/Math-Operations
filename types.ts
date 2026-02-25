@@ -11,6 +11,8 @@ export enum GameMode {
   TRIG_EXACT_VALUES = 'trig_exact_values',
   INDEX_LAWS = 'index_laws',
   SIMPLIFY_SURDS = 'simplify_surds',
+  SIG_FIGS_SCI_NOTATION = 'sig_figs_sci_notation',
+  INVERSE_TRIG_EXACT_VALUES = 'inverse_trig_exact_values',
   NONE = 'none'
 }
 
