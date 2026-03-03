@@ -581,15 +581,16 @@ const generateExpandingNegativesProblem = (): MathProblem => {
 };
 
 const generateTwoStepEquationsProblem = (): MathProblem => {
+  const isFractional = Math.random() < 0.5;
   let a = 0, b = 0, c = 0;
-  while (a === 0) a = Math.floor(Math.random() * 21) - 10; // -10 to 10, not 0
+  while (a === 0 || (isFractional && Math.abs(a) === 1)) a = Math.floor(Math.random() * 21) - 10; // -10 to 10
   while (b === 0) b = Math.floor(Math.random() * 21) - 10;
   while (c === 0) c = Math.floor(Math.random() * 21) - 10;
 
   // 1: ax+b=c, 2: b+ax=c, 3: c=a+bx, 4: c=ax+b
   const form = Math.floor(Math.random() * 4) + 1;
   
-  const formatTerm = (coef: number, isFirst: boolean, hasX: boolean) => {
+  const formatTerm = (coef: number, isFirst: boolean, hasX: boolean, isFrac: boolean = false) => {
     let str = '';
     if (coef < 0) {
       str += isFirst ? '-' : '-';
@@ -599,8 +600,12 @@ const generateTwoStepEquationsProblem = (): MathProblem => {
     
     const absCoef = Math.abs(coef);
     if (hasX) {
-      if (absCoef !== 1) str += absCoef;
-      str += 'x';
+      if (isFrac) {
+        str += `\\frac{x}{${absCoef}}`;
+      } else {
+        if (absCoef !== 1) str += absCoef;
+        str += 'x';
+      }
     } else {
       str += absCoef;
     }
@@ -609,19 +614,23 @@ const generateTwoStepEquationsProblem = (): MathProblem => {
 
   let question = '';
   if (form === 1) {
-    question = `${formatTerm(a, true, true)}${formatTerm(b, false, false)}=${c}`;
+    question = `${formatTerm(a, true, true, isFractional)}${formatTerm(b, false, false)}=${c}`;
   } else if (form === 2) {
-    question = `${formatTerm(b, true, false)}${formatTerm(a, false, true)}=${c}`;
+    question = `${formatTerm(b, true, false)}${formatTerm(a, false, true, isFractional)}=${c}`;
   } else if (form === 3) {
-    question = `${c}=${formatTerm(b, true, false)}${formatTerm(a, false, true)}`;
+    question = `${c}=${formatTerm(b, true, false)}${formatTerm(a, false, true, isFractional)}`;
   } else {
-    question = `${c}=${formatTerm(a, true, true)}${formatTerm(b, false, false)}`;
+    question = `${c}=${formatTerm(a, true, true, isFractional)}${formatTerm(b, false, false)}`;
   }
 
-  // Answer is x = (c - b) / a
-  // We should store the exact fraction to verify
-  const num = c - b;
-  const den = a;
+  let num, den;
+  if (isFractional) {
+    num = (c - b) * a;
+    den = 1;
+  } else {
+    num = c - b;
+    den = a;
+  }
   
   // Simplify fraction
   const gcd = (x: number, y: number): number => y === 0 ? Math.abs(x) : gcd(y, x % y);
