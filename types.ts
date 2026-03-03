@@ -13,6 +13,8 @@ export enum GameMode {
   SIMPLIFY_SURDS = 'simplify_surds',
   SIG_FIGS_SCI_NOTATION = 'sig_figs_sci_notation',
   INVERSE_TRIG_EXACT_VALUES = 'inverse_trig_exact_values',
+  EXPANDING_NEGATIVES = 'expanding_negatives',
+  TWO_STEP_EQUATIONS = 'two_step_equations',
   NONE = 'none'
 }
 

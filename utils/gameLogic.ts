@@ -522,7 +522,135 @@ const generateSigFigsProblem = (combo: number): MathProblem => {
   };
 };
 
+const generateExpandingNegativesProblem = (): MathProblem => {
+  const aOptions = [-5, -4, -3, -2, -1, 2, 3, 4, 5];
+  const a = aOptions[Math.floor(Math.random() * aOptions.length)];
+  
+  let m = Math.floor(Math.random() * 10) - 5;
+  if (m >= 0) m += 1; // 1 to 5, -5 to -1
+  
+  let n = Math.floor(Math.random() * 10) - 5;
+  if (n >= 0) n += 1;
+  
+  // 20% chance of m = 1 or -1
+  if (Math.random() < 0.2) m = Math.random() < 0.5 ? 1 : -1;
+  
+  const reverseOrder = Math.random() < 0.3; // 30% chance of (n + mx)
+  
+  const formatTerm = (coef: number, isFirst: boolean, hasX: boolean) => {
+    let str = '';
+    if (coef < 0) {
+      str += isFirst ? '-' : ' - ';
+    } else if (!isFirst) {
+      str += ' + ';
+    }
+    
+    const absCoef = Math.abs(coef);
+    if (hasX) {
+      if (absCoef !== 1) str += absCoef;
+      str += 'x';
+    } else {
+      str += absCoef;
+    }
+    return str;
+  };
+  
+  let inside = '';
+  if (reverseOrder) {
+    inside = formatTerm(n, true, false) + formatTerm(m, false, true);
+  } else {
+    inside = formatTerm(m, true, true) + formatTerm(n, false, false);
+  }
+  
+  let outside = '';
+  if (a === -1) outside = '-';
+  else outside = a.toString();
+  
+  const question = `${outside}(${inside})`;
+  
+  const termX = a * m;
+  const termC = a * n;
+  
+  const answerObj = { type: 'expand', x: termX, c: termC };
+  
+  return {
+    question,
+    answer: JSON.stringify(answerObj),
+    type: 'algebra'
+  };
+};
+
+const generateTwoStepEquationsProblem = (): MathProblem => {
+  let a = 0, b = 0, c = 0;
+  while (a === 0) a = Math.floor(Math.random() * 21) - 10; // -10 to 10, not 0
+  while (b === 0) b = Math.floor(Math.random() * 21) - 10;
+  while (c === 0) c = Math.floor(Math.random() * 21) - 10;
+
+  // 1: ax+b=c, 2: b+ax=c, 3: c=a+bx, 4: c=ax+b
+  const form = Math.floor(Math.random() * 4) + 1;
+  
+  const formatTerm = (coef: number, isFirst: boolean, hasX: boolean) => {
+    let str = '';
+    if (coef < 0) {
+      str += isFirst ? '-' : '-';
+    } else if (!isFirst) {
+      str += '+';
+    }
+    
+    const absCoef = Math.abs(coef);
+    if (hasX) {
+      if (absCoef !== 1) str += absCoef;
+      str += 'x';
+    } else {
+      str += absCoef;
+    }
+    return str;
+  };
+
+  let question = '';
+  if (form === 1) {
+    question = `${formatTerm(a, true, true)}${formatTerm(b, false, false)}=${c}`;
+  } else if (form === 2) {
+    question = `${formatTerm(b, true, false)}${formatTerm(a, false, true)}=${c}`;
+  } else if (form === 3) {
+    question = `${c}=${formatTerm(b, true, false)}${formatTerm(a, false, true)}`;
+  } else {
+    question = `${c}=${formatTerm(a, true, true)}${formatTerm(b, false, false)}`;
+  }
+
+  // Answer is x = (c - b) / a
+  // We should store the exact fraction to verify
+  const num = c - b;
+  const den = a;
+  
+  // Simplify fraction
+  const gcd = (x: number, y: number): number => y === 0 ? Math.abs(x) : gcd(y, x % y);
+  const divisor = gcd(num, den);
+  
+  let simpNum = num / divisor;
+  let simpDen = den / divisor;
+  
+  if (simpDen < 0) {
+    simpNum = -simpNum;
+    simpDen = -simpDen;
+  }
+
+  const answerObj = { type: 'equation', num: simpNum, den: simpDen };
+
+  return {
+    question,
+    answer: JSON.stringify(answerObj),
+    type: 'algebra'
+  };
+};
+
 export const generateProblem = (mode: GameMode, options?: { forceQuadrant1?: boolean, combo?: number }): MathProblem => {
+  if (mode === GameMode.TWO_STEP_EQUATIONS) {
+    return generateTwoStepEquationsProblem();
+  }
+  if (mode === GameMode.EXPANDING_NEGATIVES) {
+    return generateExpandingNegativesProblem();
+  }
   if (mode === GameMode.SIMPLIFY_SURDS) {
     return generateSurdsProblem(options?.combo || 0);
   }

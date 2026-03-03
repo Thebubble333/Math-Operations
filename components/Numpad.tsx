@@ -17,10 +17,14 @@ const Numpad: React.FC<NumpadProps> = ({ onKeyPress, onClear, mode }) => {
     keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'C', '-', 'EXP'];
   } else if (mode === GameMode.ADD_SUB_NEGATIVES || mode === GameMode.MULT_DIV_NEGATIVES || mode === GameMode.INDEX_LAWS) {
     keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', '-'];
+  } else if (mode === GameMode.EXPANDING_NEGATIVES) {
+    keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '0', '+', 'C', 'x'];
+  } else if (mode === GameMode.TWO_STEP_EQUATIONS) {
+    keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '0', '/', 'C'];
   }
 
   return (
-    <div className="grid grid-cols-3 gap-2 w-full max-w-xs mx-auto mt-8 md:hidden">
+    <div className={`grid ${keys.length > 12 ? 'grid-cols-4' : 'grid-cols-3'} gap-2 w-full max-w-xs mx-auto mt-8 md:hidden`}>
       {keys.map((key) => (
         <button
           key={key}
@@ -28,7 +32,7 @@ const Numpad: React.FC<NumpadProps> = ({ onKeyPress, onClear, mode }) => {
           className={`h-16 flex items-center justify-center text-xl font-bold rounded-xl active:scale-95 transition-transform
             ${key === 'C' 
               ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' 
-              : key === 'r' || key === '-' || key === 'EXP' || key === '.'
+              : key === 'r' || key === '-' || key === '+' || key === 'x' || key === '/' || key === 'EXP' || key === '.'
                 ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400'
                 : 'bg-white text-slate-800 shadow-sm border border-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700'
             }

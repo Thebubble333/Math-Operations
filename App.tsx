@@ -53,6 +53,7 @@ const App: React.FC = () => {
   const [isError, setIsError] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);
+  const [unsimplifiedAnswer, setUnsimplifiedAnswer] = useState<string | null>(null);
   
   // Trig Mode State
   const [forceQuadrant1, setForceQuadrant1] = useState(false);
@@ -106,6 +107,7 @@ const App: React.FC = () => {
     setInput('');
     setIsSuccess(false);
     setIsError(false);
+    setUnsimplifiedAnswer(null);
     setSession({
       combo: 0,
       qpm: 0,
@@ -122,6 +124,7 @@ const App: React.FC = () => {
 
   const handleCorrect = useCallback(() => {
     setIsCorrectFlash(true);
+    setUnsimplifiedAnswer(null);
     setTimeout(() => setIsCorrectFlash(false), 400);
 
     setSession(prev => {
@@ -193,18 +196,111 @@ const App: React.FC = () => {
     }, 250);
   };
 
+  const handleSkip = useCallback(() => {
+    setUnsimplifiedAnswer(null);
+    
+    setSession(prev => {
+      const newTotalAttempts = prev.totalAttempts + 1;
+      
+      const isFinished = prev.correctCount >= TARGET_PROBLEMS;
+
+      if (!isFinished) {
+        let nextForceQ1 = false;
+        if (mode === GameMode.TRIG_EXACT_VALUES) {
+           if (prev.correctCount < 3 || hasErrorOnCurrent.current) {
+             nextForceQ1 = true;
+           } else {
+             nextForceQ1 = false;
+           }
+        }
+        
+        setForceQuadrant1(nextForceQ1);
+        setProblem(generateProblem(mode, { forceQuadrant1: nextForceQ1, combo: 0 }));
+        hasErrorOnCurrent.current = false;
+      } else {
+        setProblem(null);
+      }
+
+      return {
+        ...prev,
+        combo: 0,
+        totalAttempts: newTotalAttempts,
+      };
+    });
+
+    setInput('');
+  }, [mode, session.correctCount, forceQuadrant1]);
+
+  const parseAlgebraInput = (input: string) => {
+    const clean = input.replace(/\s+/g, '');
+    let xCoef = 0;
+    let cCoef = 0;
+    
+    // Find x term
+    const xMatch = clean.match(/([+-]?\d*)x/);
+    if (xMatch) {
+      let xStr = xMatch[1];
+      if (xStr === '' || xStr === '+') xCoef = 1;
+      else if (xStr === '-') xCoef = -1;
+      else xCoef = parseInt(xStr, 10);
+    }
+    
+    // Find constant term
+    const cStr = clean.replace(/([+-]?\d*)x/, '');
+    if (cStr) {
+      cCoef = parseInt(cStr, 10);
+      if (isNaN(cCoef)) cCoef = 0;
+    }
+    
+    return { x: xCoef, c: cCoef };
+  };
+
+  const parseFractionInput = (input: string) => {
+    const parts = input.split('/');
+    if (parts.length === 1) {
+      const num = parseInt(parts[0], 10);
+      return { num: isNaN(num) ? null : num, den: 1, origNum: isNaN(num) ? null : num, origDen: 1 };
+    } else if (parts.length === 2) {
+      if (parts[1] === '' || parts[1] === '-') return { num: null, den: null, origNum: null, origDen: null };
+      
+      let num = parseInt(parts[0], 10);
+      let den = parseInt(parts[1], 10);
+      if (isNaN(num) || isNaN(den) || den === 0) return { num: null, den: null, origNum: null, origDen: null };
+      
+      let origNum = num;
+      let origDen = den;
+
+      if (den < 0) {
+        num = -num;
+        den = -den;
+      }
+      
+      const gcd = (x: number, y: number): number => y === 0 ? Math.abs(x) : gcd(y, x % y);
+      const divisor = gcd(num, den);
+      
+      return { num: num / divisor, den: den / divisor, origNum, origDen };
+    }
+    return { num: null, den: null, origNum: null, origDen: null };
+  };
+
   const handleInputChange = (val: string) => {
     if (!problem || session.endTime || isSuccess || isError) return;
     
     let cleanVal = val;
 
     // Only clean input for arithmetic modes
-    if (mode !== GameMode.TRIG_EXACT_VALUES && mode !== GameMode.INVERSE_TRIG_EXACT_VALUES && mode !== GameMode.METHODS_GRAPHS && mode !== GameMode.SIMPLIFY_SURDS) {
+    if (mode !== GameMode.TRIG_EXACT_VALUES && mode !== GameMode.INVERSE_TRIG_EXACT_VALUES && mode !== GameMode.METHODS_GRAPHS && mode !== GameMode.SIMPLIFY_SURDS && mode !== GameMode.EXPANDING_NEGATIVES && mode !== GameMode.TWO_STEP_EQUATIONS) {
       // Allow digits and minus sign
       cleanVal = val.replace(/[^0-9-]/g, '');
     } else if (mode === GameMode.SIMPLIFY_SURDS) {
       // Allow digits and 'r'
       cleanVal = val.replace(/[^0-9rR]/g, '').toLowerCase();
+    } else if (mode === GameMode.EXPANDING_NEGATIVES) {
+      // Allow digits, x, +, -
+      cleanVal = val.replace(/[^0-9xX+\-]/g, '').toLowerCase();
+    } else if (mode === GameMode.TWO_STEP_EQUATIONS) {
+      // Allow digits, -, /
+      cleanVal = val.replace(/[^0-9\-/]/g, '');
     }
     
     setInput(cleanVal);
@@ -212,6 +308,39 @@ const App: React.FC = () => {
     if (mode === GameMode.SIMPLIFY_SURDS || mode === GameMode.SIG_FIGS_SCI_NOTATION) {
       // We handle surd and sci notation logic in ActiveGame now, so this branch shouldn't be reached
       // But just in case, we do nothing here.
+      return;
+    }
+
+    if (mode === GameMode.EXPANDING_NEGATIVES) {
+      const ans = JSON.parse(problem.answer);
+      const parsed = parseAlgebraInput(cleanVal);
+      if (parsed.x === ans.x && parsed.c === ans.c) {
+        setIsSuccess(true);
+        setTimeout(() => {
+          handleCorrect();
+          setIsSuccess(false);
+        }, 250);
+      }
+      return;
+    }
+
+    if (mode === GameMode.TWO_STEP_EQUATIONS) {
+      const ans = JSON.parse(problem.answer);
+      const parsed = parseFractionInput(cleanVal);
+      if (parsed.num !== null && parsed.num === ans.num && parsed.den === ans.den) {
+        const expectedStr = ans.den === 1 ? `${ans.num}` : `${ans.num}/${ans.den}`;
+        
+        if (cleanVal === expectedStr) {
+          setIsSuccess(true);
+          setTimeout(() => {
+            handleCorrect();
+            setIsSuccess(false);
+          }, 250);
+        } else {
+          setUnsimplifiedAnswer(cleanVal);
+          setInput('');
+        }
+      }
       return;
     }
 
@@ -343,11 +472,13 @@ const App: React.FC = () => {
           handleInputChange={handleInputChange}
           handleCorrect={handleCorrect}
           triggerError={triggerError}
+          handleSkip={handleSkip}
           stats={stats}
           accuracy={accuracy}
           targetProblems={TARGET_PROBLEMS}
           inputRef={inputRef}
           graphConfig={graphConfig}
+          unsimplifiedAnswer={unsimplifiedAnswer}
         />
       )}
     </>

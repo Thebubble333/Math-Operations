@@ -21,11 +21,13 @@ interface ActiveGameProps {
   handleInputChange: (val: string) => void;
   handleCorrect: () => void;
   triggerError: (isSignError?: boolean) => void;
+  handleSkip: () => void;
   stats: GameStats;
   accuracy: number;
   targetProblems: number;
   inputRef: React.RefObject<HTMLInputElement>;
   graphConfig: GraphConfig;
+  unsimplifiedAnswer?: string | null;
 }
 
 const ActiveGame: React.FC<ActiveGameProps> = ({
@@ -44,11 +46,13 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
   handleInputChange,
   handleCorrect,
   triggerError,
+  handleSkip,
   stats,
   accuracy,
   targetProblems,
   inputRef,
   graphConfig,
+  unsimplifiedAnswer,
 }) => {
   const progressPercentage = (session.correctCount / targetProblems) * 100;
 
@@ -60,6 +64,9 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
   const [sciN, setSciN] = useState('');
   const [sciFocus, setSciFocus] = useState<'a'|'n'>('a');
 
+  const [showingAnswer, setShowingAnswer] = useState(false);
+  const [canGoNext, setCanGoNext] = useState(false);
+
   useEffect(() => {
     setSurdOutside('');
     setSurdInside('');
@@ -68,6 +75,8 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
     setSciN('');
     setSciFocus('a');
     setInput('');
+    setShowingAnswer(false);
+    setCanGoNext(false);
   }, [problem, setInput]);
 
   useEffect(() => {
@@ -256,6 +265,35 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
     }
   };
 
+  const onShowAnswerClick = () => {
+    setShowingAnswer(true);
+    if (problem) {
+      if (mode === GameMode.EXPANDING_NEGATIVES) {
+        const ans = JSON.parse(problem.answer);
+        let ansStr = '';
+        if (ans.x !== 0) {
+          if (ans.x === 1) ansStr += 'x';
+          else if (ans.x === -1) ansStr += '-x';
+          else ansStr += `${ans.x}x`;
+        }
+        if (ans.c !== 0) {
+          if (ans.c > 0 && ansStr !== '') ansStr += `+${ans.c}`;
+          else ansStr += `${ans.c}`;
+        }
+        if (ansStr === '') ansStr = '0';
+        setInput(ansStr);
+      } else if (mode === GameMode.TWO_STEP_EQUATIONS) {
+        const ans = JSON.parse(problem.answer);
+        const ansStr = ans.den === 1 ? `${ans.num}` : `${ans.num}/${ans.den}`;
+        setInput(ansStr);
+      }
+    }
+    
+    setTimeout(() => {
+      setCanGoNext(true);
+    }, 1000);
+  };
+
   useEffect(() => {
     if (mode === GameMode.SIMPLIFY_SURDS) {
       const handleKeyDown = (e: KeyboardEvent) => {
@@ -325,8 +363,8 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
             <div className="text-[12px] absolute -top-8 left-1/2 -translate-x-1/2 font-black text-slate-300 dark:text-slate-700 uppercase tracking-[0.4em]">
               Problem {session.correctCount + 1} / {targetProblems}
             </div>
-            <div className={`${mode === GameMode.METHODS_GRAPHS || mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INVERSE_TRIG_EXACT_VALUES || mode === GameMode.INDEX_LAWS || mode === GameMode.SIMPLIFY_SURDS || mode === GameMode.SIG_FIGS_SCI_NOTATION ? 'text-4xl sm:text-6xl py-4' : 'text-8xl sm:text-[10rem]'} font-black tracking-tighter text-slate-800 dark:text-slate-50 tabular-nums select-none drop-shadow-sm`}>
-              {mode === GameMode.METHODS_GRAPHS || mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INVERSE_TRIG_EXACT_VALUES || mode === GameMode.INDEX_LAWS || mode === GameMode.SIMPLIFY_SURDS || mode === GameMode.SIG_FIGS_SCI_NOTATION ? (
+            <div className={`${mode === GameMode.METHODS_GRAPHS || mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INVERSE_TRIG_EXACT_VALUES || mode === GameMode.INDEX_LAWS || mode === GameMode.SIMPLIFY_SURDS || mode === GameMode.SIG_FIGS_SCI_NOTATION || mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS ? 'text-4xl sm:text-6xl py-4' : 'text-8xl sm:text-[10rem]'} font-black tracking-tighter text-slate-800 dark:text-slate-50 tabular-nums select-none drop-shadow-sm`}>
+              {mode === GameMode.METHODS_GRAPHS || mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INVERSE_TRIG_EXACT_VALUES || mode === GameMode.INDEX_LAWS || mode === GameMode.SIMPLIFY_SURDS || mode === GameMode.SIG_FIGS_SCI_NOTATION || mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS ? (
                 problem && mode === GameMode.SIG_FIGS_SCI_NOTATION && JSON.parse(problem.answer).type === 'count_sf' ? (
                   <div className="flex items-center justify-center">
                     <Latex>{`$\\text{Sig figs in }$`}</Latex>
@@ -453,11 +491,17 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
           ) : (
             <>
               <div className="relative w-full max-w-xs mx-auto">
+                {unsimplifiedAnswer && (
+                  <div className="text-center text-5xl font-black py-2 text-emerald-500 mb-4 opacity-80">
+                    {unsimplifiedAnswer}
+                  </div>
+                )}
                 <input
                   ref={inputRef}
                   type={mode === GameMode.SIG_FIGS_SCI_NOTATION ? "text" : "tel"}
                   inputMode={mode === GameMode.SIG_FIGS_SCI_NOTATION ? "decimal" : "numeric"}
                   autoFocus
+                  disabled={showingAnswer}
                   value={input}
                   onChange={(e) => {
                     if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
@@ -490,6 +534,11 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                       handleInputChange(e.target.value);
                     }
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS) && !isSuccess) {
+                      triggerError();
+                    }
+                  }}
                   className={`w-full bg-transparent text-center text-7xl font-black py-4 outline-none border-b-8 transition-all caret-indigo-500 ${
                     isSuccess 
                       ? 'text-emerald-500 border-emerald-500' 
@@ -501,23 +550,73 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                   autoComplete="off"
                 />
               </div>
-              <Numpad 
-                onKeyPress={(key) => {
-                  if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
-                    handleSciInput(key);
-                  } else {
-                    handleInputChange(input + key);
-                  }
-                }} 
-                onClear={() => {
-                  if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
-                    handleSciInput('C');
-                  } else {
-                    setInput('');
-                  }
-                }}
-                mode={mode}
-              />
+
+              {mode === GameMode.EXPANDING_NEGATIVES && (
+                <div className={`hidden md:flex flex-col items-center mt-8 space-y-3 ${showingAnswer ? "pointer-events-none opacity-50" : ""}`}>
+                  <div className="flex gap-4">
+                    <button onClick={() => { handleInputChange(input + '+'); inputRef.current?.focus(); }} className="w-16 h-16 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-xl text-3xl font-bold hover:bg-indigo-200 dark:hover:bg-indigo-800/50 transition-colors active:scale-95 flex items-center justify-center shadow-sm">+</button>
+                    <button onClick={() => { handleInputChange(input + '-'); inputRef.current?.focus(); }} className="w-16 h-16 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-xl text-3xl font-bold hover:bg-indigo-200 dark:hover:bg-indigo-800/50 transition-colors active:scale-95 flex items-center justify-center shadow-sm">-</button>
+                  </div>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium tracking-wide">Note: You can also use your keyboard for these symbols.</p>
+                </div>
+              )}
+
+              {mode === GameMode.TWO_STEP_EQUATIONS && (
+                <div className={`hidden md:flex flex-col items-center mt-8 space-y-3 ${showingAnswer ? "pointer-events-none opacity-50" : ""}`}>
+                  <div className="flex gap-4">
+                    <button onClick={() => { handleInputChange(input + '/'); inputRef.current?.focus(); }} className="w-16 h-16 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-xl text-2xl font-bold hover:bg-indigo-200 dark:hover:bg-indigo-800/50 transition-colors active:scale-95 flex items-center justify-center shadow-sm">/</button>
+                    <button onClick={() => { handleInputChange(input + '-'); inputRef.current?.focus(); }} className="w-16 h-16 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-xl text-3xl font-bold hover:bg-indigo-200 dark:hover:bg-indigo-800/50 transition-colors active:scale-95 flex items-center justify-center shadow-sm">-</button>
+                  </div>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium tracking-wide">Note: You can also use your keyboard for these symbols.</p>
+                </div>
+              )}
+
+              <div className={showingAnswer ? "pointer-events-none opacity-50" : ""}>
+                <Numpad 
+                  onKeyPress={(key) => {
+                    if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
+                      handleSciInput(key);
+                    } else {
+                      handleInputChange(input + key);
+                    }
+                  }} 
+                  onClear={() => {
+                    if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
+                      handleSciInput('C');
+                    } else {
+                      setInput('');
+                    }
+                  }}
+                  mode={mode}
+                />
+              </div>
+
+              {(mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS) && (
+                <div className="mt-8 flex justify-center">
+                  {!showingAnswer ? (
+                    <button
+                      onClick={onShowAnswerClick}
+                      className="px-6 py-3 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold rounded-xl hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors active:scale-95"
+                    >
+                      Show Answer
+                    </button>
+                  ) : canGoNext ? (
+                    <button
+                      onClick={handleSkip}
+                      className="px-8 py-3 bg-indigo-500 text-white font-bold rounded-xl hover:bg-indigo-600 transition-colors active:scale-95 shadow-md"
+                    >
+                      Next
+                    </button>
+                  ) : (
+                    <button
+                      disabled
+                      className="px-6 py-3 bg-slate-100 dark:bg-slate-800/50 text-slate-400 dark:text-slate-600 font-bold rounded-xl cursor-not-allowed"
+                    >
+                      Show Answer
+                    </button>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
