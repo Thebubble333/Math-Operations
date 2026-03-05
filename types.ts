@@ -15,8 +15,11 @@ export enum GameMode {
   INVERSE_TRIG_EXACT_VALUES = 'inverse_trig_exact_values',
   EXPANDING_NEGATIVES = 'expanding_negatives',
   TWO_STEP_EQUATIONS = 'two_step_equations',
+  CUSTOM = 'custom',
   NONE = 'none'
 }
+
+export type GameType = 'FIXED_PROBLEMS' | 'TIME_ATTACK';
 
 export interface GameStats {
   highScore: number;
@@ -30,6 +33,8 @@ export interface CurrentStats {
   totalAttempts: number;
   startTime: number | null;
   endTime: number | null;
+  gameType: GameType;
+  timeLimit?: number; // in seconds
 }
 
 export type GraphType = 'linear' | 'quadratic' | 'cubic' | 'hyperbola' | 'truncus' | 'sqrt';
@@ -56,4 +61,5 @@ export interface MathProblem {
   options?: GraphParams[];
   type?: 'arithmetic' | 'graph' | 'trig';
   angle?: number; // For trig unit circle visualization (in radians)
+  mode?: GameMode;
 }

@@ -54,8 +54,6 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
   graphConfig,
   unsimplifiedAnswer,
 }) => {
-  const progressPercentage = (session.correctCount / targetProblems) * 100;
-
   const [surdOutside, setSurdOutside] = useState('');
   const [surdInside, setSurdInside] = useState('');
   const [surdFocus, setSurdFocus] = useState<'outside'|'inside'>('outside');
@@ -66,6 +64,22 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
 
   const [showingAnswer, setShowingAnswer] = useState(false);
   const [canGoNext, setCanGoNext] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(0);
+
+  const progressPercentage = session.gameType === 'TIME_ATTACK' && session.timeLimit
+    ? ((session.timeLimit - timeRemaining) / session.timeLimit) * 100
+    : (session.correctCount / targetProblems) * 100;
+
+  useEffect(() => {
+    if (session.gameType === 'TIME_ATTACK' && session.timeLimit && session.startTime) {
+      const interval = setInterval(() => {
+        const elapsed = (Date.now() - session.startTime!) / 1000;
+        const remaining = Math.max(0, session.timeLimit! - elapsed);
+        setTimeRemaining(remaining);
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [session.gameType, session.timeLimit, session.startTime]);
 
   useEffect(() => {
     setSurdOutside('');
@@ -286,6 +300,21 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
         const ans = JSON.parse(problem.answer);
         const ansStr = ans.den === 1 ? `${ans.num}` : `${ans.num}/${ans.den}`;
         setInput(ansStr);
+      } else if (mode === GameMode.SIMPLIFY_SURDS) {
+        const ans = JSON.parse(problem.answer);
+        setSurdOutside(ans.o === 1 ? '' : ans.o.toString());
+        setSurdInside(ans.i.toString());
+      } else if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
+        const ans = JSON.parse(problem.answer);
+        if (ans.type === 'sci') {
+          setSciA(ans.a);
+          setSciN(ans.n);
+        } else {
+          setInput(ans.value);
+        }
+      } else {
+        // Fallback for arithmetic modes (ADD_SUB, MULT_DIV, INDEX_LAWS, MIXED, etc.)
+        setInput(problem.answer.toString());
       }
     }
     
@@ -360,8 +389,14 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
       <div className={`flex-1 flex flex-col items-center justify-center mx-auto w-full ${mode === GameMode.METHODS_GRAPHS ? 'max-w-[98vw]' : 'max-w-4xl'}`}>
         <div className={`text-center space-y-8 w-full transition-transform duration-100 ${isShaking ? 'shake' : ''}`}>
           <div className="relative">
-            <div className="text-[12px] absolute -top-8 left-1/2 -translate-x-1/2 font-black text-slate-300 dark:text-slate-700 uppercase tracking-[0.4em]">
-              Problem {session.correctCount + 1} / {targetProblems}
+            <div className="text-[12px] absolute -top-8 left-1/2 -translate-x-1/2 font-black text-slate-300 dark:text-slate-700 uppercase tracking-[0.4em] whitespace-nowrap">
+              {session.gameType === 'TIME_ATTACK' ? (
+                <span>
+                  Time: {Math.floor(timeRemaining / 60)}:{(Math.floor(timeRemaining) % 60).toString().padStart(2, '0')}
+                </span>
+              ) : (
+                <span>Problem {session.correctCount + 1} / {targetProblems}</span>
+              )}
             </div>
             <div className={`${mode === GameMode.METHODS_GRAPHS || mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INVERSE_TRIG_EXACT_VALUES || mode === GameMode.INDEX_LAWS || mode === GameMode.SIMPLIFY_SURDS || mode === GameMode.SIG_FIGS_SCI_NOTATION || mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS ? 'text-4xl sm:text-6xl py-4' : 'text-8xl sm:text-[10rem]'} font-black tracking-tighter text-slate-800 dark:text-slate-50 tabular-nums select-none drop-shadow-sm`}>
               {mode === GameMode.METHODS_GRAPHS || mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INVERSE_TRIG_EXACT_VALUES || mode === GameMode.INDEX_LAWS || mode === GameMode.SIMPLIFY_SURDS || mode === GameMode.SIG_FIGS_SCI_NOTATION || mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS ? (
@@ -407,8 +442,9 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                   key={idx}
                   params={opt}
                   config={graphConfig}
-                  onClick={() => handleInputChange(idx.toString())}
-                  className="w-full shadow-sm hover:shadow-xl transition-shadow duration-200"
+                  onClick={() => !showingAnswer && handleInputChange(idx.toString())}
+                  selected={showingAnswer ? idx === problem.answer : undefined}
+                  className={`w-full shadow-sm hover:shadow-xl transition-shadow duration-200 ${showingAnswer && idx !== problem.answer ? 'opacity-50' : ''}`}
                 />
               ))}
             </div>
@@ -419,6 +455,8 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
               isSuccess={isSuccess}
               isError={isError}
               isInverse={mode === GameMode.INVERSE_TRIG_EXACT_VALUES}
+              showingAnswer={showingAnswer}
+              correctAnswer={problem.answer.toString()}
             />
           ) : mode === GameMode.SIMPLIFY_SURDS ? (
             <>
@@ -428,7 +466,7 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                     isSuccess ? 'border-emerald-500 text-emerald-500' :
                     isError ? 'border-rose-500 text-rose-500' :
                     surdFocus === 'outside' ? 'border-indigo-500 text-indigo-500' : 'border-transparent text-slate-900 dark:text-white'
-                  }`}
+                  } ${showingAnswer ? 'pointer-events-none' : ''}`}
                   onClick={() => setSurdFocus('outside')}
                 >
                   {surdOutside || (surdFocus === 'outside' ? <span className="opacity-20">?</span> : '')}
@@ -441,17 +479,19 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                     isSuccess ? 'border-emerald-500 text-emerald-500' :
                     isError ? 'border-rose-500 text-rose-500' :
                     surdFocus === 'inside' ? 'border-indigo-500 text-indigo-500' : 'border-transparent text-slate-900 dark:text-white'
-                  }`}
+                  } ${showingAnswer ? 'pointer-events-none' : ''}`}
                   onClick={() => setSurdFocus('inside')}
                 >
                   {surdInside || (surdFocus === 'inside' ? <span className="opacity-20">?</span> : '')}
                 </div>
               </div>
-              <Numpad 
-                onKeyPress={(key) => handleSurdInput(key)} 
-                onClear={() => handleSurdInput('C')}
-                mode={mode}
-              />
+              <div className={showingAnswer ? "pointer-events-none opacity-50" : ""}>
+                <Numpad 
+                  onKeyPress={(key) => handleSurdInput(key)} 
+                  onClear={() => handleSurdInput('C')}
+                  mode={mode}
+                />
+              </div>
             </>
           ) : mode === GameMode.SIG_FIGS_SCI_NOTATION && problem && JSON.parse(problem.answer).type === 'sci' ? (
             <>
@@ -461,7 +501,7 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                     isSuccess ? 'border-emerald-500 text-emerald-500' :
                     isError ? 'border-rose-500 text-rose-500' :
                     sciFocus === 'a' ? 'border-indigo-500 text-indigo-500' : 'border-transparent text-slate-900 dark:text-white'
-                  }`}
+                  } ${showingAnswer ? 'pointer-events-none' : ''}`}
                   onClick={() => setSciFocus('a')}
                 >
                   {sciA || (sciFocus === 'a' ? <span className="opacity-20">?</span> : '')}
@@ -475,18 +515,20 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                       isSuccess ? 'border-emerald-500 text-emerald-500' :
                       isError ? 'border-rose-500 text-rose-500' :
                       sciFocus === 'n' ? 'border-indigo-500 text-indigo-500' : 'border-transparent text-slate-900 dark:text-white'
-                    }`}
+                    } ${showingAnswer ? 'pointer-events-none' : ''}`}
                     onClick={() => setSciFocus('n')}
                   >
                     {sciN || (sciFocus === 'n' ? <span className="opacity-20">?</span> : '')}
                   </div>
                 </div>
               </div>
-              <Numpad 
-                onKeyPress={(key) => handleSciInput(key)} 
-                onClear={() => handleSciInput('C')}
-                mode={mode}
-              />
+              <div className={showingAnswer ? "pointer-events-none opacity-50" : ""}>
+                <Numpad 
+                  onKeyPress={(key) => handleSciInput(key)} 
+                  onClear={() => handleSciInput('C')}
+                  mode={mode}
+                />
+              </div>
             </>
           ) : (
             <>
@@ -590,34 +632,34 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                   mode={mode}
                 />
               </div>
-
-              {(mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS) && (
-                <div className="mt-8 flex justify-center">
-                  {!showingAnswer ? (
-                    <button
-                      onClick={onShowAnswerClick}
-                      className="px-6 py-3 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold rounded-xl hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors active:scale-95"
-                    >
-                      Show Answer
-                    </button>
-                  ) : canGoNext ? (
-                    <button
-                      onClick={handleSkip}
-                      className="px-8 py-3 bg-indigo-500 text-white font-bold rounded-xl hover:bg-indigo-600 transition-colors active:scale-95 shadow-md"
-                    >
-                      Next
-                    </button>
-                  ) : (
-                    <button
-                      disabled
-                      className="px-6 py-3 bg-slate-100 dark:bg-slate-800/50 text-slate-400 dark:text-slate-600 font-bold rounded-xl cursor-not-allowed"
-                    >
-                      Show Answer
-                    </button>
-                  )}
-                </div>
-              )}
             </>
+          )}
+
+          {mode !== GameMode.NONE && (
+            <div className="mt-8 flex justify-center">
+              {!showingAnswer ? (
+                <button
+                  onClick={onShowAnswerClick}
+                  className="px-6 py-3 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold rounded-xl hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors active:scale-95"
+                >
+                  Show Answer
+                </button>
+              ) : canGoNext ? (
+                <button
+                  onClick={handleSkip}
+                  className="px-8 py-3 bg-indigo-500 text-white font-bold rounded-xl hover:bg-indigo-600 transition-colors active:scale-95 shadow-md"
+                >
+                  Next
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="px-6 py-3 bg-slate-100 dark:bg-slate-800/50 text-slate-400 dark:text-slate-600 font-bold rounded-xl cursor-not-allowed"
+                >
+                  Show Answer
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>

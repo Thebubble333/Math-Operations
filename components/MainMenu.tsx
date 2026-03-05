@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GameMode, GameStats } from '../types';
+import { GameMode, GameStats, GameType } from '../types';
+import { GAME_MODES, GameCategory, getModesByCategory } from '../config/gameModes';
 
 interface MainMenuProps {
   stats: GameStats;
@@ -14,6 +15,8 @@ interface MainMenuProps {
   isConfirmingReset: boolean;
   closeSettings: () => void;
   onOpenDevTools: () => void;
+  globalGameType: GameType;
+  setGlobalGameType: (type: GameType) => void;
 }
 
 const MainMenu: React.FC<MainMenuProps> = ({
@@ -28,16 +31,44 @@ const MainMenu: React.FC<MainMenuProps> = ({
   isConfirmingReset,
   closeSettings,
   onOpenDevTools,
+  globalGameType,
+  setGlobalGameType,
 }) => {
   const navigate = useNavigate();
 
+  const essentialSkills = getModesByCategory(GameCategory.ESSENTIAL);
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900 transition-colors">
-      <div className="mb-12 text-center">
+      <div className="mb-8 text-center">
         <h1 className="text-6xl font-black tracking-tighter mb-2 text-indigo-600 dark:text-indigo-400 italic">
           MATHFLOW
         </h1>
-        <p className="text-slate-500 dark:text-slate-400 font-medium tracking-wide">Race against yourself</p>
+        <p className="text-slate-500 dark:text-slate-400 font-medium tracking-wide mb-6">Race against yourself</p>
+        
+        {/* Global Game Type Toggle */}
+        <div className="inline-flex bg-white dark:bg-slate-800 p-1.5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+          <button
+            onClick={() => setGlobalGameType('FIXED_PROBLEMS')}
+            className={`px-6 py-2 rounded-xl text-sm font-bold uppercase tracking-wider transition-all ${
+              globalGameType === 'FIXED_PROBLEMS'
+                ? 'bg-indigo-500 text-white shadow-md'
+                : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+            }`}
+          >
+            Fixed
+          </button>
+          <button
+            onClick={() => setGlobalGameType('TIME_ATTACK')}
+            className={`px-6 py-2 rounded-xl text-sm font-bold uppercase tracking-wider transition-all ${
+              globalGameType === 'TIME_ATTACK'
+                ? 'bg-indigo-500 text-white shadow-md'
+                : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+            }`}
+          >
+            Time
+          </button>
+        </div>
       </div>
 
       <div className="w-full max-w-4xl space-y-12">
@@ -45,15 +76,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
         <div>
           <h2 className="text-xl font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 px-2">Essential Skills</h2>
           <div className="grid grid-cols-2 sm:grid-cols-7 gap-4">
-            {[
-              { id: GameMode.ADDITION, label: 'Add', icon: '+', color: 'bg-emerald-500' },
-              { id: GameMode.SUBTRACTION, label: 'Sub', icon: '-', color: 'bg-sky-500' },
-              { id: GameMode.MULTIPLICATION, label: 'Mult', icon: '×', color: 'bg-violet-500' },
-              { id: GameMode.DIVISION, label: 'Div', icon: '÷', color: 'bg-rose-500' },
-              { id: GameMode.MIXED, label: 'Mixed', icon: '?', color: 'bg-amber-500' },
-              { id: GameMode.ADD_SUB_NEGATIVES, label: '+/- Neg', icon: '±', color: 'bg-teal-500' },
-              { id: GameMode.MULT_DIV_NEGATIVES, label: '×/÷ Neg', icon: '×÷', color: 'bg-cyan-500' },
-            ].map(btn => (
+            {essentialSkills.map(btn => (
               <button
                 key={btn.id}
                 onClick={() => startNewGame(btn.id)}
@@ -68,9 +91,9 @@ const MainMenu: React.FC<MainMenuProps> = ({
           </div>
         </div>
 
-        {/* Navigation Section */}
+        {/* Year Level Specific Skills Section */}
         <div>
-          <h2 className="text-xl font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 px-2">Advanced Modules</h2>
+          <h2 className="text-xl font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 px-2">Year Level Specific Skills</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <button
               onClick={() => navigate('/8seal')}
@@ -100,6 +123,22 @@ const MainMenu: React.FC<MainMenuProps> = ({
                 <span className="text-xl font-bold">12</span>
               </div>
               <span className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">12 Methods</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Custom Game Section */}
+        <div>
+          <h2 className="text-xl font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 px-2">Custom</h2>
+          <div className="grid grid-cols-1">
+            <button
+              onClick={() => navigate('/custom')}
+              className="group relative h-24 flex flex-row items-center justify-center gap-4 bg-white dark:bg-slate-800 border-b-4 border-slate-200 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:border-indigo-300 dark:hover:border-indigo-800 rounded-3xl shadow-lg transition-all duration-150 hover:translate-y-1 hover:border-b-0 active:scale-95 z-0 hover:z-10"
+            >
+              <div className="w-10 h-10 rounded-xl bg-slate-500 text-white flex items-center justify-center shadow-md transform group-hover:scale-90 transition-all duration-200">
+                <span className="text-xl font-bold">⚙️</span>
+              </div>
+              <span className="text-lg font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">Create Custom Game</span>
             </button>
           </div>
         </div>

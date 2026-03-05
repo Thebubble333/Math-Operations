@@ -7,9 +7,11 @@ interface TrigGameProps {
   onAnswer: (val: string) => void;
   isSuccess: boolean;
   isInverse?: boolean;
+  showingAnswer?: boolean;
+  correctAnswer?: string;
 }
 
-const TrigGame: React.FC<TrigGameProps> = ({ problem, onAnswer, isSuccess, isInverse }) => {
+const TrigGame: React.FC<TrigGameProps> = ({ problem, onAnswer, isSuccess, isInverse, showingAnswer, correctAnswer }) => {
   // Flattened options for grid layout
   // Row 1: 0, 1/2, 1/sqrt(3), sqrt(2)/2, sqrt(3)/2, 1, sqrt(3)
   // Row 2: Undefined, -1/2, -1/sqrt(3), -sqrt(2)/2, -sqrt(3)/2, -1, -sqrt(3)
@@ -70,7 +72,14 @@ const TrigGame: React.FC<TrigGameProps> = ({ problem, onAnswer, isSuccess, isInv
           <button
             key={opt}
             onClick={() => onAnswer(opt)}
-            className="aspect-[4/3] p-1 sm:p-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm hover:shadow-md hover:bg-indigo-50 dark:hover:bg-slate-700 transition-all active:scale-95 border border-slate-200 dark:border-slate-700 text-sm sm:text-xl font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center"
+            disabled={showingAnswer}
+            className={`aspect-[4/3] p-1 sm:p-2 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-95 border text-sm sm:text-xl font-bold flex items-center justify-center
+              ${showingAnswer && opt === correctAnswer 
+                ? 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-500 text-emerald-600 dark:text-emerald-400 ring-2 ring-emerald-200 dark:ring-emerald-800' 
+                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-slate-700'
+              }
+              ${showingAnswer && opt !== correctAnswer ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
           >
              {opt === 'Undefined' ? (
                <span className="text-[10px] sm:text-sm font-bold uppercase tracking-wider">Undef</span>

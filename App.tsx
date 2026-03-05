@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import 'katex/dist/katex.min.css';
 import { GameMode, GameStats, CurrentStats, MathProblem, GraphConfig } from './types';
 import { generateProblem } from './utils/gameLogic';
@@ -8,6 +8,7 @@ import MainMenu from './components/MainMenu';
 import Seal8Menu from './components/Seal8Menu';
 import Methods12Menu from './components/Methods12Menu';
 import Spec11Menu from './components/Spec11Menu';
+import CustomGameMenu from './components/CustomGameMenu';
 import SummaryScreen from './components/SummaryScreen';
 import ActiveGame from './components/ActiveGame';
 import DevTools from './components/DevTools';
@@ -15,6 +16,7 @@ import DevTools from './components/DevTools';
 const TARGET_PROBLEMS = 20;
 
 const App: React.FC = () => {
+  const navigate = useNavigate();
   // Persistence
   const [mode, setMode] = useState<GameMode>(GameMode.NONE);
   const [darkMode, setDarkMode] = useState<boolean>(() => {
@@ -55,6 +57,16 @@ const App: React.FC = () => {
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);
   const [unsimplifiedAnswer, setUnsimplifiedAnswer] = useState<string | null>(null);
   
+  // Global Game Settings (Fixed vs Time)
+  const [globalGameType, setGlobalGameType] = useState<GameType>('FIXED_PROBLEMS');
+  const [globalTimeLimit, setGlobalTimeLimit] = useState<number>(180); // Default 3 mins
+
+  // Custom Game State
+  const [customModes, setCustomModes] = useState<GameMode[]>([]);
+  const [targetProblems, setTargetProblems] = useState(TARGET_PROBLEMS);
+  const [gameType, setGameType] = useState<GameType>('FIXED_PROBLEMS');
+  const [timeLimit, setTimeLimit] = useState<number | undefined>(undefined);
+
   // Trig Mode State
   const [forceQuadrant1, setForceQuadrant1] = useState(false);
   const hasErrorOnCurrent = useRef(false);
@@ -77,15 +89,29 @@ const App: React.FC = () => {
     }
   }, [darkMode]);
 
-  // QPM Update Timer
+  // QPM Update Timer & Game Timer
   useEffect(() => {
     if (!session.startTime || session.endTime || mode === GameMode.NONE) return;
 
     const interval = setInterval(() => {
       setSession(prev => {
         if (!prev.startTime || prev.endTime) return prev;
+        
         const elapsedMinutes = (Date.now() - prev.startTime) / 60000;
         const qpm = prev.correctCount > 0 ? Math.round(prev.correctCount / elapsedMinutes) : 0;
+        
+        // Check for Time Attack end condition
+        if (prev.gameType === 'TIME_ATTACK' && prev.timeLimit) {
+          const elapsedSeconds = (Date.now() - prev.startTime) / 1000;
+          if (elapsedSeconds >= prev.timeLimit) {
+            return {
+              ...prev,
+              qpm,
+              endTime: Date.now()
+            };
+          }
+        }
+
         return { ...prev, qpm };
       });
     }, 1000);
@@ -93,16 +119,58 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [session.startTime, session.endTime, mode]);
 
-  const startNewGame = (selectedMode: GameMode) => {
+  const startNewGame = (selectedMode: GameMode, customConfig?: { modes: GameMode[], count: number, gameType: GameType, timeLimit?: number }) => {
     setMode(selectedMode);
     
+    if (selectedMode === GameMode.CUSTOM && customConfig) {
+      setCustomModes(customConfig.modes);
+      setTargetProblems(customConfig.count);
+      setGameType(customConfig.gameType);
+      setTimeLimit(customConfig.timeLimit);
+    } else {
+      setCustomModes([]);
+      setGameType(globalGameType);
+      
+      if (globalGameType === 'TIME_ATTACK') {
+        setTimeLimit(globalTimeLimit);
+        setTargetProblems(1000); // Effectively infinite for time attack display purposes
+      } else {
+        setTimeLimit(undefined);
+        // Set target problems based on category
+        // Import GAME_MODES and GameCategory to check category
+        // Since we can't easily import here without refactoring, we'll check the ID prefix or known IDs
+        // Actually we can just check the mode ID against known lists or patterns
+        
+        // Hardcoded check for now as it's simpler than importing the config array if not already imported
+        // But wait, we need to know if it's Methods or Spec.
+        // Let's look at the ID strings in types.ts
+        
+        const isMethodsOrSpec = [
+          GameMode.METHODS_GRAPHS,
+          GameMode.TRIG_EXACT_VALUES,
+          GameMode.INVERSE_TRIG_EXACT_VALUES
+        ].includes(selectedMode);
+
+        if (isMethodsOrSpec) {
+          setTargetProblems(10);
+        } else {
+          setTargetProblems(20);
+        }
+      }
+    }
+    
     // Initial problem generation
-    const isTrig = selectedMode === GameMode.TRIG_EXACT_VALUES;
+    let problemMode = selectedMode;
+    if (selectedMode === GameMode.CUSTOM && customConfig && customConfig.modes.length > 0) {
+      problemMode = customConfig.modes[Math.floor(Math.random() * customConfig.modes.length)];
+    }
+
+    const isTrig = problemMode === GameMode.TRIG_EXACT_VALUES;
     const initialForceQ1 = isTrig; // First 3 questions are Q1, so start with true
     setForceQuadrant1(initialForceQ1);
     hasErrorOnCurrent.current = false;
 
-    const firstProblem = generateProblem(selectedMode, { forceQuadrant1: initialForceQ1, combo: 0 });
+    const firstProblem = generateProblem(problemMode, { forceQuadrant1: initialForceQ1, combo: 0 });
     setProblem(firstProblem);
     setInput('');
     setIsSuccess(false);
@@ -115,9 +183,11 @@ const App: React.FC = () => {
       totalAttempts: 0,
       startTime: Date.now(),
       endTime: null,
+      gameType: selectedMode === GameMode.CUSTOM && customConfig ? customConfig.gameType : globalGameType,
+      timeLimit: selectedMode === GameMode.CUSTOM && customConfig ? customConfig.timeLimit : (globalGameType === 'TIME_ATTACK' ? globalTimeLimit : undefined)
     });
     // Only focus input if not in graph/trig mode
-    if (selectedMode !== GameMode.METHODS_GRAPHS && selectedMode !== GameMode.TRIG_EXACT_VALUES && selectedMode !== GameMode.INVERSE_TRIG_EXACT_VALUES) {
+    if (problemMode !== GameMode.METHODS_GRAPHS && problemMode !== GameMode.TRIG_EXACT_VALUES && problemMode !== GameMode.INVERSE_TRIG_EXACT_VALUES) {
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
@@ -138,12 +208,17 @@ const App: React.FC = () => {
       }
       setStats(s => ({ ...s, totalSolved: s.totalSolved + 1 }));
 
-      const isFinished = newCorrectCount >= TARGET_PROBLEMS;
+      const isFinished = prev.gameType === 'FIXED_PROBLEMS' && newCorrectCount >= targetProblems;
 
       // Determine next problem params
       if (!isFinished) {
+        let nextMode = mode;
+        if (mode === GameMode.CUSTOM && customModes.length > 0) {
+          nextMode = customModes[Math.floor(Math.random() * customModes.length)];
+        }
+
         let nextForceQ1 = false;
-        if (mode === GameMode.TRIG_EXACT_VALUES) {
+        if (nextMode === GameMode.TRIG_EXACT_VALUES) {
            // Force Q1 if:
            // 1. We are in the first 3 questions (newCorrectCount < 3)
            // 2. An error occurred on the current question
@@ -155,7 +230,7 @@ const App: React.FC = () => {
         }
         
         setForceQuadrant1(nextForceQ1);
-        setProblem(generateProblem(mode, { forceQuadrant1: nextForceQ1, combo: newCombo }));
+        setProblem(generateProblem(nextMode, { forceQuadrant1: nextForceQ1, combo: newCombo }));
         hasErrorOnCurrent.current = false;
       } else {
         setProblem(null);
@@ -171,7 +246,7 @@ const App: React.FC = () => {
     });
 
     setInput('');
-  }, [mode, stats.highScore, session.correctCount, forceQuadrant1]);
+  }, [mode, stats.highScore, session.correctCount, forceQuadrant1, targetProblems, customModes]);
 
   const triggerError = (isSignError: boolean = false) => {
     setIsShaking(true);
@@ -202,11 +277,16 @@ const App: React.FC = () => {
     setSession(prev => {
       const newTotalAttempts = prev.totalAttempts + 1;
       
-      const isFinished = prev.correctCount >= TARGET_PROBLEMS;
+      const isFinished = prev.correctCount >= targetProblems;
 
       if (!isFinished) {
+        let nextMode = mode;
+        if (mode === GameMode.CUSTOM && customModes.length > 0) {
+          nextMode = customModes[Math.floor(Math.random() * customModes.length)];
+        }
+
         let nextForceQ1 = false;
-        if (mode === GameMode.TRIG_EXACT_VALUES) {
+        if (nextMode === GameMode.TRIG_EXACT_VALUES) {
            if (prev.correctCount < 3 || hasErrorOnCurrent.current) {
              nextForceQ1 = true;
            } else {
@@ -215,7 +295,7 @@ const App: React.FC = () => {
         }
         
         setForceQuadrant1(nextForceQ1);
-        setProblem(generateProblem(mode, { forceQuadrant1: nextForceQ1, combo: 0 }));
+        setProblem(generateProblem(nextMode, { forceQuadrant1: nextForceQ1, combo: 0 }));
         hasErrorOnCurrent.current = false;
       } else {
         setProblem(null);
@@ -229,7 +309,7 @@ const App: React.FC = () => {
     });
 
     setInput('');
-  }, [mode, session.correctCount, forceQuadrant1]);
+  }, [mode, session.correctCount, forceQuadrant1, targetProblems, customModes]);
 
   const parseAlgebraInput = (input: string) => {
     const clean = input.replace(/\s+/g, '');
@@ -286,33 +366,35 @@ const App: React.FC = () => {
   const handleInputChange = (val: string) => {
     if (!problem || session.endTime || isSuccess || isError) return;
     
+    const currentProblemMode = problem.mode || mode;
+    
     let cleanVal = val;
 
     // Only clean input for arithmetic modes
-    if (mode !== GameMode.TRIG_EXACT_VALUES && mode !== GameMode.INVERSE_TRIG_EXACT_VALUES && mode !== GameMode.METHODS_GRAPHS && mode !== GameMode.SIMPLIFY_SURDS && mode !== GameMode.EXPANDING_NEGATIVES && mode !== GameMode.TWO_STEP_EQUATIONS) {
+    if (currentProblemMode !== GameMode.TRIG_EXACT_VALUES && currentProblemMode !== GameMode.INVERSE_TRIG_EXACT_VALUES && currentProblemMode !== GameMode.METHODS_GRAPHS && currentProblemMode !== GameMode.SIMPLIFY_SURDS && currentProblemMode !== GameMode.EXPANDING_NEGATIVES && currentProblemMode !== GameMode.TWO_STEP_EQUATIONS) {
       // Allow digits and minus sign
       cleanVal = val.replace(/[^0-9-]/g, '');
-    } else if (mode === GameMode.SIMPLIFY_SURDS) {
+    } else if (currentProblemMode === GameMode.SIMPLIFY_SURDS) {
       // Allow digits and 'r'
       cleanVal = val.replace(/[^0-9rR]/g, '').toLowerCase();
-    } else if (mode === GameMode.EXPANDING_NEGATIVES) {
+    } else if (currentProblemMode === GameMode.EXPANDING_NEGATIVES) {
       // Allow digits, x, +, -
       cleanVal = val.replace(/[^0-9xX+\-]/g, '').toLowerCase();
-    } else if (mode === GameMode.TWO_STEP_EQUATIONS) {
+    } else if (currentProblemMode === GameMode.TWO_STEP_EQUATIONS) {
       // Allow digits, -, /
       cleanVal = val.replace(/[^0-9\-/]/g, '');
     }
     
     setInput(cleanVal);
 
-    if (mode === GameMode.SIMPLIFY_SURDS || mode === GameMode.SIG_FIGS_SCI_NOTATION) {
+    if (currentProblemMode === GameMode.SIMPLIFY_SURDS || currentProblemMode === GameMode.SIG_FIGS_SCI_NOTATION) {
       // We handle surd and sci notation logic in ActiveGame now, so this branch shouldn't be reached
       // But just in case, we do nothing here.
       return;
     }
 
-    if (mode === GameMode.EXPANDING_NEGATIVES) {
-      const ans = JSON.parse(problem.answer);
+    if (currentProblemMode === GameMode.EXPANDING_NEGATIVES) {
+      const ans = JSON.parse(problem.answer.toString());
       const parsed = parseAlgebraInput(cleanVal);
       if (parsed.x === ans.x && parsed.c === ans.c) {
         setIsSuccess(true);
@@ -324,8 +406,8 @@ const App: React.FC = () => {
       return;
     }
 
-    if (mode === GameMode.TWO_STEP_EQUATIONS) {
-      const ans = JSON.parse(problem.answer);
+    if (currentProblemMode === GameMode.TWO_STEP_EQUATIONS) {
+      const ans = JSON.parse(problem.answer.toString());
       const parsed = parseFractionInput(cleanVal);
       if (parsed.num !== null && parsed.num === ans.num && parsed.den === ans.den) {
         const expectedStr = ans.den === 1 ? `${ans.num}` : `${ans.num}/${ans.den}`;
@@ -346,12 +428,12 @@ const App: React.FC = () => {
 
     if (cleanVal === problem.answer.toString()) {
       setIsSuccess(true);
-      const delay = (mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INVERSE_TRIG_EXACT_VALUES) ? 1000 : 250;
+      const delay = (currentProblemMode === GameMode.TRIG_EXACT_VALUES || currentProblemMode === GameMode.INVERSE_TRIG_EXACT_VALUES) ? 1000 : 250;
       setTimeout(() => {
         handleCorrect();
         setIsSuccess(false);
       }, delay);
-    } else if (mode !== GameMode.TRIG_EXACT_VALUES && mode !== GameMode.INVERSE_TRIG_EXACT_VALUES && mode !== GameMode.METHODS_GRAPHS) {
+    } else if (currentProblemMode !== GameMode.TRIG_EXACT_VALUES && currentProblemMode !== GameMode.INVERSE_TRIG_EXACT_VALUES && currentProblemMode !== GameMode.METHODS_GRAPHS) {
       // Arithmetic mode error handling (length based)
       if (cleanVal.length >= problem.answer.toString().length) {
         triggerError();
@@ -359,7 +441,7 @@ const App: React.FC = () => {
     } else {
       // Immediate error for button-click modes (Trig/Graphs)
       let isSignError = false;
-      if (mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INVERSE_TRIG_EXACT_VALUES) {
+      if (currentProblemMode === GameMode.TRIG_EXACT_VALUES || currentProblemMode === GameMode.INVERSE_TRIG_EXACT_VALUES) {
         const ans = problem.answer.toString();
         if (cleanVal === '-' + ans || ans === '-' + cleanVal) {
           isSignError = true;
@@ -435,11 +517,14 @@ const App: React.FC = () => {
               isConfirmingReset={isConfirmingReset}
               closeSettings={closeSettings}
               onOpenDevTools={() => setShowDevTools(true)}
+              globalGameType={globalGameType}
+              setGlobalGameType={setGlobalGameType}
             />
           } />
           <Route path="/8seal" element={<Seal8Menu startNewGame={startNewGame} />} />
           <Route path="/11spec" element={<Spec11Menu startNewGame={startNewGame} />} />
           <Route path="/12methods" element={<Methods12Menu startNewGame={startNewGame} />} />
+          <Route path="/custom" element={<CustomGameMenu startNewGame={startNewGame} onBack={() => navigate('/')} />} />
         </Routes>
       )}
 
@@ -457,7 +542,7 @@ const App: React.FC = () => {
       {/* Active Game View */}
       {mode !== GameMode.NONE && !session.endTime && (
         <ActiveGame
-          mode={mode}
+          mode={(mode === GameMode.CUSTOM && problem?.mode) ? problem.mode : mode}
           setMode={setMode}
           session={session}
           problem={problem}
@@ -475,7 +560,7 @@ const App: React.FC = () => {
           handleSkip={handleSkip}
           stats={stats}
           accuracy={accuracy}
-          targetProblems={TARGET_PROBLEMS}
+          targetProblems={targetProblems}
           inputRef={inputRef}
           graphConfig={graphConfig}
           unsimplifiedAnswer={unsimplifiedAnswer}

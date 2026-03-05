@@ -654,132 +654,103 @@ const generateTwoStepEquationsProblem = (): MathProblem => {
 };
 
 export const generateProblem = (mode: GameMode, options?: { forceQuadrant1?: boolean, combo?: number }): MathProblem => {
+  let problem: MathProblem;
+
   if (mode === GameMode.TWO_STEP_EQUATIONS) {
-    return generateTwoStepEquationsProblem();
-  }
-  if (mode === GameMode.EXPANDING_NEGATIVES) {
-    return generateExpandingNegativesProblem();
-  }
-  if (mode === GameMode.SIMPLIFY_SURDS) {
-    return generateSurdsProblem(options?.combo || 0);
-  }
-  if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
-    return generateSigFigsProblem(options?.combo || 0);
-  }
-
-  if (mode === GameMode.INDEX_LAWS) {
-    return generateIndexLawsProblem();
-  }
-
-  if (mode === GameMode.METHODS_GRAPHS) {
-    return generateGraphProblem();
-  }
-  
-  if (mode === GameMode.INVERSE_TRIG_EXACT_VALUES) {
-    return generateInverseTrigProblem();
-  }
-
-  if (mode === GameMode.TRIG_EXACT_VALUES) {
-    // If forceQuadrant1 is true, we only want angles in [0, pi/2]
-    // That means 0, pi/6, pi/4, pi/3, pi/2
+    problem = generateTwoStepEquationsProblem();
+  } else if (mode === GameMode.EXPANDING_NEGATIVES) {
+    problem = generateExpandingNegativesProblem();
+  } else if (mode === GameMode.SIMPLIFY_SURDS) {
+    problem = generateSurdsProblem(options?.combo || 0);
+  } else if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
+    problem = generateSigFigsProblem(options?.combo || 0);
+  } else if (mode === GameMode.INDEX_LAWS) {
+    problem = generateIndexLawsProblem();
+  } else if (mode === GameMode.METHODS_GRAPHS) {
+    problem = generateGraphProblem();
+  } else if (mode === GameMode.INVERSE_TRIG_EXACT_VALUES) {
+    problem = generateInverseTrigProblem();
+  } else if (mode === GameMode.TRIG_EXACT_VALUES) {
     if (options?.forceQuadrant1) {
-      const q1Angles = [
-        { rad: 0, latex: '0' },
-        { rad: Math.PI / 6, latex: '\\frac{\\pi}{6}' },
-        { rad: Math.PI / 4, latex: '\\frac{\\pi}{4}' },
-        { rad: Math.PI / 3, latex: '\\frac{\\pi}{3}' },
-        { rad: Math.PI / 2, latex: '\\frac{\\pi}{2}' }
-      ];
-      
-      const angleObj = q1Angles[Math.floor(Math.random() * q1Angles.length)];
-      const funcs = ['\\sin', '\\cos', '\\tan'];
-      const func = funcs[Math.floor(Math.random() * funcs.length)];
-      
-      // Duplicate logic for exact value calculation (refactor if possible, but copy-paste is safer for now to avoid breaking scope)
-      // Actually, let's just call a helper or reuse the logic. 
-      // Since generateTrigProblem is scoped above, I can't easily pass arguments into it without changing its signature too.
-      // Let's modify generateTrigProblem to accept the flag.
-      return generateTrigProblem(true);
+      problem = generateTrigProblem(true);
+    } else {
+      problem = generateTrigProblem(false);
     }
-    return generateTrigProblem(false);
-  }
+  } else {
+    let a: number, b: number, answer: number, question: string;
+    let activeMode = mode;
 
-  let a: number, b: number, answer: number, question: string;
-  let activeMode = mode;
+    if (mode === GameMode.MIXED) {
+      const modes = [GameMode.ADDITION, GameMode.SUBTRACTION, GameMode.MULTIPLICATION, GameMode.DIVISION];
+      activeMode = modes[Math.floor(Math.random() * modes.length)];
+    }
 
-  if (mode === GameMode.MIXED) {
-    const modes = [GameMode.ADDITION, GameMode.SUBTRACTION, GameMode.MULTIPLICATION, GameMode.DIVISION];
-    activeMode = modes[Math.floor(Math.random() * modes.length)];
-  }
-
-  switch (activeMode) {
-    case GameMode.ADDITION:
-      a = Math.floor(Math.random() * 12) + 1;
-      b = Math.floor(Math.random() * 12) + 1;
-      answer = a + b;
-      question = `${a} + ${b}`;
-      break;
-
-    case GameMode.SUBTRACTION:
-      a = Math.floor(Math.random() * 20) + 5;
-      b = Math.floor(Math.random() * (a - 1)) + 1;
-      answer = a - b;
-      question = `${a} - ${b}`;
-      break;
-
-    case GameMode.MULTIPLICATION:
-      a = Math.floor(Math.random() * 12) + 1;
-      b = Math.floor(Math.random() * 12) + 1;
-      answer = a * b;
-      question = `${a} × ${b}`;
-      break;
-
-    case GameMode.DIVISION:
-      // Generate answer and divisor first to ensure whole numbers
-      answer = Math.floor(Math.random() * 12) + 1;
-      b = Math.floor(Math.random() * 11) + 2; // Divisor 2-12
-      a = answer * b;
-      question = `${a} ÷ ${b}`;
-      break;
-
-    case GameMode.ADD_SUB_NEGATIVES:
-      // Range -10 to 10
-      a = Math.floor(Math.random() * 21) - 10;
-      b = Math.floor(Math.random() * 21) - 10;
-      if (Math.random() < 0.5) {
+    switch (activeMode) {
+      case GameMode.ADDITION:
+        a = Math.floor(Math.random() * 12) + 1;
+        b = Math.floor(Math.random() * 12) + 1;
         answer = a + b;
-        question = `${a} + ${b < 0 ? `(${b})` : b}`;
-      } else {
+        question = `${a} + ${b}`;
+        break;
+
+      case GameMode.SUBTRACTION:
+        a = Math.floor(Math.random() * 20) + 5;
+        b = Math.floor(Math.random() * (a - 1)) + 1;
         answer = a - b;
-        question = `${a} - ${b < 0 ? `(${b})` : b}`;
-      }
-      break;
+        question = `${a} - ${b}`;
+        break;
 
-    case GameMode.MULT_DIV_NEGATIVES:
-      if (Math.random() < 0.5) {
-        // Multiplication: -12 to 12
-        a = Math.floor(Math.random() * 25) - 12;
-        b = Math.floor(Math.random() * 25) - 12;
+      case GameMode.MULTIPLICATION:
+        a = Math.floor(Math.random() * 12) + 1;
+        b = Math.floor(Math.random() * 12) + 1;
         answer = a * b;
-        question = `${a} × ${b < 0 ? `(${b})` : b}`;
-      } else {
-        // Division
-        // Answer -12 to 12 (excluding 0)
-        answer = Math.floor(Math.random() * 25) - 12;
-        if (answer === 0) answer = 1;
-        
-        // Divisor -12 to 12 (excluding 0)
-        b = Math.floor(Math.random() * 25) - 12;
-        if (b === 0) b = 1;
+        question = `${a} × ${b}`;
+        break;
 
+      case GameMode.DIVISION:
+        answer = Math.floor(Math.random() * 12) + 1;
+        b = Math.floor(Math.random() * 11) + 2;
         a = answer * b;
-        question = `${a} ÷ ${b < 0 ? `(${b})` : b}`;
-      }
-      break;
+        question = `${a} ÷ ${b}`;
+        break;
 
-    default:
-      return { question: '?', answer: 0, type: 'arithmetic' };
+      case GameMode.ADD_SUB_NEGATIVES:
+        a = Math.floor(Math.random() * 21) - 10;
+        b = Math.floor(Math.random() * 21) - 10;
+        if (Math.random() < 0.5) {
+          answer = a + b;
+          question = `${a} + ${b < 0 ? `(${b})` : b}`;
+        } else {
+          answer = a - b;
+          question = `${a} - ${b < 0 ? `(${b})` : b}`;
+        }
+        break;
+
+      case GameMode.MULT_DIV_NEGATIVES:
+        if (Math.random() < 0.5) {
+          a = Math.floor(Math.random() * 25) - 12;
+          b = Math.floor(Math.random() * 25) - 12;
+          answer = a * b;
+          question = `${a} × ${b < 0 ? `(${b})` : b}`;
+        } else {
+          answer = Math.floor(Math.random() * 25) - 12;
+          if (answer === 0) answer = 1;
+          b = Math.floor(Math.random() * 25) - 12;
+          if (b === 0) b = 1;
+          a = answer * b;
+          question = `${a} ÷ ${b < 0 ? `(${b})` : b}`;
+        }
+        break;
+
+      default:
+        problem = { question: '?', answer: 0, type: 'arithmetic' };
+        break;
+    }
+    
+    if (!problem) {
+        problem = { question, answer: answer!, type: 'arithmetic' };
+    }
   }
 
-  return { question, answer, type: 'arithmetic' };
+  return { ...problem, mode };
 };
