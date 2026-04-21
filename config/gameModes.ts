@@ -2,6 +2,7 @@ import { GameMode } from '../types';
 
 export enum GameCategory {
   ESSENTIAL = 'Essential Skills',
+  YEAR_8 = 'Year 8',
   SEAL_8 = '8 SEAL',
   METHODS_12 = '12 Methods',
   SPEC_11 = '11 Specialist',
@@ -105,6 +106,56 @@ export const GAME_MODES: GameModeConfig[] = [
     activeBg: 'bg-cyan-50',
     darkActiveBg: 'dark:bg-cyan-900/30',
     darkActiveText: 'dark:text-cyan-300'
+  },
+
+  // Year 8
+  { 
+    id: GameMode.YEAR8_ADD_SUB_ALGEBRA, 
+    label: 'Add/Sub Algebra', 
+    category: GameCategory.YEAR_8, 
+    icon: 'x±x', 
+    color: 'bg-blue-500',
+    activeBorder: 'border-blue-500',
+    activeText: 'text-blue-700',
+    activeBg: 'bg-blue-50',
+    darkActiveBg: 'dark:bg-blue-900/30',
+    darkActiveText: 'dark:text-blue-300'
+  },
+  { 
+    id: GameMode.YEAR8_MULT_DIV_ALGEBRA, 
+    label: 'Mult/Div Algebra', 
+    category: GameCategory.YEAR_8, 
+    icon: 'xy/x', 
+    color: 'bg-indigo-500',
+    activeBorder: 'border-indigo-500',
+    activeText: 'text-indigo-700',
+    activeBg: 'bg-indigo-50',
+    darkActiveBg: 'dark:bg-indigo-900/30',
+    darkActiveText: 'dark:text-indigo-300'
+  },
+  { 
+    id: GameMode.YEAR8_EXPANDING, 
+    label: 'Expanding', 
+    category: GameCategory.YEAR_8, 
+    icon: 'a(x)', 
+    color: 'bg-purple-500',
+    activeBorder: 'border-purple-500',
+    activeText: 'text-purple-700',
+    activeBg: 'bg-purple-50',
+    darkActiveBg: 'dark:bg-purple-900/30',
+    darkActiveText: 'dark:text-purple-300'
+  },
+  { 
+    id: GameMode.YEAR8_FACTORISING, 
+    label: 'Factorising', 
+    category: GameCategory.YEAR_8, 
+    icon: '(x+a)', 
+    color: 'bg-fuchsia-500',
+    activeBorder: 'border-fuchsia-500',
+    activeText: 'text-fuchsia-700',
+    activeBg: 'bg-fuchsia-50',
+    darkActiveBg: 'dark:bg-fuchsia-900/30',
+    darkActiveText: 'dark:text-fuchsia-300'
   },
 
   // 8 SEAL

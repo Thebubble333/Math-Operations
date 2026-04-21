@@ -2,10 +2,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import 'katex/dist/katex.min.css';
-import { GameMode, GameStats, CurrentStats, MathProblem, GraphConfig } from './types';
+import { GameMode, GameStats, CurrentStats, MathProblem, GraphConfig, GameType } from './types';
 import { generateProblem } from './utils/gameLogic';
 import MainMenu from './components/MainMenu';
 import Seal8Menu from './components/Seal8Menu';
+import Year8Menu from './components/Year8Menu';
 import Methods12Menu from './components/Methods12Menu';
 import Spec11Menu from './components/Spec11Menu';
 import CustomGameMenu from './components/CustomGameMenu';
@@ -363,6 +364,40 @@ const App: React.FC = () => {
     return { num: null, den: null, origNum: null, origDen: null };
   };
 
+  const parseMultiVarAlgebra = (input: string) => {
+    const clean = input.replace(/\s+/g, '');
+    const terms: Record<string, number> = {};
+    const regex = /([+-]?\d*)([a-z]+)?/gi; 
+    let match;
+    let lastIndex = -1;
+    while ((match = regex.exec(clean)) !== null) {
+      if (regex.lastIndex === lastIndex) break; 
+      lastIndex = regex.lastIndex;
+      
+      if (match[0] === '') continue;
+      
+      let coefStr = match[1];
+      let varStr = match[2] ? match[2].toLowerCase() : 'constant';
+      
+      if (varStr !== 'constant') {
+        varStr = varStr.split('').sort().join('');
+      }
+      
+      let coef = 1;
+      if (coefStr === '' || coefStr === '+') coef = 1;
+      else if (coefStr === '-') coef = -1;
+      else coef = parseInt(coefStr, 10);
+      
+      if (isNaN(coef)) coef = 0;
+      
+      terms[varStr] = (terms[varStr] || 0) + coef;
+    }
+    for (const k in terms) {
+      if (terms[k] === 0) delete terms[k];
+    }
+    return terms;
+  };
+
   const handleInputChange = (val: string) => {
     if (!problem || session.endTime || isSuccess || isError) return;
     
@@ -371,7 +406,7 @@ const App: React.FC = () => {
     let cleanVal = val;
 
     // Only clean input for arithmetic modes
-    if (currentProblemMode !== GameMode.TRIG_EXACT_VALUES && currentProblemMode !== GameMode.INVERSE_TRIG_EXACT_VALUES && currentProblemMode !== GameMode.METHODS_GRAPHS && currentProblemMode !== GameMode.SIMPLIFY_SURDS && currentProblemMode !== GameMode.EXPANDING_NEGATIVES && currentProblemMode !== GameMode.TWO_STEP_EQUATIONS) {
+    if (currentProblemMode !== GameMode.TRIG_EXACT_VALUES && currentProblemMode !== GameMode.INVERSE_TRIG_EXACT_VALUES && currentProblemMode !== GameMode.METHODS_GRAPHS && currentProblemMode !== GameMode.SIMPLIFY_SURDS && currentProblemMode !== GameMode.EXPANDING_NEGATIVES && currentProblemMode !== GameMode.TWO_STEP_EQUATIONS && currentProblemMode !== GameMode.YEAR8_ADD_SUB_ALGEBRA && currentProblemMode !== GameMode.YEAR8_MULT_DIV_ALGEBRA && currentProblemMode !== GameMode.YEAR8_EXPANDING && currentProblemMode !== GameMode.YEAR8_FACTORISING) {
       // Allow digits and minus sign
       cleanVal = val.replace(/[^0-9-]/g, '');
     } else if (currentProblemMode === GameMode.SIMPLIFY_SURDS) {
@@ -380,6 +415,15 @@ const App: React.FC = () => {
     } else if (currentProblemMode === GameMode.EXPANDING_NEGATIVES) {
       // Allow digits, x, +, -
       cleanVal = val.replace(/[^0-9xX+\-]/g, '').toLowerCase();
+    } else if (currentProblemMode === GameMode.YEAR8_ADD_SUB_ALGEBRA || currentProblemMode === GameMode.YEAR8_EXPANDING) {
+      // Allow digits, letters, +, -
+      cleanVal = val.replace(/[^0-9a-zA-Z+\-]/g, '').toLowerCase();
+    } else if (currentProblemMode === GameMode.YEAR8_FACTORISING) {
+      // Allow digits, letters, +, -, (, )
+      cleanVal = val.replace(/[^0-9a-zA-Z+\-()]/g, '').toLowerCase();
+    } else if (currentProblemMode === GameMode.YEAR8_MULT_DIV_ALGEBRA) {
+      // Allow digits, a,b,x,y,m,n,/,+,- (maybe + and - just in case?)
+      cleanVal = val.replace(/[^0-9abxymn/+\-]/gi, '').toLowerCase();
     } else if (currentProblemMode === GameMode.TWO_STEP_EQUATIONS) {
       // Allow digits, -, /
       cleanVal = val.replace(/[^0-9\-/]/g, '');
@@ -402,6 +446,72 @@ const App: React.FC = () => {
           handleCorrect();
           setIsSuccess(false);
         }, 250);
+      }
+      return;
+    }
+
+    if (currentProblemMode === GameMode.YEAR8_ADD_SUB_ALGEBRA || currentProblemMode === GameMode.YEAR8_EXPANDING) {
+      const ans = JSON.parse(problem.answer.toString());
+      if (ans.type === 'multivar') {
+        const parsed = parseMultiVarAlgebra(cleanVal);
+        const expectedKeys = Object.keys(ans.terms);
+        const parsedKeys = Object.keys(parsed);
+        if (parsedKeys.length === expectedKeys.length) {
+          let matches = true;
+          for (const k of expectedKeys) {
+            if (parsed[k] !== ans.terms[k]) matches = false;
+          }
+          if (matches) {
+            setIsSuccess(true);
+            setTimeout(() => {
+              handleCorrect();
+              setIsSuccess(false);
+            }, 250);
+          }
+        }
+      }
+      return;
+    }
+
+    if (currentProblemMode === GameMode.YEAR8_FACTORISING) {
+      const ans = JSON.parse(problem.answer.toString());
+      if (cleanVal === ans.str) {
+        setIsSuccess(true);
+        setTimeout(() => {
+          handleCorrect();
+          setIsSuccess(false);
+        }, 250);
+      }
+      return;
+    }
+
+    if (currentProblemMode === GameMode.YEAR8_MULT_DIV_ALGEBRA) {
+      const ans = JSON.parse(problem.answer.toString());
+      if (ans.isDiv) {
+        if (cleanVal === ans.str) {
+          setIsSuccess(true);
+          setTimeout(() => {
+            handleCorrect();
+            setIsSuccess(false);
+          }, 250);
+        }
+      } else {
+        const parsed = parseMultiVarAlgebra(cleanVal);
+        const expectedKeys = Object.keys(ans.terms);
+        const parsedKeys = Object.keys(parsed);
+        if (parsedKeys.length === expectedKeys.length && expectedKeys.length > 0) {
+          let matches = true;
+          for (const k of expectedKeys) {
+            if (parsed[k] !== ans.terms[k]) matches = false;
+          }
+          if (matches) {
+            setIsSuccess(true);
+            setTimeout(() => {
+              handleCorrect();
+              setIsSuccess(false);
+            }, 250);
+          }
+        }
       }
       return;
     }
@@ -521,6 +631,7 @@ const App: React.FC = () => {
               setGlobalGameType={setGlobalGameType}
             />
           } />
+          <Route path="/8mainstream" element={<Year8Menu startNewGame={startNewGame} />} />
           <Route path="/8seal" element={<Seal8Menu startNewGame={startNewGame} />} />
           <Route path="/11spec" element={<Spec11Menu startNewGame={startNewGame} />} />
           <Route path="/12methods" element={<Methods12Menu startNewGame={startNewGame} />} />

@@ -41,6 +41,10 @@ const SummaryScreen: React.FC<SummaryScreenProps> = ({
       case GameMode.INVERSE_TRIG_EXACT_VALUES: return 'Inverse Trig Exact Values';
       case GameMode.EXPANDING_NEGATIVES: return 'Expanding Negatives';
       case GameMode.TWO_STEP_EQUATIONS: return 'Two-Step Equations';
+      case GameMode.YEAR8_ADD_SUB_ALGEBRA: return 'Add/Sub Algebra';
+      case GameMode.YEAR8_MULT_DIV_ALGEBRA: return 'Mult/Div Algebra';
+      case GameMode.YEAR8_EXPANDING: return 'Expanding';
+      case GameMode.YEAR8_FACTORISING: return 'Factorising';
       case GameMode.CUSTOM: return 'Custom Game';
       default: return 'Unknown Mode';
     }

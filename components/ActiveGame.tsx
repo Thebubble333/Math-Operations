@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Latex from 'react-latex-next';
 import { GameMode, GameStats, CurrentStats, MathProblem, GraphConfig } from '../types';
 import Numpad from './Numpad';
@@ -61,6 +61,10 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
   const [sciA, setSciA] = useState('');
   const [sciN, setSciN] = useState('');
   const [sciFocus, setSciFocus] = useState<'a'|'n'>('a');
+
+  const [fracFocus, setFracFocus] = useState<'num' | 'den'>('den');
+  const numRef = useRef<HTMLInputElement>(null);
+  const denRef = useRef<HTMLInputElement>(null);
 
   const [showingAnswer, setShowingAnswer] = useState(false);
   const [canGoNext, setCanGoNext] = useState(false);
@@ -296,6 +300,34 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
         }
         if (ansStr === '') ansStr = '0';
         setInput(ansStr);
+      } else if (mode === GameMode.YEAR8_ADD_SUB_ALGEBRA || mode === GameMode.YEAR8_EXPANDING || mode === GameMode.YEAR8_MULT_DIV_ALGEBRA || mode === GameMode.YEAR8_FACTORISING) {
+        const ans = JSON.parse(problem.answer);
+        if (ans.type === 'multivar') {
+          let str = '';
+          const terms = ans.terms;
+          const vars = Object.keys(terms).filter(k => k !== 'constant').sort();
+          for (let i = 0; i < vars.length; i++) {
+            const v = vars[i];
+            const coef = terms[v];
+            if (coef === 0) continue;
+            if (str !== '' && coef > 0) str += '+';
+            if (coef === -1) str += '-';
+            else if (coef !== 1) str += coef;
+            str += v;
+          }
+          if (terms.constant) {
+            if (terms.constant > 0 && str !== '') str += '+';
+            str += terms.constant;
+          }
+          if (str === '') str = '0';
+          setInput(str);
+        } else if (ans.isDiv) {
+          setInput(ans.str);
+        } else if (ans.type === 'factorise') {
+          setInput(ans.str);
+        } else {
+          setInput(problem.answer.toString());
+        }
       } else if (mode === GameMode.TWO_STEP_EQUATIONS) {
         const ans = JSON.parse(problem.answer);
         const ansStr = ans.den === 1 ? `${ans.num}` : `${ans.num}/${ans.den}`;
@@ -398,38 +430,57 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                 <span>Problem {session.correctCount + 1} / {targetProblems}</span>
               )}
             </div>
-            <div className={`${mode === GameMode.METHODS_GRAPHS || mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INVERSE_TRIG_EXACT_VALUES || mode === GameMode.INDEX_LAWS || mode === GameMode.SIMPLIFY_SURDS || mode === GameMode.SIG_FIGS_SCI_NOTATION || mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS ? 'text-4xl sm:text-6xl py-4' : 'text-8xl sm:text-[10rem]'} font-black tracking-tighter text-slate-800 dark:text-slate-50 tabular-nums select-none drop-shadow-sm`}>
-              {mode === GameMode.METHODS_GRAPHS || mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INVERSE_TRIG_EXACT_VALUES || mode === GameMode.INDEX_LAWS || mode === GameMode.SIMPLIFY_SURDS || mode === GameMode.SIG_FIGS_SCI_NOTATION || mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS ? (
-                problem && mode === GameMode.SIG_FIGS_SCI_NOTATION && JSON.parse(problem.answer).type === 'count_sf' ? (
-                  <div className="flex items-center justify-center">
-                    <Latex>{`$\\text{Sig figs in }$`}</Latex>
-                    <span className="ml-2 font-mono tracking-widest relative">
-                      {(() => {
-                        const ans = JSON.parse(problem.answer);
-                        const numStr = ans.numStr;
-                        const sigStart = ans.sigStart;
-                        const sigEnd = ans.sigEnd;
-                        
-                        return (
-                          <>
-                            <span>{numStr.slice(0, sigStart)}</span>
-                            <span className={`${isSuccess ? 'bg-emerald-300/50 dark:bg-emerald-500/50 rounded px-0.5 transition-colors duration-300' : ''}`}>
-                              {numStr.slice(sigStart, sigEnd)}
-                            </span>
-                            <span>{numStr.slice(sigEnd)}</span>
-                          </>
-                        );
-                      })()}
-                    </span>
-                    <Latex>{`$?$`}</Latex>
-                  </div>
-                ) : (
-                  <Latex>{`$${problem?.question}$`}</Latex>
-                )
-              ) : (
-                problem?.question
-              )}
-            </div>
+            {(() => {
+              const isLatexMode = [
+                GameMode.METHODS_GRAPHS,
+                GameMode.TRIG_EXACT_VALUES,
+                GameMode.INVERSE_TRIG_EXACT_VALUES,
+                GameMode.INDEX_LAWS,
+                GameMode.SIMPLIFY_SURDS,
+                GameMode.SIG_FIGS_SCI_NOTATION,
+                GameMode.EXPANDING_NEGATIVES,
+                GameMode.TWO_STEP_EQUATIONS,
+                GameMode.YEAR8_ADD_SUB_ALGEBRA,
+                GameMode.YEAR8_MULT_DIV_ALGEBRA,
+                GameMode.YEAR8_EXPANDING,
+                GameMode.YEAR8_FACTORISING
+              ].includes(mode);
+
+              return (
+                <div className={`${isLatexMode ? 'text-4xl sm:text-6xl py-4' : 'text-8xl sm:text-[10rem]'} font-black tracking-tighter text-slate-800 dark:text-slate-50 tabular-nums select-none drop-shadow-sm`}>
+                  {isLatexMode ? (
+                    problem && mode === GameMode.SIG_FIGS_SCI_NOTATION && JSON.parse(problem.answer).type === 'count_sf' ? (
+                      <div className="flex items-center justify-center">
+                        <Latex>{`$\\text{Sig figs in }$`}</Latex>
+                        <span className="ml-2 font-mono tracking-widest relative">
+                          {(() => {
+                            const ans = JSON.parse(problem.answer);
+                            const numStr = ans.numStr;
+                            const sigStart = ans.sigStart;
+                            const sigEnd = ans.sigEnd;
+                            
+                            return (
+                              <>
+                                <span>{numStr.slice(0, sigStart)}</span>
+                                <span className={`${isSuccess ? 'bg-emerald-300/50 dark:bg-emerald-500/50 rounded px-0.5 transition-colors duration-300' : ''}`}>
+                                  {numStr.slice(sigStart, sigEnd)}
+                                </span>
+                                <span>{numStr.slice(sigEnd)}</span>
+                              </>
+                            );
+                          })()}
+                        </span>
+                        <Latex>{`$?$`}</Latex>
+                      </div>
+                    ) : (
+                      <Latex>{`$${problem?.question}$`}</Latex>
+                    )
+                  ) : (
+                    problem?.question
+                  )}
+                </div>
+              );
+            })()}
           </div>
           
           {mode === GameMode.METHODS_GRAPHS && problem?.options ? (
@@ -538,80 +589,205 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                     {unsimplifiedAnswer}
                   </div>
                 )}
-                <input
-                  ref={inputRef}
-                  type={mode === GameMode.SIG_FIGS_SCI_NOTATION ? "text" : "tel"}
-                  inputMode={mode === GameMode.SIG_FIGS_SCI_NOTATION ? "decimal" : "numeric"}
-                  autoFocus
-                  disabled={showingAnswer}
-                  value={input}
-                  onChange={(e) => {
-                    if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
-                      const val = e.target.value;
-                      // If the user pasted or typed multiple characters at once
-                      if (Math.abs(val.length - input.length) > 1) {
-                        setInput(val.replace(/[^0-9.-]/g, ''));
-                        
-                        // Check if it matches
-                        if (!problem) return;
-                        const ans = JSON.parse(problem.answer);
-                        if (ans.type !== 'sci') {
-                          const cleanVal = val.replace(/[^0-9.-]/g, '');
-                          if (cleanVal === ans.value) {
-                            setIsSuccess(true);
-                            setTimeout(() => {
-                              handleCorrect();
-                              setIsSuccess(false);
-                            }, ans.type === 'count_sf' ? 500 : 250);
-                          } else if (cleanVal.length >= ans.value.length && cleanVal !== ans.value) {
+                
+                {(() => {
+                  const isAlgebraMode = mode === GameMode.EXPANDING_NEGATIVES || 
+                                        mode === GameMode.YEAR8_ADD_SUB_ALGEBRA || 
+                                        mode === GameMode.YEAR8_MULT_DIV_ALGEBRA || 
+                                        mode === GameMode.YEAR8_EXPANDING || 
+                                        mode === GameMode.YEAR8_FACTORISING ||
+                                        mode === GameMode.TWO_STEP_EQUATIONS;
+
+                  return input.includes('/') ? (
+                    <div className="flex flex-col items-center justify-center space-y-1 mb-6">
+                      <input
+                        ref={numRef}
+                        type={isAlgebraMode ? "text" : "tel"}
+                        inputMode={isAlgebraMode ? "text" : "numeric"}
+                        value={input.split('/')[0]}
+                        onFocus={() => setFracFocus('num')}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v.includes('/')) {
+                            setFracFocus('den');
+                            denRef.current?.focus();
+                          } else {
+                            handleInputChange(`${v}/${input.split('/')[1] || ''}`);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === '/') {
+                            e.preventDefault();
+                            setFracFocus('den');
+                            denRef.current?.focus();
+                          } else if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            setFracFocus('den');
+                            denRef.current?.focus();
+                          } else if (e.key === 'Enter' && (mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS) && !isSuccess) {
                             triggerError();
                           }
+                        }}
+                        disabled={showingAnswer}
+                        className={`w-full bg-transparent text-center text-5xl sm:text-7xl font-black py-1 outline-none border-b-[6px] transition-all caret-indigo-500 ${
+                          isSuccess 
+                            ? 'text-emerald-500 border-emerald-500' 
+                            : isError 
+                              ? 'text-rose-500 border-rose-500' 
+                              : 'text-slate-900 border-slate-900 dark:text-white dark:border-white focus:border-indigo-500 dark:focus:border-indigo-400'
+                        }`}
+                        autoComplete="off"
+                      />
+                      <input
+                        ref={denRef}
+                        type={isAlgebraMode ? "text" : "tel"}
+                        inputMode={isAlgebraMode ? "text" : "numeric"}
+                        value={input.split('/')[1] || ''}
+                        onFocus={() => setFracFocus('den')}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\//g, '');
+                          handleInputChange(`${input.split('/')[0]}/${v}`);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Backspace' && (input.split('/')[1] || '') === '') {
+                            e.preventDefault();
+                            handleInputChange(input.split('/')[0]);
+                            setFracFocus('num');
+                            setTimeout(() => inputRef.current?.focus(), 10);
+                          } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            setFracFocus('num');
+                            numRef.current?.focus();
+                          } else if (e.key === 'Enter' && (mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS) && !isSuccess) {
+                            triggerError();
+                          }
+                        }}
+                        disabled={showingAnswer}
+                        className={`w-full bg-transparent text-center text-5xl sm:text-7xl font-black py-1 outline-none border-b-[6px] border-transparent transition-all caret-indigo-500 ${
+                          isSuccess 
+                            ? 'text-emerald-500' 
+                            : isError 
+                              ? 'text-rose-500' 
+                              : 'text-slate-900 dark:text-white focus:text-indigo-600 dark:focus:text-indigo-400'
+                        }`}
+                        autoComplete="off"
+                      />
+                    </div>
+                  ) : (
+                    <input
+                      ref={inputRef}
+                      type={isAlgebraMode ? "text" : (mode === GameMode.SIG_FIGS_SCI_NOTATION ? "text" : "tel")}
+                      inputMode={isAlgebraMode ? "text" : (mode === GameMode.SIG_FIGS_SCI_NOTATION ? "decimal" : "numeric")}
+                      autoFocus
+                      disabled={showingAnswer}
+                      value={input}
+                      onChange={(e) => {
+                        if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
+                          const val = e.target.value;
+                          // If the user pasted or typed multiple characters at once
+                          if (Math.abs(val.length - input.length) > 1) {
+                            setInput(val.replace(/[^0-9.-]/g, ''));
+                            
+                            // Check if it matches
+                            if (!problem) return;
+                            const ans = JSON.parse(problem.answer as string);
+                            if (ans.type !== 'sci') {
+                              const cleanVal = val.replace(/[^0-9.-]/g, '');
+                              if (cleanVal === ans.value) {
+                                setIsSuccess(true);
+                                setTimeout(() => {
+                                  handleCorrect();
+                                  setIsSuccess(false);
+                                }, ans.type === 'count_sf' ? 500 : 250);
+                              } else if (cleanVal.length >= ans.value.length && cleanVal !== ans.value) {
+                                triggerError();
+                              }
+                            }
+                          } else if (val.length < input.length) {
+                            handleSciInput('Backspace');
+                          } else {
+                            handleSciInput(val.slice(-1));
+                          }
+                        } else {
+                          const v = e.target.value;
+                          handleInputChange(v);
+                          if (v.includes('/') && !input.includes('/')) {
+                            setFracFocus('den');
+                            setTimeout(() => denRef.current?.focus(), 10);
+                          }
                         }
-                      } else if (val.length < input.length) {
-                        handleSciInput('Backspace');
-                      } else {
-                        handleSciInput(val.slice(-1));
-                      }
-                    } else {
-                      handleInputChange(e.target.value);
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && (mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS) && !isSuccess) {
-                      triggerError();
-                    }
-                  }}
-                  className={`w-full bg-transparent text-center text-7xl font-black py-4 outline-none border-b-8 transition-all caret-indigo-500 ${
-                    isSuccess 
-                      ? 'text-emerald-500 border-emerald-500' 
-                      : isError 
-                        ? 'text-rose-500 border-rose-500' 
-                        : 'text-slate-900 dark:text-white border-slate-200 dark:border-slate-800 focus:border-indigo-500 dark:focus:border-indigo-400'
-                  }`}
-                  placeholder=""
-                  autoComplete="off"
-                />
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && (mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS) && !isSuccess) {
+                          triggerError();
+                        }
+                      }}
+                      className={`w-full bg-transparent text-center text-7xl font-black py-4 outline-none border-b-8 transition-all caret-indigo-500 ${
+                        isSuccess 
+                          ? 'text-emerald-500 border-emerald-500' 
+                          : isError 
+                            ? 'text-rose-500 border-rose-500' 
+                            : 'text-slate-900 dark:text-white border-slate-200 dark:border-slate-800 focus:border-indigo-500 dark:focus:border-indigo-400'
+                      }`}
+                      placeholder=""
+                      autoComplete="off"
+                    />
+                  );
+                })()}
               </div>
 
-              {mode === GameMode.EXPANDING_NEGATIVES && (
-                <div className={`hidden md:flex flex-col items-center mt-8 space-y-3 ${showingAnswer ? "pointer-events-none opacity-50" : ""}`}>
-                  <div className="flex gap-4">
-                    <button onClick={() => { handleInputChange(input + '+'); inputRef.current?.focus(); }} className="w-16 h-16 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-xl text-3xl font-bold hover:bg-indigo-200 dark:hover:bg-indigo-800/50 transition-colors active:scale-95 flex items-center justify-center shadow-sm">+</button>
-                    <button onClick={() => { handleInputChange(input + '-'); inputRef.current?.focus(); }} className="w-16 h-16 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-xl text-3xl font-bold hover:bg-indigo-200 dark:hover:bg-indigo-800/50 transition-colors active:scale-95 flex items-center justify-center shadow-sm">-</button>
-                  </div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium tracking-wide">Note: You can also use your keyboard for these symbols.</p>
-                </div>
-              )}
+              {(() => {
+                let symbols: string[] = [];
+                if (mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.YEAR8_ADD_SUB_ALGEBRA || mode === GameMode.YEAR8_EXPANDING) {
+                  symbols = ['+', '-'];
+                } else if (mode === GameMode.YEAR8_FACTORISING) {
+                  symbols = ['+', '-', '(', ')'];
+                } else if (mode === GameMode.TWO_STEP_EQUATIONS) {
+                  symbols = ['/', '-'];
+                } else if (mode === GameMode.YEAR8_MULT_DIV_ALGEBRA) {
+                  symbols = ['/'];
+                }
 
-              {mode === GameMode.TWO_STEP_EQUATIONS && (
-                <div className={`hidden md:flex flex-col items-center mt-8 space-y-3 ${showingAnswer ? "pointer-events-none opacity-50" : ""}`}>
-                  <div className="flex gap-4">
-                    <button onClick={() => { handleInputChange(input + '/'); inputRef.current?.focus(); }} className="w-16 h-16 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-xl text-2xl font-bold hover:bg-indigo-200 dark:hover:bg-indigo-800/50 transition-colors active:scale-95 flex items-center justify-center shadow-sm">/</button>
-                    <button onClick={() => { handleInputChange(input + '-'); inputRef.current?.focus(); }} className="w-16 h-16 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-xl text-3xl font-bold hover:bg-indigo-200 dark:hover:bg-indigo-800/50 transition-colors active:scale-95 flex items-center justify-center shadow-sm">-</button>
+                if (symbols.length === 0) return null;
+
+                const handleSymbolClick = (sym: string) => {
+                  if (input.includes('/')) {
+                    const parts = input.split('/');
+                    if (fracFocus === 'num') {
+                      handleInputChange(`${parts[0] + sym}/${parts[1] || ''}`);
+                      numRef.current?.focus();
+                    } else {
+                      handleInputChange(`${parts[0]}/${(parts[1] || '') + sym}`);
+                      denRef.current?.focus();
+                    }
+                  } else {
+                    handleInputChange(input + sym);
+                    if (sym === '/') {
+                      setFracFocus('den');
+                      setTimeout(() => denRef.current?.focus(), 10);
+                    } else {
+                      inputRef.current?.focus();
+                    }
+                  }
+                };
+
+                return (
+                  <div className={`hidden md:flex flex-col items-center mt-8 space-y-3 ${showingAnswer ? "pointer-events-none opacity-50" : ""}`}>
+                    <div className="flex gap-4">
+                      {symbols.map(sym => (
+                        <button 
+                          key={sym}
+                          onClick={() => handleSymbolClick(sym)} 
+                          className="w-16 h-16 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-xl text-3xl font-bold hover:bg-indigo-200 dark:hover:bg-indigo-800/50 transition-colors active:scale-95 flex items-center justify-center shadow-sm"
+                        >
+                          {sym}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium tracking-wide">Note: You can also use your keyboard for these symbols.</p>
                   </div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium tracking-wide">Note: You can also use your keyboard for these symbols.</p>
-                </div>
-              )}
+                );
+              })()}
 
               <div className={showingAnswer ? "pointer-events-none opacity-50" : ""}>
                 <Numpad 
@@ -619,7 +795,20 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                     if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
                       handleSciInput(key);
                     } else {
-                      handleInputChange(input + key);
+                      if (input.includes('/')) {
+                        const parts = input.split('/');
+                        if (fracFocus === 'num') {
+                          handleInputChange(`${parts[0] + key}/${parts[1] || ''}`);
+                        } else {
+                          handleInputChange(`${parts[0]}/${(parts[1] || '') + key}`);
+                        }
+                      } else {
+                        handleInputChange(input + key);
+                        if (key === '/') {
+                          setFracFocus('den');
+                          setTimeout(() => denRef.current?.focus(), 10);
+                        }
+                      }
                     }
                   }} 
                   onClear={() => {
@@ -627,6 +816,7 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                       handleSciInput('C');
                     } else {
                       setInput('');
+                      setTimeout(() => inputRef.current?.focus(), 10);
                     }
                   }}
                   mode={mode}

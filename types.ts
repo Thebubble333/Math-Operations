@@ -15,6 +15,10 @@ export enum GameMode {
   INVERSE_TRIG_EXACT_VALUES = 'inverse_trig_exact_values',
   EXPANDING_NEGATIVES = 'expanding_negatives',
   TWO_STEP_EQUATIONS = 'two_step_equations',
+  YEAR8_ADD_SUB_ALGEBRA = 'year8_add_sub_algebra',
+  YEAR8_MULT_DIV_ALGEBRA = 'year8_mult_div_algebra',
+  YEAR8_EXPANDING = 'year8_expanding',
+  YEAR8_FACTORISING = 'year8_factorising',
   CUSTOM = 'custom',
   NONE = 'none'
 }
@@ -59,7 +63,7 @@ export interface MathProblem {
   question: string;
   answer: number | string;
   options?: GraphParams[];
-  type?: 'arithmetic' | 'graph' | 'trig';
+  type?: 'arithmetic' | 'graph' | 'trig' | 'algebra';
   angle?: number; // For trig unit circle visualization (in radians)
   mode?: GameMode;
 }

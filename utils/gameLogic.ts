@@ -653,11 +653,176 @@ const generateTwoStepEquationsProblem = (): MathProblem => {
   };
 };
 
+const generateYear8AddSubAlgebra = (): MathProblem => {
+  const letters = ['a', 'b', 'x', 'y', 'm', 'n'];
+  let l1 = letters[Math.floor(Math.random() * letters.length)];
+  let l2 = l1;
+  const isThreeTerms = Math.random() < 0.4;
+  if (isThreeTerms) {
+    do {
+      l2 = letters[Math.floor(Math.random() * letters.length)];
+    } while (l2 === l1);
+  }
+
+  let a = Math.floor(Math.random() * 9) + 1;
+  if (Math.random() < 0.3) a = -a; 
+  let b = Math.floor(Math.random() * 9) + 1;
+  if (Math.random() < 0.5) b = -b;
+
+  let c = 0;
+  if (isThreeTerms) {
+    c = Math.floor(Math.random() * 9) + 1;
+    if (Math.random() < 0.5) c = -c;
+  }
+
+  const formatTerm = (coef: number, isFirst: boolean, letter: string) => {
+    if (coef === 0) return '';
+    let str = '';
+    if (coef < 0) {
+      str += isFirst ? '-' : ' - ';
+    } else if (!isFirst) {
+      str += ' + ';
+    }
+    const absCoef = Math.abs(coef);
+    if (absCoef !== 1) str += absCoef;
+    str += letter;
+    return str;
+  };
+
+  let q = formatTerm(a, true, l1) + formatTerm(b, false, isThreeTerms ? l2 : l1);
+  if (isThreeTerms) q += formatTerm(c, false, l1);
+
+  const answerTerms: Record<string, number> = {};
+  answerTerms[l1] = a + (isThreeTerms ? c : b);
+  if (isThreeTerms && b !== 0) {
+    answerTerms[l2] = b;
+  }
+  for (const k in answerTerms) {
+    if (answerTerms[k] === 0) delete answerTerms[k];
+  }
+
+  return {
+    question: q,
+    answer: JSON.stringify({ type: 'multivar', terms: answerTerms }),
+    type: 'algebra'
+  };
+};
+
+const generateYear8MultDivAlgebra = (): MathProblem => {
+  const letters = ['a', 'b', 'x', 'y', 'm', 'n'];
+  let l1 = letters[Math.floor(Math.random() * letters.length)];
+  const isMult = Math.random() < 0.5;
+  if (isMult) {
+    const a = Math.floor(Math.random() * 8) + 2; 
+    const b = Math.floor(Math.random() * 8) + 2; 
+    let l2 = letters[Math.floor(Math.random() * letters.length)];
+    while (l2 === l1) {
+      l2 = letters[Math.floor(Math.random() * letters.length)];
+    }
+    const qLabel = `${a}${l1} \\times ${b}${l2}`;
+    const ansVars = [l1, l2].sort().join(''); // sorted alphabetical
+    const ansCoef = a * b;
+    const answerTerms: Record<string, number> = {};
+    answerTerms[ansVars] = ansCoef;
+    return {
+      question: qLabel,
+      answer: JSON.stringify({ type: 'multivar', terms: answerTerms }),
+      type: 'algebra'
+    };
+  } else {
+    let num = Math.floor(Math.random() * 10) + 1;
+    let den = Math.floor(Math.random() * 10) + 1;
+    if (num === den) den += 1;
+    
+    const gcd = (x: number, y: number): number => y === 0 ? Math.abs(x) : gcd(y, x % y);
+    const div = gcd(num, den);
+    const simpNum = num / div;
+    const simpDen = den / div;
+
+    const q = `\\frac{${num === 1 ? '' : num}${l1}^2}{${den === 1 ? '' : den}${l1}}`;
+    
+    let ansStr = '';
+    if (simpDen === 1) {
+      ansStr = simpNum === 1 ? l1 : `${simpNum}${l1}`;
+    } else {
+      if (simpNum === 1) {
+        ansStr = `${l1}/${simpDen}`;
+      } else {
+        ansStr = `${simpNum}${l1}/${simpDen}`;
+      }
+    }
+    
+    return {
+      question: q,
+      answer: JSON.stringify({ isDiv: true, str: ansStr }),
+      type: 'algebra'
+    };
+  }
+};
+
+const generateYear8Factorising = (): MathProblem => {
+  const letters = ['a', 'b', 'x', 'y', 'm', 'n'];
+  let l1 = letters[Math.floor(Math.random() * letters.length)];
+  const a = Math.floor(Math.random() * 5) + 2;
+  let b = Math.floor(Math.random() * 4) + 1;
+  let c = Math.floor(Math.random() * 9) + 1;
+  const gcd = (x: number, y: number): number => y === 0 ? Math.abs(x) : gcd(y, x % y);
+  while (gcd(b, c) > 1) c++;
+  if (Math.random() < 0.5) c = -c;
+
+  const termX = a * b;
+  const termC = a * c;
+
+  let q = `${termX === 1 ? '' : termX}${l1} ${termC < 0 ? '-' : '+'} ${Math.abs(termC)}`;
+  const bStr = b === 1 ? '' : b;
+  const cleanAns = `${a}(${bStr}${l1}${c<0?'-':'+'}${Math.abs(c)})`;
+
+  return {
+    question: q,
+    answer: JSON.stringify({ type: 'factorise', str: cleanAns }),
+    type: 'algebra'
+  };
+};
+
+const generateYear8Expanding = (): MathProblem => {
+  const letters = ['a', 'b', 'x', 'y', 'm', 'n'];
+  let l1 = letters[Math.floor(Math.random() * letters.length)];
+  const a = Math.floor(Math.random() * 5) + 2; 
+  let b = Math.floor(Math.random() * 4) + 1;
+  let c = Math.floor(Math.random() * 9) + 1;
+  if (Math.random() < 0.2) c = -c;
+
+  const bStr = b === 1 ? '' : b;
+  const cStr = c < 0 ? `- ${Math.abs(c)}` : `+ ${c}`;
+  const q = `${a}(${bStr}${l1} ${cStr})`;
+
+  const termX = a * b;
+  const termC = a * c;
+  
+  const terms: Record<string, number> = {};
+  terms[l1] = termX;
+  if (termC !== 0) terms['constant'] = termC;
+
+  return {
+    question: q,
+    answer: JSON.stringify({ type: 'multivar', terms: terms }),
+    type: 'algebra'
+  };
+};
+
 export const generateProblem = (mode: GameMode, options?: { forceQuadrant1?: boolean, combo?: number }): MathProblem => {
   let problem: MathProblem;
 
   if (mode === GameMode.TWO_STEP_EQUATIONS) {
     problem = generateTwoStepEquationsProblem();
+  } else if (mode === GameMode.YEAR8_ADD_SUB_ALGEBRA) {
+    problem = generateYear8AddSubAlgebra();
+  } else if (mode === GameMode.YEAR8_MULT_DIV_ALGEBRA) {
+    problem = generateYear8MultDivAlgebra();
+  } else if (mode === GameMode.YEAR8_FACTORISING) {
+    problem = generateYear8Factorising();
+  } else if (mode === GameMode.YEAR8_EXPANDING) {
+    problem = generateYear8Expanding();
   } else if (mode === GameMode.EXPANDING_NEGATIVES) {
     problem = generateExpandingNegativesProblem();
   } else if (mode === GameMode.SIMPLIFY_SURDS) {
@@ -678,7 +843,7 @@ export const generateProblem = (mode: GameMode, options?: { forceQuadrant1?: boo
     }
   } else {
     let a: number, b: number, answer: number, question: string;
-    let activeMode = mode;
+    let activeMode: GameMode = mode;
 
     if (mode === GameMode.MIXED) {
       const modes = [GameMode.ADDITION, GameMode.SUBTRACTION, GameMode.MULTIPLICATION, GameMode.DIVISION];
