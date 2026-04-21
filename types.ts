@@ -59,6 +59,11 @@ export interface GraphConfig {
   axisFontSize: number;
 }
 
+export interface FeedbackToken {
+  text: string;
+  color: string;
+}
+
 export interface MathProblem {
   question: string;
   answer: number | string;

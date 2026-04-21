@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import 'katex/dist/katex.min.css';
-import { GameMode, GameStats, CurrentStats, MathProblem, GraphConfig, GameType } from './types';
+import { GameMode, GameStats, CurrentStats, MathProblem, GraphConfig, GameType, FeedbackToken } from './types';
 import { generateProblem } from './utils/gameLogic';
 import MainMenu from './components/MainMenu';
 import Seal8Menu from './components/Seal8Menu';
@@ -57,6 +57,9 @@ const App: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);
   const [unsimplifiedAnswer, setUnsimplifiedAnswer] = useState<string | null>(null);
+  const [granularFeedback, setGranularFeedback] = useState<FeedbackToken[] | null>(null);
+  const [lastIncorrectFeedback, setLastIncorrectFeedback] = useState<FeedbackToken[] | null>(null);
+  const [lastPartialFeedback, setLastPartialFeedback] = useState<FeedbackToken[] | null>(null);
   
   // Global Game Settings (Fixed vs Time)
   const [globalGameType, setGlobalGameType] = useState<GameType>('FIXED_PROBLEMS');
@@ -177,6 +180,9 @@ const App: React.FC = () => {
     setIsSuccess(false);
     setIsError(false);
     setUnsimplifiedAnswer(null);
+    setGranularFeedback(null);
+    setLastIncorrectFeedback(null);
+    setLastPartialFeedback(null);
     setSession({
       combo: 0,
       qpm: 0,
@@ -196,6 +202,8 @@ const App: React.FC = () => {
   const handleCorrect = useCallback(() => {
     setIsCorrectFlash(true);
     setUnsimplifiedAnswer(null);
+    setLastIncorrectFeedback(null);
+    setLastPartialFeedback(null);
     setTimeout(() => setIsCorrectFlash(false), 400);
 
     setSession(prev => {
@@ -249,7 +257,7 @@ const App: React.FC = () => {
     setInput('');
   }, [mode, stats.highScore, session.correctCount, forceQuadrant1, targetProblems, customModes]);
 
-  const triggerError = (isSignError: boolean = false) => {
+  const triggerError = (isSignError: boolean = false, wipeInput: boolean = true, delayMs: number = 250) => {
     setIsShaking(true);
     setIsError(true);
     
@@ -268,12 +276,15 @@ const App: React.FC = () => {
     setTimeout(() => {
       setIsShaking(false);
       setIsError(false);
-      setInput('');
-    }, 250);
+      if (wipeInput) setInput('');
+      setGranularFeedback(null);
+    }, delayMs);
   };
 
   const handleSkip = useCallback(() => {
     setUnsimplifiedAnswer(null);
+    setLastIncorrectFeedback(null);
+    setLastPartialFeedback(null);
     
     setSession(prev => {
       const newTotalAttempts = prev.totalAttempts + 1;
@@ -398,8 +409,155 @@ const App: React.FC = () => {
     return terms;
   };
 
+  const getFactorisingFeedback = (
+    inputValue: string, 
+    expected: { termX: number, termC: number, letter: string, str: string }
+  ): { feedback: FeedbackToken[], isCorrect: boolean, isPartial: boolean } | null => {
+    // Expected format: A(Bx + C)
+    const match = inputValue.match(/^([+-]?\d*)\(([+-]?\d*)([a-z]*)([+-])(\d+)\)$/i);
+    if (!match) return null;
+
+    let outCoefStr = match[1];
+    let inCoefXStr = match[2];
+    let varStr = match[3] ? match[3].toLowerCase() : '';
+    let opStr = match[4];
+    let inCStr = match[5];
+
+    let A = 1;
+    if (outCoefStr === '' || outCoefStr === '+') A = 1;
+    else if (outCoefStr === '-') A = -1;
+    else A = parseInt(outCoefStr, 10);
+
+    let B = 1;
+    if (inCoefXStr === '' || inCoefXStr === '+') B = 1;
+    else if (inCoefXStr === '-') B = -1;
+    else B = parseInt(inCoefXStr, 10);
+
+    let C = parseInt(inCStr, 10);
+    if (opStr === '-') C = -C;
+
+    const feedback: FeedbackToken[] = [];
+    
+    // Check if A is a valid common factor of termX and termC
+    // It must divide both evenly, and it must be > 1 or < -1 (can't just pull out 1 or -1 ordinarily if there are larger factors, but here any valid factor > 1 helps) 
+    // Wait, technically a student COULD pull out -1, but let's say |A| > 1.
+    const isAValidCommonFactor = Math.abs(A) > 1 && 
+      (expected.termX % A === 0) && 
+      (expected.termC % A === 0);
+    
+    if (isAValidCommonFactor) {
+      feedback.push({ text: outCoefStr, color: 'text-emerald-500 text-shadow-sm' });
+    } else {
+      feedback.push({ text: outCoefStr, color: 'text-rose-500 text-shadow-sm' });
+    }
+
+    feedback.push({ text: '(', color: 'text-slate-900 dark:text-white' });
+    
+    let bIsCorrect = false;
+    if (isAValidCommonFactor && B === expected.termX / A && varStr === expected.letter) {
+      bIsCorrect = true;
+      feedback.push({ text: inCoefXStr + varStr, color: 'text-emerald-500 text-shadow-sm' });
+    } else {
+      feedback.push({ text: inCoefXStr + varStr, color: 'text-rose-500 text-shadow-sm' });
+    }
+
+    let cIsCorrect = false;
+    if (isAValidCommonFactor && C === expected.termC / A) {
+      cIsCorrect = true;
+      feedback.push({ text: opStr + inCStr, color: 'text-emerald-500 text-shadow-sm' });
+    } else {
+      feedback.push({ text: opStr + inCStr, color: 'text-rose-500 text-shadow-sm' });
+    }
+
+    feedback.push({ text: ')', color: 'text-slate-900 dark:text-white' });
+
+    const isAllGreen = isAValidCommonFactor && bIsCorrect && cIsCorrect;
+    
+    // We consider it partial if they factored out a common factor, but NOT the greatest common factor.
+    // However, if they typed EXACTLY the expected string, it's fully correct.
+    const isPartial = isAllGreen && inputValue !== expected.str;
+    
+    return { feedback, isCorrect: isAllGreen && !isPartial, isPartial };
+  };
+
+  const getMultiVarFeedback = (inputValue: string, expectedTerms: Record<string, number>): { feedback: FeedbackToken[], isAllCorrect: boolean } | null => {
+    const matches = inputValue.match(/[+-]?[^-+]+/g);
+    if (!matches) return null;
+    
+    const expectedKeys = Object.keys(expectedTerms);
+    if (matches.length !== expectedKeys.length) return null;
+    
+    for(let t of matches) {
+      if (t === '+' || t === '-' || t.endsWith('+') || t.endsWith('-')) return null;
+    }
+    
+    const typedKeys = matches.map(t => {
+      const m = t.match(/^([+-]?\d*)([a-z]*)$/i);
+      if (!m) return 'unknown';
+      return m[2] ? m[2].toLowerCase().split('').sort().join('') : 'constant';
+    });
+    
+    const numExpectedVars = expectedKeys.filter(k => k !== 'constant').length;
+    const numTypedVars = typedKeys.filter(k => k !== 'constant' && k !== 'unknown').length;
+    
+    if (numTypedVars < numExpectedVars) return null;
+    
+    let feedback: FeedbackToken[] = [];
+    let isAllCorrect = true;
+    
+    for (let i = 0; i < matches.length; i++) {
+      const termStr = matches[i];
+      const m = termStr.match(/^([+-]?\d*)([a-z]*)$/i);
+      if (!m) {
+        feedback.push({text: termStr, color: 'text-rose-500 text-shadow-sm'});
+        isAllCorrect = false;
+        continue;
+      }
+      
+      let coefStr = m[1];
+      let varStrOriginal = m[2];
+      let varStrMapped = varStrOriginal ? varStrOriginal.toLowerCase().split('').sort().join('') : 'constant';
+      
+      let typedCoef = 1;
+      if (coefStr === '' || coefStr === '+') typedCoef = 1;
+      else if (coefStr === '-') typedCoef = -1;
+      else typedCoef = parseInt(coefStr, 10);
+
+      // find expected coef for this key
+      const expectedCoef = expectedTerms[varStrMapped];
+      
+      if (expectedCoef === undefined) {
+        feedback.push({text: termStr, color: 'text-rose-500 text-shadow-sm'});
+        isAllCorrect = false;
+      } else {
+        if (typedCoef === expectedCoef) {
+          feedback.push({text: termStr, color: 'text-emerald-500 text-shadow-sm'});
+        } else {
+          isAllCorrect = false;
+          if (varStrOriginal) {
+            if (coefStr === '') {
+              feedback.push({text: varStrOriginal, color: 'text-rose-500 text-shadow-sm'});
+            } else if (coefStr === '+' || coefStr === '-') {
+              feedback.push({text: coefStr, color: 'text-rose-500 text-shadow-sm'});
+              feedback.push({text: varStrOriginal, color: 'text-emerald-500 text-shadow-sm'});
+            } else {
+               feedback.push({text: coefStr, color: 'text-rose-500 text-shadow-sm'});
+               feedback.push({text: varStrOriginal, color: 'text-emerald-500 text-shadow-sm'});
+            }
+          } else {
+            feedback.push({text: termStr, color: 'text-rose-500 text-shadow-sm'});
+          }
+        }
+      }
+    }
+    
+    return { feedback, isAllCorrect };
+  };
+
   const handleInputChange = (val: string) => {
     if (!problem || session.endTime || isSuccess || isError) return;
+    
+    if (unsimplifiedAnswer) setUnsimplifiedAnswer(null);
     
     const currentProblemMode = problem.mode || mode;
     
@@ -453,20 +611,20 @@ const App: React.FC = () => {
     if (currentProblemMode === GameMode.YEAR8_ADD_SUB_ALGEBRA || currentProblemMode === GameMode.YEAR8_EXPANDING) {
       const ans = JSON.parse(problem.answer.toString());
       if (ans.type === 'multivar') {
-        const parsed = parseMultiVarAlgebra(cleanVal);
-        const expectedKeys = Object.keys(ans.terms);
-        const parsedKeys = Object.keys(parsed);
-        if (parsedKeys.length === expectedKeys.length) {
-          let matches = true;
-          for (const k of expectedKeys) {
-            if (parsed[k] !== ans.terms[k]) matches = false;
-          }
-          if (matches) {
+        const feedbackResult = getMultiVarFeedback(cleanVal, ans.terms);
+        if (feedbackResult) {
+          if (feedbackResult.isAllCorrect) {
+            setGranularFeedback(feedbackResult.feedback);
             setIsSuccess(true);
             setTimeout(() => {
               handleCorrect();
               setIsSuccess(false);
-            }, 250);
+              setGranularFeedback(null);
+            }, 800);
+          } else {
+            setLastIncorrectFeedback(feedbackResult.feedback);
+            setGranularFeedback(null);
+            triggerError(false, true, 250); // Instantly wipe input, trigger standard error shake
           }
         }
       }
@@ -480,7 +638,38 @@ const App: React.FC = () => {
         setTimeout(() => {
           handleCorrect();
           setIsSuccess(false);
+          setGranularFeedback(null);
         }, 250);
+      } else if (cleanVal.endsWith(')')) {
+        const feedbackResult = getFactorisingFeedback(cleanVal, ans);
+        if (feedbackResult) {
+          if (feedbackResult.isPartial) {
+            // It's a mathematically valid partial factorisation!
+            // Tell them to go further.
+            setLastPartialFeedback(feedbackResult.feedback);
+            setLastIncorrectFeedback(null);
+            setGranularFeedback(null);
+            setInput('');
+          } else if (feedbackResult.isCorrect) {
+            // Shouldn't hit this if cleanVal !== ans.str unless order differences, but just in case
+            setIsSuccess(true);
+            setTimeout(() => {
+              handleCorrect();
+              setIsSuccess(false);
+              setGranularFeedback(null);
+            }, 250);
+          } else {
+            // It's a wrong factorisation
+            setLastIncorrectFeedback(feedbackResult.feedback);
+            setGranularFeedback(null);
+            triggerError(false, true, 250);
+          }
+        } else {
+          // Unparseable factorisation attempt
+          setLastIncorrectFeedback([{ text: cleanVal, color: 'text-rose-500 text-shadow-sm' }]);
+          setGranularFeedback(null);
+          triggerError(false, true, 250);
+        }
       }
       return;
     }
@@ -496,20 +685,20 @@ const App: React.FC = () => {
           }, 250);
         }
       } else {
-        const parsed = parseMultiVarAlgebra(cleanVal);
-        const expectedKeys = Object.keys(ans.terms);
-        const parsedKeys = Object.keys(parsed);
-        if (parsedKeys.length === expectedKeys.length && expectedKeys.length > 0) {
-          let matches = true;
-          for (const k of expectedKeys) {
-            if (parsed[k] !== ans.terms[k]) matches = false;
-          }
-          if (matches) {
+        const feedbackResult = getMultiVarFeedback(cleanVal, ans.terms);
+        if (feedbackResult && Object.keys(ans.terms).length > 0) {
+          if (feedbackResult.isAllCorrect) {
+            setGranularFeedback(feedbackResult.feedback);
             setIsSuccess(true);
             setTimeout(() => {
               handleCorrect();
               setIsSuccess(false);
-            }, 250);
+              setGranularFeedback(null);
+            }, 800);
+          } else {
+             setLastIncorrectFeedback(feedbackResult.feedback);
+             setGranularFeedback(null);
+             triggerError(false, true, 250);
           }
         }
       }
@@ -675,6 +864,9 @@ const App: React.FC = () => {
           inputRef={inputRef}
           graphConfig={graphConfig}
           unsimplifiedAnswer={unsimplifiedAnswer}
+          granularFeedback={granularFeedback}
+          lastIncorrectFeedback={lastIncorrectFeedback}
+          lastPartialFeedback={lastPartialFeedback}
         />
       )}
     </>

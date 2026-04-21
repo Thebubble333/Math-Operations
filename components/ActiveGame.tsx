@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Latex from 'react-latex-next';
-import { GameMode, GameStats, CurrentStats, MathProblem, GraphConfig } from '../types';
+import { GameMode, GameStats, CurrentStats, MathProblem, GraphConfig, FeedbackToken } from '../types';
 import Numpad from './Numpad';
 import GraphCard from './GraphCard';
 import TrigGame from './TrigGame';
@@ -20,7 +20,7 @@ interface ActiveGameProps {
   isError: boolean;
   handleInputChange: (val: string) => void;
   handleCorrect: () => void;
-  triggerError: (isSignError?: boolean) => void;
+  triggerError: (isSignError?: boolean, wipeInput?: boolean, delayMs?: number) => void;
   handleSkip: () => void;
   stats: GameStats;
   accuracy: number;
@@ -28,6 +28,9 @@ interface ActiveGameProps {
   inputRef: React.RefObject<HTMLInputElement>;
   graphConfig: GraphConfig;
   unsimplifiedAnswer?: string | null;
+  granularFeedback?: FeedbackToken[] | null;
+  lastIncorrectFeedback?: FeedbackToken[] | null;
+  lastPartialFeedback?: FeedbackToken[] | null;
 }
 
 const ActiveGame: React.FC<ActiveGameProps> = ({
@@ -53,6 +56,9 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
   inputRef,
   graphConfig,
   unsimplifiedAnswer,
+  granularFeedback,
+  lastIncorrectFeedback,
+  lastPartialFeedback,
 }) => {
   const [surdOutside, setSurdOutside] = useState('');
   const [surdInside, setSurdInside] = useState('');
@@ -585,8 +591,27 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
             <>
               <div className="relative w-full max-w-xs mx-auto">
                 {unsimplifiedAnswer && (
-                  <div className="text-center text-5xl font-black py-2 text-emerald-500 mb-4 opacity-80">
+                  <div className="text-center text-4xl sm:text-5xl font-black py-2 text-emerald-500 mb-4 opacity-80 whitespace-nowrap">
                     {unsimplifiedAnswer}
+                  </div>
+                )}
+                {lastPartialFeedback && (
+                  <div className="flex flex-col items-center mb-4">
+                    <div className="text-center text-4xl sm:text-5xl font-black py-2 text-emerald-500 opacity-80 whitespace-nowrap">
+                      Factorise fully
+                    </div>
+                    <div className="text-center text-5xl font-black opacity-80">
+                      {lastPartialFeedback.map((fb, i) => (
+                        <span key={i} className={fb.color}>{fb.text}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {lastIncorrectFeedback && (
+                  <div className="text-center text-5xl font-black py-2 mb-4 opacity-80 decoration-rose-500/50 line-through">
+                    {lastIncorrectFeedback.map((fb, i) => (
+                      <span key={i} className={fb.color}>{fb.text}</span>
+                    ))}
                   </div>
                 )}
                 
@@ -674,64 +699,77 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                       />
                     </div>
                   ) : (
-                    <input
-                      ref={inputRef}
-                      type={isAlgebraMode ? "text" : (mode === GameMode.SIG_FIGS_SCI_NOTATION ? "text" : "tel")}
-                      inputMode={isAlgebraMode ? "text" : (mode === GameMode.SIG_FIGS_SCI_NOTATION ? "decimal" : "numeric")}
-                      autoFocus
-                      disabled={showingAnswer}
-                      value={input}
-                      onChange={(e) => {
-                        if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
-                          const val = e.target.value;
-                          // If the user pasted or typed multiple characters at once
-                          if (Math.abs(val.length - input.length) > 1) {
-                            setInput(val.replace(/[^0-9.-]/g, ''));
-                            
-                            // Check if it matches
-                            if (!problem) return;
-                            const ans = JSON.parse(problem.answer as string);
-                            if (ans.type !== 'sci') {
-                              const cleanVal = val.replace(/[^0-9.-]/g, '');
-                              if (cleanVal === ans.value) {
-                                setIsSuccess(true);
-                                setTimeout(() => {
-                                  handleCorrect();
-                                  setIsSuccess(false);
-                                }, ans.type === 'count_sf' ? 500 : 250);
-                              } else if (cleanVal.length >= ans.value.length && cleanVal !== ans.value) {
-                                triggerError();
+                    <div className="relative w-full">
+                      {granularFeedback && (
+                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center border-b-8 border-transparent py-4 z-10 w-full px-4 sm:px-0 mx-auto">
+                          <div className="text-7xl font-black whitespace-nowrap overflow-hidden">
+                             {granularFeedback.map((fb, i) => (
+                                <span key={i} className={fb.color}>{fb.text}</span>
+                             ))}
+                          </div>
+                        </div>
+                      )}
+                      <input
+                        ref={inputRef}
+                        type={isAlgebraMode ? "text" : (mode === GameMode.SIG_FIGS_SCI_NOTATION ? "text" : "tel")}
+                        inputMode={isAlgebraMode ? "text" : (mode === GameMode.SIG_FIGS_SCI_NOTATION ? "decimal" : "numeric")}
+                        autoFocus
+                        disabled={showingAnswer}
+                        value={input}
+                        onChange={(e) => {
+                          if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
+                            const val = e.target.value;
+                            // If the user pasted or typed multiple characters at once
+                            if (Math.abs(val.length - input.length) > 1) {
+                              setInput(val.replace(/[^0-9.-]/g, ''));
+                              
+                              // Check if it matches
+                              if (!problem) return;
+                              const ans = JSON.parse(problem.answer as string);
+                              if (ans.type !== 'sci') {
+                                const cleanVal = val.replace(/[^0-9.-]/g, '');
+                                if (cleanVal === ans.value) {
+                                  setIsSuccess(true);
+                                  setTimeout(() => {
+                                    handleCorrect();
+                                    setIsSuccess(false);
+                                  }, ans.type === 'count_sf' ? 500 : 250);
+                                } else if (cleanVal.length >= ans.value.length && cleanVal !== ans.value) {
+                                  triggerError();
+                                }
                               }
+                            } else if (val.length < input.length) {
+                              handleSciInput('Backspace');
+                            } else {
+                              handleSciInput(val.slice(-1));
                             }
-                          } else if (val.length < input.length) {
-                            handleSciInput('Backspace');
                           } else {
-                            handleSciInput(val.slice(-1));
+                            const v = e.target.value;
+                            handleInputChange(v);
+                            if (v.includes('/') && !input.includes('/')) {
+                              setFracFocus('den');
+                              setTimeout(() => denRef.current?.focus(), 10);
+                            }
                           }
-                        } else {
-                          const v = e.target.value;
-                          handleInputChange(v);
-                          if (v.includes('/') && !input.includes('/')) {
-                            setFracFocus('den');
-                            setTimeout(() => denRef.current?.focus(), 10);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && (mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS || mode === GameMode.YEAR8_ADD_SUB_ALGEBRA || mode === GameMode.YEAR8_MULT_DIV_ALGEBRA || mode === GameMode.YEAR8_EXPANDING || mode === GameMode.YEAR8_FACTORISING) && !isSuccess) {
+                            triggerError(false, true, 250);
                           }
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && (mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS) && !isSuccess) {
-                          triggerError();
-                        }
-                      }}
-                      className={`w-full bg-transparent text-center text-7xl font-black py-4 outline-none border-b-8 transition-all caret-indigo-500 ${
-                        isSuccess 
-                          ? 'text-emerald-500 border-emerald-500' 
-                          : isError 
-                            ? 'text-rose-500 border-rose-500' 
-                            : 'text-slate-900 dark:text-white border-slate-200 dark:border-slate-800 focus:border-indigo-500 dark:focus:border-indigo-400'
-                      }`}
-                      placeholder=""
-                      autoComplete="off"
-                    />
+                        }}
+                        className={`w-full bg-transparent text-center text-7xl font-black py-4 outline-none border-b-8 transition-all caret-indigo-500 ${
+                          granularFeedback 
+                            ? `text-transparent ${isSuccess ? 'border-emerald-500' : 'border-rose-500'}`
+                            : isSuccess 
+                              ? 'text-emerald-500 border-emerald-500' 
+                              : isError 
+                                ? 'text-rose-500 border-rose-500' 
+                                : 'text-slate-900 dark:text-white border-slate-200 dark:border-slate-800 focus:border-indigo-500 dark:focus:border-indigo-400'
+                        }`}
+                        placeholder=""
+                        autoComplete="off"
+                      />
+                    </div>
                   );
                 })()}
               </div>

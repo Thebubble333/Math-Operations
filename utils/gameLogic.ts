@@ -653,7 +653,7 @@ const generateTwoStepEquationsProblem = (): MathProblem => {
   };
 };
 
-const generateYear8AddSubAlgebra = (): MathProblem => {
+const generateYear8AddSubAlgebra = (combo: number = 0): MathProblem => {
   const letters = ['a', 'b', 'x', 'y', 'm', 'n'];
   let l1 = letters[Math.floor(Math.random() * letters.length)];
   let l2 = l1;
@@ -664,15 +664,45 @@ const generateYear8AddSubAlgebra = (): MathProblem => {
     } while (l2 === l1);
   }
 
-  let a = Math.floor(Math.random() * 9) + 1;
-  if (Math.random() < 0.3) a = -a; 
-  let b = Math.floor(Math.random() * 9) + 1;
-  if (Math.random() < 0.5) b = -b;
+  let a = 0, b = 0, c = 0;
 
-  let c = 0;
-  if (isThreeTerms) {
-    c = Math.floor(Math.random() * 9) + 1;
-    if (Math.random() < 0.5) c = -c;
+  const generateParams = () => {
+    a = Math.floor(Math.random() * 9) + 1;
+    if (Math.random() < 0.3) a = -a; 
+    b = Math.floor(Math.random() * 9) + 1;
+    if (Math.random() < 0.5) b = -b;
+
+    c = 0;
+    if (isThreeTerms) {
+      c = Math.floor(Math.random() * 9) + 1;
+      if (Math.random() < 0.5) c = -c;
+    }
+  };
+
+  generateParams();
+  let valid = false;
+
+  while (!valid) {
+    let coef1 = isThreeTerms ? (a + c) : (a + b);
+    let coef2 = isThreeTerms ? b : 0;
+
+    if (combo < 3) {
+      // problem set 1: positive coefficients in the answers
+      if (isThreeTerms) {
+        if (coef1 > 0 && coef2 > 0) valid = true;
+      } else {
+        if (coef1 > 0) valid = true;
+      }
+    } else {
+      // problem set 2: negative answers (mix of positive and negative coefficients)
+      if (isThreeTerms) {
+        if (coef1 < 0 || coef2 < 0) valid = true;
+      } else {
+        if (coef1 < 0) valid = true;
+      }
+    }
+
+    if (!valid) generateParams();
   }
 
   const formatTerm = (coef: number, isFirst: boolean, letter: string) => {
@@ -779,7 +809,7 @@ const generateYear8Factorising = (): MathProblem => {
 
   return {
     question: q,
-    answer: JSON.stringify({ type: 'factorise', str: cleanAns }),
+    answer: JSON.stringify({ type: 'factorise', str: cleanAns, termX, termC, letter: l1, a, b, c }),
     type: 'algebra'
   };
 };
@@ -816,7 +846,7 @@ export const generateProblem = (mode: GameMode, options?: { forceQuadrant1?: boo
   if (mode === GameMode.TWO_STEP_EQUATIONS) {
     problem = generateTwoStepEquationsProblem();
   } else if (mode === GameMode.YEAR8_ADD_SUB_ALGEBRA) {
-    problem = generateYear8AddSubAlgebra();
+    problem = generateYear8AddSubAlgebra(options?.combo || 0);
   } else if (mode === GameMode.YEAR8_MULT_DIV_ALGEBRA) {
     problem = generateYear8MultDivAlgebra();
   } else if (mode === GameMode.YEAR8_FACTORISING) {
