@@ -527,12 +527,55 @@ const App: React.FC = () => {
       const expectedCoef = expectedTerms[varStrMapped];
       
       if (expectedCoef === undefined) {
+        // Check if the typed term is a prefix of any expected term
+        const isPrefixOfSomeVar = Object.keys(expectedTerms).some(k => {
+          if (k === 'constant') return false; 
+          
+          if (varStrOriginal !== '') {
+            // Check if typed variables are a subset of expected variables
+            const kChars = k.split('');
+            for (const c of varStrMapped) {
+              const idx = kChars.indexOf(c);
+              if (idx === -1) return false;
+              kChars.splice(idx, 1);
+            }
+            // Coefficient must match EXACTLY since variables started!
+            return typedCoef === expectedTerms[k];
+          } else {
+            // Processing coefficient: check if typed coefficient is a prefix
+            const expC = expectedTerms[k];
+            let typedNumStr = coefStr.replace(/^\+/, ''); 
+            let expectedNumStr = expC.toString();
+            
+            if (typedNumStr === '-' && expC < 0) return true;
+            if (expectedNumStr.startsWith(typedNumStr)) return true;
+            return false;
+          }
+        });
+
+        if (isPrefixOfSomeVar) {
+          return null; // Still typing this term
+        }
+
         feedback.push({text: termStr, color: 'text-rose-500 text-shadow-sm'});
         isAllCorrect = false;
       } else {
         if (typedCoef === expectedCoef) {
           feedback.push({text: termStr, color: 'text-emerald-500 text-shadow-sm'});
         } else {
+          // Not exactly matched, but could they still be typing the coefficient?
+          if (varStrOriginal === '') {
+            let typedNumStr = coefStr.replace(/^\+/, ''); 
+            let expectedNumStr = expectedCoef.toString();
+            
+            if (typedNumStr === '-' && expectedCoef < 0) {
+               return null;
+            }
+            if (expectedNumStr.startsWith(typedNumStr) && typedNumStr !== '' && typedNumStr !== '-') {
+               return null;
+            }
+          }
+
           isAllCorrect = false;
           if (varStrOriginal) {
             if (coefStr === '') {
