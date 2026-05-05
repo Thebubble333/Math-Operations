@@ -840,6 +840,82 @@ const generateYear8Expanding = (): MathProblem => {
   };
 };
 
+const generateDOTS = (): MathProblem => {
+  const letters = ['x', 'y', 'a', 'b', 'm', 'n'];
+  const l1 = letters[Math.floor(Math.random() * letters.length)];
+  let a = Math.floor(Math.random() * 5) + 1; // 1 to 5
+  let b = Math.floor(Math.random() * 10) + 1; // 1 to 10
+  
+  const gcd = (x: number, y: number): number => y === 0 ? Math.abs(x) : gcd(y, x % y);
+  while (gcd(a, b) > 1) {
+    b = Math.floor(Math.random() * 10) + 1;
+  }
+  
+  const a2 = a * a;
+  const b2 = b * b;
+
+  const aStr = a2 === 1 ? '' : a2;
+  const q = `${aStr}${l1}^2 - ${b2}`;
+
+  return {
+    question: q,
+    answer: JSON.stringify({ type: 'dots', a, b, letter: l1 }),
+    type: 'algebra'
+  };
+};
+
+const generateMonicQuadratic = (): MathProblem => {
+  const letters = ['x', 'y', 'a', 'm'];
+  const l1 = letters[Math.floor(Math.random() * letters.length)];
+  let p = Math.floor(Math.random() * 10) - 5; 
+  let q = Math.floor(Math.random() * 10) - 5;
+  if (p === 0) p = 2;
+  if (q === 0) q = -3;
+  
+  const b = p + q;
+  const c = p * q;
+
+  let bStr = '';
+  if (b === 1) bStr = `+ ${l1}`;
+  else if (b === -1) bStr = `- ${l1}`;
+  else if (b > 0) bStr = `+ ${b}${l1}`;
+  else if (b < 0) bStr = `- ${Math.abs(b)}${l1}`;
+
+  let cStr = '';
+  if (c > 0) cStr = `+ ${c}`;
+  else if (c < 0) cStr = `- ${Math.abs(c)}`;
+
+  const question = `${l1}^2 ${bStr} ${cStr}`;
+
+  return {
+    question,
+    answer: JSON.stringify({ type: 'monic_quadratic', p, q, letter: l1 }),
+    type: 'algebra'
+  };
+};
+
+const generateCompletingSquare = (): MathProblem => {
+  const letters = ['x', 'y', 'a', 'm'];
+  const l1 = letters[Math.floor(Math.random() * letters.length)];
+  
+  let b = Math.floor(Math.random() * 14) - 7;
+  if (b === 0) b = 5;
+
+  let bStr = '';
+  if (b === 1) bStr = `+ ${l1}`;
+  else if (b === -1) bStr = `- ${l1}`;
+  else if (b > 0) bStr = `+ ${b}${l1}`;
+  else if (b < 0) bStr = `- ${Math.abs(b)}${l1}`;
+
+  const question = `${l1}^2 ${bStr}`;
+
+  return {
+    question,
+    answer: JSON.stringify({ type: 'completing_square', b, letter: l1 }),
+    type: 'algebra'
+  };
+};
+
 export const generateProblem = (mode: GameMode, options?: { forceQuadrant1?: boolean, combo?: number }): MathProblem => {
   let problem: MathProblem;
 
@@ -851,6 +927,12 @@ export const generateProblem = (mode: GameMode, options?: { forceQuadrant1?: boo
     problem = generateYear8MultDivAlgebra();
   } else if (mode === GameMode.YEAR8_FACTORISING) {
     problem = generateYear8Factorising();
+  } else if (mode === GameMode.SEAL8_FACTORISE_DOTS) {
+    problem = generateDOTS();
+  } else if (mode === GameMode.SEAL8_FACTORISE_MONIC) {
+    problem = generateMonicQuadratic();
+  } else if (mode === GameMode.SEAL8_COMPLETING_SQUARE) {
+    problem = generateCompletingSquare();
   } else if (mode === GameMode.YEAR8_EXPANDING) {
     problem = generateYear8Expanding();
   } else if (mode === GameMode.EXPANDING_NEGATIVES) {

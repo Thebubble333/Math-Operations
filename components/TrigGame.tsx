@@ -73,7 +73,7 @@ const TrigGame: React.FC<TrigGameProps> = ({ problem, onAnswer, isSuccess, isInv
             key={opt}
             onClick={() => onAnswer(opt)}
             disabled={showingAnswer}
-            className={`aspect-[4/3] p-1 sm:p-2 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-95 border text-sm sm:text-xl font-bold flex items-center justify-center
+            className={`aspect-[4/3] p-1 sm:p-2 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-95 border text-sm sm:text-xl font-bold whitespace-nowrap flex items-center justify-center
               ${showingAnswer && opt === correctAnswer 
                 ? 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-500 text-emerald-600 dark:text-emerald-400 ring-2 ring-emerald-200 dark:ring-emerald-800' 
                 : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-slate-700'

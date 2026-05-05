@@ -23,8 +23,10 @@ const Numpad: React.FC<NumpadProps> = ({ onKeyPress, onClear, mode }) => {
     keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '+', '-', 'a', 'b', 'x', 'y', 'm', 'n', 'C'];
   } else if (mode === GameMode.YEAR8_MULT_DIV_ALGEBRA) {
     keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'x', 'y', 'a', 'b', 'm', 'n', '/', 'C'];
-  } else if (mode === GameMode.YEAR8_FACTORISING) {
+  } else if (mode === GameMode.YEAR8_FACTORISING || mode === GameMode.SEAL8_FACTORISE_DOTS || mode === GameMode.SEAL8_FACTORISE_MONIC) {
     keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '+', '-', '(', ')', 'a', 'b', 'x', 'y', 'm', 'n', 'C'];
+  } else if (mode === GameMode.SEAL8_COMPLETING_SQUARE) {
+    keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '+', '-', '(', ')', '^', '/', 'a', 'x', 'm', 'y', 'C'];
   } else if (mode === GameMode.TWO_STEP_EQUATIONS) {
     keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '0', '/', 'C'];
   }
@@ -35,10 +37,10 @@ const Numpad: React.FC<NumpadProps> = ({ onKeyPress, onClear, mode }) => {
         <button
           key={key}
           onClick={() => key === 'C' ? onClear() : onKeyPress(key)}
-          className={`${keys.length > 20 ? 'h-12' : keys.length > 16 ? 'h-14' : 'h-16'} flex items-center justify-center text-xl font-bold rounded-xl active:scale-95 transition-transform
+          className={`${keys.length > 20 ? 'h-12' : keys.length > 16 ? 'h-14' : 'h-16'} flex items-center justify-center text-xl font-bold whitespace-nowrap rounded-xl active:scale-95 transition-transform
             ${key === 'C' 
               ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' 
-              : key === 'r' || key === '-' || key === '+' || key === 'x' || key === 'y' || key === 'a' || key === 'b' || key === 'm' || key === 'n' || key === '(' || key === ')' || key === '/' || key === 'EXP' || key === '.'
+              : key === 'r' || key === '-' || key === '+' || key === 'x' || key === 'y' || key === 'a' || key === 'b' || key === 'm' || key === 'n' || key === '(' || key === ')' || key === '/' || key === 'EXP' || key === '.' || key === '^'
                 ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400'
                 : 'bg-white text-slate-800 shadow-sm border border-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700'
             }

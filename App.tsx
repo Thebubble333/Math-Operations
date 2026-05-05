@@ -13,6 +13,8 @@ import CustomGameMenu from './components/CustomGameMenu';
 import SummaryScreen from './components/SummaryScreen';
 import ActiveGame from './components/ActiveGame';
 import DevTools from './components/DevTools';
+import FractionSimplifierGame from './components/FractionSimplifierGame';
+import FractionAdditionGame from './components/FractionAdditionGame';
 
 const TARGET_PROBLEMS = 20;
 
@@ -115,6 +117,8 @@ const App: React.FC = () => {
             };
           }
         }
+        
+        if (prev.qpm === qpm) return prev;
 
         return { ...prev, qpm };
       });
@@ -176,7 +180,11 @@ const App: React.FC = () => {
 
     const firstProblem = generateProblem(problemMode, { forceQuadrant1: initialForceQ1, combo: 0 });
     setProblem(firstProblem);
-    setInput('');
+    if (problemMode === GameMode.SEAL8_COMPLETING_SQUARE) {
+      setInput('(');
+    } else {
+      setInput('');
+    }
     setIsSuccess(false);
     setIsError(false);
     setUnsimplifiedAnswer(null);
@@ -254,7 +262,11 @@ const App: React.FC = () => {
       };
     });
 
-    setInput('');
+    if (mode === GameMode.SEAL8_COMPLETING_SQUARE) {
+      setInput('(');
+    } else {
+      setInput('');
+    }
   }, [mode, stats.highScore, session.correctCount, forceQuadrant1, targetProblems, customModes]);
 
   const triggerError = (isSignError: boolean = false, wipeInput: boolean = true, delayMs: number = 250) => {
@@ -276,7 +288,13 @@ const App: React.FC = () => {
     setTimeout(() => {
       setIsShaking(false);
       setIsError(false);
-      if (wipeInput) setInput('');
+      if (wipeInput) {
+        if (mode === GameMode.SEAL8_COMPLETING_SQUARE) {
+          setInput('(');
+        } else {
+          setInput('');
+        }
+      }
       setGranularFeedback(null);
     }, delayMs);
   };
@@ -320,7 +338,11 @@ const App: React.FC = () => {
       };
     });
 
-    setInput('');
+    if (mode === GameMode.SEAL8_COMPLETING_SQUARE) {
+      setInput('(');
+    } else {
+      setInput('');
+    }
   }, [mode, session.correctCount, forceQuadrant1, targetProblems, customModes]);
 
   const parseAlgebraInput = (input: string) => {
@@ -607,7 +629,7 @@ const App: React.FC = () => {
     let cleanVal = val;
 
     // Only clean input for arithmetic modes
-    if (currentProblemMode !== GameMode.TRIG_EXACT_VALUES && currentProblemMode !== GameMode.INVERSE_TRIG_EXACT_VALUES && currentProblemMode !== GameMode.METHODS_GRAPHS && currentProblemMode !== GameMode.SIMPLIFY_SURDS && currentProblemMode !== GameMode.EXPANDING_NEGATIVES && currentProblemMode !== GameMode.TWO_STEP_EQUATIONS && currentProblemMode !== GameMode.YEAR8_ADD_SUB_ALGEBRA && currentProblemMode !== GameMode.YEAR8_MULT_DIV_ALGEBRA && currentProblemMode !== GameMode.YEAR8_EXPANDING && currentProblemMode !== GameMode.YEAR8_FACTORISING) {
+    if (currentProblemMode !== GameMode.TRIG_EXACT_VALUES && currentProblemMode !== GameMode.INVERSE_TRIG_EXACT_VALUES && currentProblemMode !== GameMode.METHODS_GRAPHS && currentProblemMode !== GameMode.SIMPLIFY_SURDS && currentProblemMode !== GameMode.EXPANDING_NEGATIVES && currentProblemMode !== GameMode.TWO_STEP_EQUATIONS && currentProblemMode !== GameMode.YEAR8_ADD_SUB_ALGEBRA && currentProblemMode !== GameMode.YEAR8_MULT_DIV_ALGEBRA && currentProblemMode !== GameMode.YEAR8_EXPANDING && currentProblemMode !== GameMode.YEAR8_FACTORISING && currentProblemMode !== GameMode.SEAL8_FACTORISE_DOTS && currentProblemMode !== GameMode.SEAL8_FACTORISE_MONIC && currentProblemMode !== GameMode.SEAL8_COMPLETING_SQUARE) {
       // Allow digits and minus sign
       cleanVal = val.replace(/[^0-9-]/g, '');
     } else if (currentProblemMode === GameMode.SIMPLIFY_SURDS) {
@@ -620,8 +642,149 @@ const App: React.FC = () => {
       // Allow digits, letters, +, -
       cleanVal = val.replace(/[^0-9a-zA-Z+\-]/g, '').toLowerCase();
     } else if (currentProblemMode === GameMode.YEAR8_FACTORISING) {
-      // Allow digits, letters, +, -, (, )
-      cleanVal = val.replace(/[^0-9a-zA-Z+\-()]/g, '').toLowerCase();
+      let rawVal = val.replace(/[^0-9a-zA-Z+\-]/g, '').toLowerCase();
+      const rawInput = input.replace(/[^0-9a-zA-Z+\-]/g, '').toLowerCase();
+
+      if (val.length < input.length && rawVal === rawInput && rawVal.length > 0) {
+        rawVal = rawVal.substring(0, rawVal.length - 1);
+      }
+      
+      const ans = JSON.parse(problem.answer.toString());
+      if (ans.type === 'factorise') {
+        const aStr = ans.a === 1 ? '' : ans.a.toString();
+        let hasHCF = rawVal.startsWith(aStr);
+        if (hasHCF) {
+           const innerRaw = rawVal.substring(aStr.length);
+           if (innerRaw.length > 0) {
+              const bStr = ans.b === 1 ? '' : ans.b.toString();
+              const cStr = ans.c < 0 ? `-${Math.abs(ans.c)}` : `+${Math.abs(ans.c)}`;
+              const expectedInner = `${bStr}${ans.letter}${cStr}`;
+              
+              if (!expectedInner.startsWith(innerRaw)) {
+                  triggerError(false, false, 250);
+                  return;
+              }
+              
+              if (innerRaw === expectedInner) {
+                 cleanVal = `${aStr}(${innerRaw})`;
+              } else {
+                 cleanVal = `${aStr}(${innerRaw}`;
+              }
+           } else {
+              if (val.endsWith('(') && input === aStr) { // user just typed ( after HCF
+                 cleanVal = `${aStr}(`;
+              } else {
+                 cleanVal = `${aStr}`;
+              }
+           }
+        } else {
+           if (!aStr.startsWith(rawVal)) {
+               triggerError(false, false, 250);
+               return; 
+           }
+           cleanVal = rawVal;
+        }
+      } else {
+         cleanVal = val.replace(/[^0-9a-zA-Z+\-()^]/g, '').toLowerCase();
+      }
+    } else if (currentProblemMode === GameMode.SEAL8_FACTORISE_DOTS || currentProblemMode === GameMode.SEAL8_FACTORISE_MONIC) {
+      let rawVal = val.replace(/[^0-9a-zA-Z+\-]/g, '').toLowerCase();
+      const rawInput = input.replace(/[^0-9a-zA-Z+\-]/g, '').toLowerCase();
+
+      if (val.length < input.length && rawVal === rawInput && rawVal.length > 0) {
+        rawVal = rawVal.substring(0, rawVal.length - 1);
+      }
+
+      if (rawVal.length === 0) {
+        setInput('(');
+        return;
+      }
+
+      const ans = JSON.parse(problem.answer.toString());
+      let factors: string[] = [];
+      if (ans.type === 'dots') {
+        const aStr = ans.a === 1 ? '' : ans.a.toString();
+        factors.push(`${aStr}${ans.letter}-${ans.b}`);
+        factors.push(`${aStr}${ans.letter}+${ans.b}`);
+      } else if (ans.type === 'monic_quadratic') {
+        const pStr = ans.p > 0 ? `+${ans.p}` : `${ans.p}`;
+        const qStr = ans.q > 0 ? `+${ans.q}` : `${ans.q}`;
+        factors.push(`${ans.letter}${pStr}`);
+        factors.push(`${ans.letter}${qStr}`);
+      }
+
+      const f1 = factors[0];
+      const f2 = factors[1];
+      const t1 = f1 + f2;
+      const t2 = f2 + f1;
+
+      let matchedTargets = [];
+      if (t1.startsWith(rawVal)) matchedTargets.push({ t: t1, f1: f1 });
+      if (t2.startsWith(rawVal)) matchedTargets.push({ t: t2, f1: f2 });
+
+      if (matchedTargets.length === 0) {
+        triggerError(false, false, 250);
+        return;
+      }
+
+      let bestMatch = matchedTargets[0];
+      for (const m of matchedTargets) {
+        if (rawVal === m.f1) {
+          bestMatch = m;
+        }
+      }
+
+      const fFirst = bestMatch.f1;
+      
+      if (rawVal.length < fFirst.length) {
+        cleanVal = `(${rawVal}`;
+      } else if (rawVal.length === fFirst.length) {
+        cleanVal = `(${rawVal})(`;
+      } else {
+        const secondPart = rawVal.substring(fFirst.length);
+        const fSecond = bestMatch.t.substring(fFirst.length);
+        if (secondPart === fSecond) {
+          cleanVal = `(${fFirst})(${secondPart})`;
+        } else {
+          cleanVal = `(${fFirst})(${secondPart}`;
+        }
+      }
+    } else if (currentProblemMode === GameMode.SEAL8_COMPLETING_SQUARE) {
+      // Allow digits, letters, +, -, (, ), ^, /
+      cleanVal = val.replace(/[^0-9a-zA-Z+\-()^/]/g, '').toLowerCase();
+      
+      if (cleanVal.length > 0) {
+        cleanVal = cleanVal.replace(/^\(+/, '(');
+        if (!cleanVal.startsWith('(')) {
+          cleanVal = '(' + cleanVal;
+        }
+      } else {
+        cleanVal = '(';
+      }
+
+      cleanVal = cleanVal.replace(/\)\^\)/g, ')^');
+      cleanVal = cleanVal.replace(/\)\^\^/g, ')^');
+      cleanVal = cleanVal.replace(/\)\^2\)/g, ')^2');
+
+      const ans = JSON.parse(problem.answer.toString());
+      let innerStr = '';
+      if (ans.b % 2 === 0) {
+        const halfB = ans.b / 2;
+        const sign = halfB > 0 ? '+' : ''; 
+        innerStr = `${ans.letter}${sign}${halfB}`;
+      } else {
+        const bAbs = Math.abs(ans.b);
+        const sign = ans.b > 0 ? '+' : '-';
+        innerStr = `${ans.letter}${sign}${bAbs}/2`;
+      }
+
+      if (cleanVal === `(${innerStr}`) {
+         cleanVal += ')^';
+      } else if (cleanVal === `(${innerStr})`) {
+         cleanVal += '^';
+      } else if (cleanVal === `(${innerStr})2`) {
+         cleanVal = `(${innerStr})^2`;
+      }
     } else if (currentProblemMode === GameMode.YEAR8_MULT_DIV_ALGEBRA) {
       // Allow digits, a,b,x,y,m,n,/,+,- (maybe + and - just in case?)
       cleanVal = val.replace(/[^0-9abxymn/+\-]/gi, '').toLowerCase();
@@ -670,6 +833,58 @@ const App: React.FC = () => {
             triggerError(false, true, 250); // Instantly wipe input, trigger standard error shake
           }
         }
+      }
+      return;
+    }
+
+    if (currentProblemMode === GameMode.SEAL8_FACTORISE_DOTS || currentProblemMode === GameMode.SEAL8_FACTORISE_MONIC || currentProblemMode === GameMode.SEAL8_COMPLETING_SQUARE) {
+      const ans = JSON.parse(problem.answer.toString());
+      let isCorrect = false;
+      let isPrefix = false;
+
+      const variants: string[] = [];
+
+      if (ans.type === 'dots') {
+         const aStr = ans.a === 1 ? '' : ans.a;
+         variants.push(`(${aStr}${ans.letter}-${ans.b})(${aStr}${ans.letter}+${ans.b})`);
+         variants.push(`(${aStr}${ans.letter}+${ans.b})(${aStr}${ans.letter}-${ans.b})`);
+      } else if (ans.type === 'monic_quadratic') {
+         const pStr1 = ans.p > 0 ? `+${ans.p}` : `${ans.p}`;
+         const qStr1 = ans.q > 0 ? `+${ans.q}` : `${ans.q}`;
+         variants.push(`(${ans.letter}${pStr1})(${ans.letter}${qStr1})`);
+         variants.push(`(${ans.letter}${qStr1})(${ans.letter}${pStr1})`);
+         if (ans.p === ans.q) {
+           variants.push(`(${ans.letter}${pStr1})^2`);
+         }
+      } else if (ans.type === 'completing_square') {
+         if (ans.b % 2 === 0) {
+           const halfB = ans.b / 2;
+           const sq = halfB * halfB;
+           const sign = halfB > 0 ? '+' : ''; 
+           variants.push(`(${ans.letter}${sign}${halfB})^2-${sq}`);
+         } else {
+           const sqTop = ans.b * ans.b;
+           const bAbs = Math.abs(ans.b);
+           const sign = ans.b > 0 ? '+' : '-';
+           variants.push(`(${ans.letter}${sign}${bAbs}/2)^2-${sqTop}/4`);
+         }
+      }
+
+      for (const v of variants) {
+        if (cleanVal === v) isCorrect = true;
+        if (v.startsWith(cleanVal)) isPrefix = true;
+      }
+
+      if (isCorrect) {
+        setIsSuccess(true);
+        setTimeout(() => {
+          handleCorrect();
+          setIsSuccess(false);
+          setGranularFeedback(null);
+        }, 250);
+      } else if (!isPrefix && cleanVal.length > 0) {
+        setLastIncorrectFeedback([{ text: cleanVal, color: 'text-rose-500 text-shadow-sm' }]);
+        triggerError(false, true, 250);
       }
       return;
     }
@@ -868,6 +1083,8 @@ const App: React.FC = () => {
           <Route path="/11spec" element={<Spec11Menu startNewGame={startNewGame} />} />
           <Route path="/12methods" element={<Methods12Menu startNewGame={startNewGame} />} />
           <Route path="/custom" element={<CustomGameMenu startNewGame={startNewGame} onBack={() => navigate('/')} />} />
+          <Route path="/algebraic-fractions-prototype" element={<FractionSimplifierGame />} />
+          <Route path="/algebraic-fractions-add-subtract" element={<FractionAdditionGame />} />
         </Routes>
       )}
 

@@ -30,7 +30,7 @@ const Spec11Menu: React.FC<Spec11MenuProps> = ({ startNewGame }) => {
           <section>
             <div className="flex items-center gap-4 mb-6">
               <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1" />
-              <h2 className="text-xl font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Trigonometry</h2>
+              <h2 className="text-xl font-bold whitespace-nowrap text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Trigonometry</h2>
               <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1" />
             </div>
             
@@ -39,7 +39,7 @@ const Spec11Menu: React.FC<Spec11MenuProps> = ({ startNewGame }) => {
                 onClick={() => startNewGame(GameMode.INVERSE_TRIG_EXACT_VALUES)}
                 className="group relative h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-800 border-b-4 border-slate-200 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-300 dark:hover:border-emerald-800 rounded-3xl shadow-lg transition-all duration-150 hover:translate-y-1 hover:border-b-0 active:scale-95 z-0 hover:z-10"
               >
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center mb-3 shadow-md transform group-hover:scale-90 transition-all duration-200">
+                <div className="w-auto min-w-[3rem] px-3 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center mb-3 shadow-md transform group-hover:scale-90 transition-all duration-200">
                   <span className="text-xl font-bold">sin⁻¹</span>
                 </div>
                 <span className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">Inverse Exact Values</span>

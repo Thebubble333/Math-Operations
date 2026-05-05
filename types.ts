@@ -19,6 +19,9 @@ export enum GameMode {
   YEAR8_MULT_DIV_ALGEBRA = 'year8_mult_div_algebra',
   YEAR8_EXPANDING = 'year8_expanding',
   YEAR8_FACTORISING = 'year8_factorising',
+  SEAL8_FACTORISE_DOTS = 'seal8_factorise_dots',
+  SEAL8_FACTORISE_MONIC = 'seal8_factorise_monic',
+  SEAL8_COMPLETING_SQUARE = 'seal8_completing_square',
   CUSTOM = 'custom',
   NONE = 'none'
 }

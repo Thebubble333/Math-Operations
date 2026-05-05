@@ -86,7 +86,7 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
         const elapsed = (Date.now() - session.startTime!) / 1000;
         const remaining = Math.max(0, session.timeLimit! - elapsed);
         setTimeRemaining(remaining);
-      }, 100);
+      }, 1000);
       return () => clearInterval(interval);
     }
   }, [session.gameType, session.timeLimit, session.startTime]);
@@ -98,10 +98,23 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
     setSciA('');
     setSciN('');
     setSciFocus('a');
-    setInput('');
+    if (mode === GameMode.SEAL8_COMPLETING_SQUARE || mode === GameMode.SEAL8_FACTORISE_DOTS || mode === GameMode.SEAL8_FACTORISE_MONIC) {
+      setInput('(');
+    } else {
+      setInput('');
+    }
     setShowingAnswer(false);
     setCanGoNext(false);
-  }, [problem, setInput]);
+    
+    // Focus the appropriate input
+    setTimeout(() => {
+      if (mode === GameMode.SEAL8_COMPLETING_SQUARE) {
+        numRef.current?.focus();
+      } else {
+        inputRef.current?.focus();
+      }
+    }, 50);
+  }, [problem, setInput, mode, inputRef]);
 
   useEffect(() => {
     if (!isError) {
@@ -334,6 +347,28 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
         } else {
           setInput(problem.answer.toString());
         }
+      } else if (mode === GameMode.SEAL8_FACTORISE_DOTS || mode === GameMode.SEAL8_FACTORISE_MONIC || mode === GameMode.SEAL8_COMPLETING_SQUARE) {
+        const ans = JSON.parse(problem.answer);
+        if (ans.type === 'dots') {
+           const aStr = ans.a === 1 ? '' : ans.a;
+           setInput(`(${aStr}${ans.letter}-${ans.b})(${aStr}${ans.letter}+${ans.b})`);
+        } else if (ans.type === 'monic_quadratic') {
+           const pStr1 = ans.p > 0 ? `+${ans.p}` : `${ans.p}`;
+           const qStr1 = ans.q > 0 ? `+${ans.q}` : `${ans.q}`;
+           setInput(`(${ans.letter}${pStr1})(${ans.letter}${qStr1})`);
+        } else if (ans.type === 'completing_square') {
+           if (ans.b % 2 === 0) {
+             const halfB = ans.b / 2;
+             const sq = halfB * halfB;
+             const sign = halfB > 0 ? '+' : ''; 
+             setInput(`(${ans.letter}${sign}${halfB})^2-${sq}`);
+           } else {
+             const sqTop = ans.b * ans.b;
+             const bAbs = Math.abs(ans.b);
+             const sign = ans.b > 0 ? '+' : '-';
+             setInput(`(${ans.letter}${sign}${bAbs}/2)^2-${sqTop}/4`);
+           }
+        }
       } else if (mode === GameMode.TWO_STEP_EQUATIONS) {
         const ans = JSON.parse(problem.answer);
         const ansStr = ans.den === 1 ? `${ans.num}` : `${ans.num}/${ans.den}`;
@@ -397,7 +432,7 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
       {/* Progress Bar */}
       <div className="fixed top-0 left-0 w-full h-1.5 bg-slate-200 dark:bg-slate-800 z-50">
         <div 
-          className="h-full bg-indigo-500 transition-all duration-300 ease-out shadow-[0_0_10px_rgba(99,102,241,0.5)]"
+          className={`h-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)] ${session.gameType === 'TIME_ATTACK' ? 'transition-all duration-1000 ease-linear' : 'transition-all duration-300 ease-out'}`}
           style={{ width: `${progressPercentage}%` }}
         />
       </div>
@@ -449,7 +484,10 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                 GameMode.YEAR8_ADD_SUB_ALGEBRA,
                 GameMode.YEAR8_MULT_DIV_ALGEBRA,
                 GameMode.YEAR8_EXPANDING,
-                GameMode.YEAR8_FACTORISING
+                GameMode.YEAR8_FACTORISING,
+                GameMode.SEAL8_FACTORISE_DOTS,
+                GameMode.SEAL8_FACTORISE_MONIC,
+                GameMode.SEAL8_COMPLETING_SQUARE
               ].includes(mode);
 
               return (
@@ -621,9 +659,87 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                                         mode === GameMode.YEAR8_MULT_DIV_ALGEBRA || 
                                         mode === GameMode.YEAR8_EXPANDING || 
                                         mode === GameMode.YEAR8_FACTORISING ||
+                                        mode === GameMode.SEAL8_FACTORISE_DOTS ||
+                                        mode === GameMode.SEAL8_FACTORISE_MONIC ||
+                                        mode === GameMode.SEAL8_COMPLETING_SQUARE ||
                                         mode === GameMode.TWO_STEP_EQUATIONS;
 
-                  return input.includes('/') ? (
+                  return mode === GameMode.SEAL8_COMPLETING_SQUARE ? (
+                    <div className="relative flex flex-col items-center justify-center space-y-1 mb-6 w-full max-w-[350px] mx-auto">
+                      <div 
+                         className="relative flex items-center justify-center font-black border-b-[6px] border-indigo-500/30 hover:border-indigo-500 focus-within:border-indigo-500 pb-2 w-full transition-colors cursor-text"
+                         onClick={() => numRef.current?.focus()}
+                      >
+                        <div className="text-5xl md:text-6xl tracking-tight text-slate-800 dark:text-white flex items-center justify-center whitespace-nowrap min-h-[6rem]">
+                          {(() => {
+                            const renderPart = (text: string) => {
+                                const fracMatch = text.match(/([0-9a-zA-Z]+)\/([0-9]+)/);
+                                if (fracMatch) {
+                                  const before = text.substring(0, fracMatch.index);
+                                  const num = fracMatch[1];
+                                  const den = fracMatch[2];
+                                  const after = text.substring(fracMatch.index! + fracMatch[0].length);
+                                  return (
+                                     <span className="inline-flex items-center">
+                                        <span>{before}</span>
+                                        <span className="inline-flex flex-col items-center justify-center mx-1 text-4xl md:text-5xl translate-y-1">
+                                          <span className="border-b-[3px] border-slate-800 dark:border-white w-full text-center px-1 pb-1 leading-none">{num}</span>
+                                          <span className="pt-1 leading-none">{den}</span>
+                                        </span>
+                                        <span>{after}</span>
+                                     </span>
+                                  );
+                                }
+                                return <span>{text}</span>;
+                            };
+
+                            const parts = input.split('^');
+                            const base = parts[0];
+                            const powerAndRest = parts.length > 1 ? parts[1] : '';
+                            const power = powerAndRest.charAt(0);
+                            const rest = powerAndRest.substring(1);
+                            
+                            const isTypingPower = parts.length > 1 && power === '';
+                            
+                            return (
+                              <div className="flex items-center">
+                                {renderPart(base)}
+                                {parts.length > 1 && (
+                                  <span className="text-3xl md:text-4xl -translate-y-6 md:-translate-y-8 font-bold text-indigo-500 ml-0.5 relative min-w-[0.5rem] inline-block">
+                                    {power}
+                                    {isTypingPower && (
+                                       <span className={`absolute top-0 -right-2 w-1 h-8 md:h-10 bg-indigo-400 inline-block ${isSuccess || showingAnswer ? 'opacity-0' : 'animate-pulse opacity-80'}`} />
+                                    )}
+                                  </span>
+                                )}
+                                {renderPart(rest)}
+                                {!isTypingPower && (
+                                  <span className={`w-1 h-12 md:h-14 bg-indigo-400 ml-1 inline-block ${isSuccess || showingAnswer ? 'opacity-0' : 'animate-pulse opacity-80'}`} />
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                        <input
+                          ref={numRef}
+                          type="text"
+                          inputMode="text"
+                          value={input}
+                          onChange={(e) => handleInputChange(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !isSuccess) {
+                              triggerError(false, true, 250);
+                            }
+                          }}
+                          className="absolute bottom-0 left-0 w-full h-[5rem] opacity-0 text-transparent cursor-text outline-none caret-transparent"
+                          autoComplete="off" 
+                          autoCorrect="off" 
+                          autoCapitalize="off" 
+                          spellCheck="false"
+                        />
+                      </div>
+                    </div>
+                  ) : (input.includes('/') && mode !== GameMode.SEAL8_COMPLETING_SQUARE) ? (
                     <div className="flex flex-col items-center justify-center space-y-1 mb-6">
                       <input
                         ref={numRef}
@@ -746,14 +862,14 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                           } else {
                             const v = e.target.value;
                             handleInputChange(v);
-                            if (v.includes('/') && !input.includes('/')) {
+                            if (v.includes('/') && !input.includes('/') && mode !== GameMode.SEAL8_COMPLETING_SQUARE) {
                               setFracFocus('den');
                               setTimeout(() => denRef.current?.focus(), 10);
                             }
                           }
                         }}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter' && (mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS || mode === GameMode.YEAR8_ADD_SUB_ALGEBRA || mode === GameMode.YEAR8_MULT_DIV_ALGEBRA || mode === GameMode.YEAR8_EXPANDING || mode === GameMode.YEAR8_FACTORISING) && !isSuccess) {
+                          if (e.key === 'Enter' && (mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS || mode === GameMode.YEAR8_ADD_SUB_ALGEBRA || mode === GameMode.YEAR8_MULT_DIV_ALGEBRA || mode === GameMode.YEAR8_EXPANDING || mode === GameMode.YEAR8_FACTORISING || mode === GameMode.SEAL8_FACTORISE_DOTS || mode === GameMode.SEAL8_FACTORISE_MONIC || mode === GameMode.SEAL8_COMPLETING_SQUARE) && !isSuccess) {
                             triggerError(false, true, 250);
                           }
                         }}
@@ -778,18 +894,20 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                 let symbols: string[] = [];
                 if (mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.YEAR8_ADD_SUB_ALGEBRA || mode === GameMode.YEAR8_EXPANDING) {
                   symbols = ['+', '-'];
-                } else if (mode === GameMode.YEAR8_FACTORISING) {
+                } else if (mode === GameMode.YEAR8_FACTORISING || mode === GameMode.SEAL8_FACTORISE_DOTS || mode === GameMode.SEAL8_FACTORISE_MONIC) {
                   symbols = ['+', '-', '(', ')'];
                 } else if (mode === GameMode.TWO_STEP_EQUATIONS) {
                   symbols = ['/', '-'];
                 } else if (mode === GameMode.YEAR8_MULT_DIV_ALGEBRA) {
                   symbols = ['/'];
+                } else if (mode === GameMode.SEAL8_COMPLETING_SQUARE) {
+                  symbols = ['/', '^', '(', ')'];
                 }
 
                 if (symbols.length === 0) return null;
 
                 const handleSymbolClick = (sym: string) => {
-                  if (input.includes('/')) {
+                  if (input.includes('/') && mode !== GameMode.SEAL8_COMPLETING_SQUARE) {
                     const parts = input.split('/');
                     if (fracFocus === 'num') {
                       handleInputChange(`${parts[0] + sym}/${parts[1] || ''}`);
@@ -800,11 +918,15 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                     }
                   } else {
                     handleInputChange(input + sym);
-                    if (sym === '/') {
+                    if (sym === '/' && mode !== GameMode.SEAL8_COMPLETING_SQUARE) {
                       setFracFocus('den');
                       setTimeout(() => denRef.current?.focus(), 10);
                     } else {
-                      inputRef.current?.focus();
+                      if (mode === GameMode.SEAL8_COMPLETING_SQUARE) {
+                        numRef.current?.focus();
+                      } else {
+                        inputRef.current?.focus();
+                      }
                     }
                   }
                 };
@@ -833,7 +955,7 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                     if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
                       handleSciInput(key);
                     } else {
-                      if (input.includes('/')) {
+                      if (input.includes('/') && mode !== GameMode.SEAL8_COMPLETING_SQUARE) {
                         const parts = input.split('/');
                         if (fracFocus === 'num') {
                           handleInputChange(`${parts[0] + key}/${parts[1] || ''}`);
@@ -842,9 +964,14 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                         }
                       } else {
                         handleInputChange(input + key);
-                        if (key === '/') {
+                        if (key === '/' && mode !== GameMode.SEAL8_COMPLETING_SQUARE) {
                           setFracFocus('den');
                           setTimeout(() => denRef.current?.focus(), 10);
+                        }
+                        if (mode === GameMode.SEAL8_COMPLETING_SQUARE) {
+                          numRef.current?.focus();
+                        } else {
+                          inputRef.current?.focus();
                         }
                       }
                     }
@@ -853,8 +980,16 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                     if (mode === GameMode.SIG_FIGS_SCI_NOTATION) {
                       handleSciInput('C');
                     } else {
-                      setInput('');
-                      setTimeout(() => inputRef.current?.focus(), 10);
+                      if (mode === GameMode.SEAL8_COMPLETING_SQUARE) {
+                        setInput('(');
+                        setTimeout(() => numRef.current?.focus(), 10);
+                      } else if (mode === GameMode.SEAL8_FACTORISE_DOTS || mode === GameMode.SEAL8_FACTORISE_MONIC) {
+                        setInput('(');
+                        setTimeout(() => inputRef.current?.focus(), 10);
+                      } else {
+                        setInput('');
+                        setTimeout(() => inputRef.current?.focus(), 10);
+                      }
                     }
                   }}
                   mode={mode}
