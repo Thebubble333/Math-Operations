@@ -654,15 +654,41 @@ const generateTwoStepEquationsProblem = (): MathProblem => {
 };
 
 const generateYear8AddSubAlgebra = (combo: number = 0): MathProblem => {
+  const isLevel3 = combo >= 7;
+  const isLevel2 = combo >= 4 && combo < 7;
+  const isLevel1 = combo < 4;
+
   const letters = ['a', 'b', 'x', 'y', 'm', 'n'];
-  let l1 = letters[Math.floor(Math.random() * letters.length)];
-  let l2 = l1;
-  const isThreeTerms = Math.random() < 0.4;
-  if (isThreeTerms) {
+  let baseL1 = letters[Math.floor(Math.random() * letters.length)];
+  let baseL2 = baseL1;
+  
+  if (isLevel2 || (isLevel3 && Math.random() < 0.5)) {
     do {
-      l2 = letters[Math.floor(Math.random() * letters.length)];
-    } while (l2 === l1);
+      baseL2 = letters[Math.floor(Math.random() * letters.length)];
+    } while (baseL2 === baseL1);
   }
+
+  let var1 = baseL1;
+  let var2 = baseL1; // for like terms
+  let var3 = baseL2; // for the unlike term
+
+  if (isLevel3) {
+    // Generate complex bases like a^2b and ba^2
+    const complexBases = [
+      ['a^2b', 'ba^2'],
+      ['ab^2', 'b^2a'],
+      ['x^2y', 'yx^2'],
+      ['xy^2', 'y^2x'],
+      ['m^2n', 'nm^2'],
+      ['mn^2', 'n^2m']
+    ];
+    const pair = complexBases[Math.floor(Math.random() * complexBases.length)];
+    var1 = pair[0];
+    var2 = pair[1]; // var1 and var2 are like terms!
+    var3 = pair[Math.random() < 0.5 ? 0 : 1].replace('^2', '^3'); // just some different term if 3 terms are used
+  }
+
+  const isThreeTerms = isLevel2 || (isLevel3 && Math.random() < 0.5);
 
   let a = 0, b = 0, c = 0;
 
@@ -683,23 +709,17 @@ const generateYear8AddSubAlgebra = (combo: number = 0): MathProblem => {
   let valid = false;
 
   while (!valid) {
-    let coef1 = isThreeTerms ? (a + c) : (a + b);
-    let coef2 = isThreeTerms ? b : 0;
+    // We want the resulting simplified coefficients for the "like" terms to not be 0 in level 1, usually.
+    // Let's just make sure the final sum of like terms is not 0 for a more interesting answer.
+    let coef1 = a + b; // They are always like terms!
+    let coef2 = isThreeTerms ? c : 0; // The unlike term
 
-    if (combo < 3) {
-      // problem set 1: positive coefficients in the answers
-      if (isThreeTerms) {
-        if (coef1 > 0 && coef2 > 0) valid = true;
-      } else {
-        if (coef1 > 0) valid = true;
-      }
+    if (isLevel1) {
+      if (coef1 > 0) valid = true;
+    } else if (isLevel2) {
+      if (coef1 !== 0 || coef2 !== 0) valid = true;
     } else {
-      // problem set 2: negative answers (mix of positive and negative coefficients)
-      if (isThreeTerms) {
-        if (coef1 < 0 || coef2 < 0) valid = true;
-      } else {
-        if (coef1 < 0) valid = true;
-      }
+      if (coef1 !== 0 || coef2 !== 0) valid = true;
     }
 
     if (!valid) generateParams();
@@ -719,14 +739,42 @@ const generateYear8AddSubAlgebra = (combo: number = 0): MathProblem => {
     return str;
   };
 
-  let q = formatTerm(a, true, l1) + formatTerm(b, false, isThreeTerms ? l2 : l1);
-  if (isThreeTerms) q += formatTerm(c, false, l1);
+  // randomize order of the three terms if applicable
+  let termsArr = [
+    { coef: a, letter: var1 },
+    { coef: b, letter: var2 }
+  ];
+  if (isThreeTerms) {
+    termsArr.push({ coef: c, letter: var3 });
+  }
+
+  // Shuffle terms so the like terms aren't always adjacent
+  for (let i = termsArr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [termsArr[i], termsArr[j]] = [termsArr[j], termsArr[i]];
+  }
+
+  let q = '';
+  for (let i = 0; i < termsArr.length; i++) {
+     q += formatTerm(termsArr[i].coef, i === 0, termsArr[i].letter);
+  }
 
   const answerTerms: Record<string, number> = {};
-  answerTerms[l1] = a + (isThreeTerms ? c : b);
-  if (isThreeTerms && b !== 0) {
-    answerTerms[l2] = b;
+  
+  // Need to use the canonical form (sorted) for answer terms because ActiveGame might map them differently?
+  // Wait, my regex matching canonicalizes them! `varStrMapped = varParts.sort().join('');`
+  // So I should canonicalize them here as well.
+  const canonicalize = (v: string) => {
+      const parts = [...v.matchAll(/[a-z](?:\^\d+)?/gi)].map(match => match[0].toLowerCase());
+      return parts.sort().join('');
+  };
+
+  for (const t of termsArr) {
+      const canon = canonicalize(t.letter);
+      if (!answerTerms[canon]) answerTerms[canon] = 0;
+      answerTerms[canon] += t.coef;
   }
+
   for (const k in answerTerms) {
     if (answerTerms[k] === 0) delete answerTerms[k];
   }
@@ -738,47 +786,132 @@ const generateYear8AddSubAlgebra = (combo: number = 0): MathProblem => {
   };
 };
 
-const generateYear8MultDivAlgebra = (): MathProblem => {
+const generateYear8MultDivAlgebra = (combo: number = 0): MathProblem => {
   const letters = ['a', 'b', 'x', 'y', 'm', 'n'];
-  let l1 = letters[Math.floor(Math.random() * letters.length)];
+  const l1 = letters[Math.floor(Math.random() * letters.length)];
+  let l2 = letters[Math.floor(Math.random() * letters.length)];
+  while (l2 === l1) {
+    l2 = letters[Math.floor(Math.random() * letters.length)];
+  }
+
   const isMult = Math.random() < 0.5;
-  if (isMult) {
-    const a = Math.floor(Math.random() * 8) + 2; 
-    const b = Math.floor(Math.random() * 8) + 2; 
-    let l2 = letters[Math.floor(Math.random() * letters.length)];
-    while (l2 === l1) {
-      l2 = letters[Math.floor(Math.random() * letters.length)];
+  const isHard = combo > 3; // "next level"
+
+  let a = Math.floor(Math.random() * 8) + 2; 
+  let b = Math.floor(Math.random() * 8) + 2; 
+
+  let p1_1 = 1, p1_2 = 1, p2_1 = 0, p2_2 = 0;
+  let ans_p1 = 2, ans_p2 = 0;
+
+  if (isHard) {
+    if (isMult) {
+      ans_p1 = Math.floor(Math.random() * 8) + 2; // 2 to 9
+      p1_1 = Math.floor(Math.random() * (ans_p1)) + 1; // 1 to ans_p1
+      p1_2 = ans_p1 - p1_1;
+      
+      ans_p2 = Math.floor(Math.random() * 8) + 2; // 2 to 9
+      p2_1 = Math.floor(Math.random() * (ans_p2)) + 1; 
+      p2_2 = ans_p2 - p2_1;
+    } else {
+      // division: ans_p1 = p1_1 - p1_2 >= 1 => p1_1 = ans_p1 + p1_2
+      ans_p1 = Math.floor(Math.random() * 9) + 1; // 1 to 9
+      // max power 10
+      p1_2 = Math.floor(Math.random() * (10 - ans_p1)) + 1; // >=1, so p1_1 = ans_p1 + p1_2 <= 10
+      p1_1 = ans_p1 + p1_2;
+
+      ans_p2 = Math.floor(Math.random() * 9) + 1; // 1 to 9
+      p2_2 = Math.floor(Math.random() * (10 - ans_p2)) + 1;
+      p2_1 = ans_p2 + p2_2;
     }
-    const qLabel = `${a}${l1} \\times ${b}${l2}`;
-    const ansVars = [l1, l2].sort().join(''); // sorted alphabetical
-    const ansCoef = a * b;
+  } else {
+    // "level 1" basic style, allow powers up to 5
+    if (isMult) {
+      p1_1 = Math.floor(Math.random() * 5) + 1; // 1 to 5
+      p1_2 = 0;
+      p2_1 = 0;
+      p2_2 = Math.floor(Math.random() * 5) + 1; // 1 to 5
+    } else {
+      p1_1 = Math.floor(Math.random() * 4) + 2; // 2 to 5
+      p1_2 = Math.floor(Math.random() * (p1_1 - 1)) + 1; // 1 to p1_1 - 1
+      p2_1 = 0;
+      p2_2 = 0;
+    }
+  }
+
+  const formatTermLatex = (c: number, power1: number, power2: number, let1: string, let2: string, omit1: boolean) => {
+    let str = (omit1 && c === 1) ? '' : c.toString();
+    if (power1 === 1) str += let1;
+    else if (power1 > 1) str += `${let1}^{${power1}}`;
+    if (power2 === 1) str += let2;
+    else if (power2 > 1) str += `${let2}^{${power2}}`;
+    if (str === '') return '1';
+    return str;
+  };
+
+  const formatTermString = (c: number, power1: number, power2: number, let1: string, let2: string, omit1: boolean) => {
+    let str = (omit1 && c === 1) ? '' : c.toString();
+    
+    // Sort variables alphabetically if both exist
+    let vars = [];
+    if (power1 === 1) vars.push({l: let1, s: let1});
+    else if (power1 > 1) vars.push({l: let1, s: `${let1}^${power1}`});
+    if (power2 === 1) vars.push({l: let2, s: let2});
+    else if (power2 > 1) vars.push({l: let2, s: `${let2}^${power2}`});
+    
+    vars.sort((vA, vB) => vA.l.localeCompare(vB.l));
+    str += vars.map(v => v.s).join('');
+
+    if (str === '') return '1';
+    return str;
+  };
+
+  if (isMult) {
+    const qLabel = `${formatTermLatex(a, p1_1, p2_1, l1, l2, true)} \\times ${formatTermLatex(b, p1_2, p2_2, l1, l2, true)}`;
+    const ansVarsStr = formatTermString(1, p1_1 + p1_2, p2_1 + p2_2, l1, l2, true);
+    
+    // MultiVar uses object format
     const answerTerms: Record<string, number> = {};
-    answerTerms[ansVars] = ansCoef;
+    answerTerms[ansVarsStr === '1' ? 'constant' : ansVarsStr] = a * b;
     return {
       question: qLabel,
       answer: JSON.stringify({ type: 'multivar', terms: answerTerms }),
       type: 'algebra'
     };
   } else {
-    let num = Math.floor(Math.random() * 10) + 1;
-    let den = Math.floor(Math.random() * 10) + 1;
-    if (num === den) den += 1;
+    // division
+    let num = a;
+    let den = Math.floor(Math.random() * 8) + 2; 
+
+    // Level 1 logic for coefficient if not hard
+    if (!isHard) {
+      num = Math.floor(Math.random() * 10) + 1;
+      den = Math.floor(Math.random() * 10) + 1;
+      if (num === den) den += 1;
+    }
     
     const gcd = (x: number, y: number): number => y === 0 ? Math.abs(x) : gcd(y, x % y);
     const div = gcd(num, den);
     const simpNum = num / div;
     const simpDen = den / div;
 
-    const q = `\\frac{${num === 1 ? '' : num}${l1}^2}{${den === 1 ? '' : den}${l1}}`;
+    const numTerm = formatTermLatex(num, p1_1, p2_1, l1, l2, true);
+    const denTerm = formatTermLatex(den, p1_2, p2_2, l1, l2, true);
+
+    const q = `\\frac{${numTerm}}{${denTerm}}`;
     
+    // compute powers
+    let res_p1 = p1_1 - p1_2;
+    let res_p2 = p2_1 - p2_2;
+    const ansVarsConf = formatTermString(1, res_p1, res_p2, l1, l2, true);
+
     let ansStr = '';
     if (simpDen === 1) {
-      ansStr = simpNum === 1 ? l1 : `${simpNum}${l1}`;
+      ansStr = simpNum === 1 ? (ansVarsConf === '1' ? '1' : ansVarsConf) : `${simpNum}${ansVarsConf}`;
     } else {
       if (simpNum === 1) {
-        ansStr = `${l1}/${simpDen}`;
+        ansStr = `${ansVarsConf === '1' ? '1' : ansVarsConf}/${simpDen}`;
       } else {
-        ansStr = `${simpNum}${l1}/${simpDen}`;
+        ansStr = `${simpNum}${ansVarsConf}/${simpDen}`;
       }
     }
     
@@ -814,13 +947,17 @@ const generateYear8Factorising = (): MathProblem => {
   };
 };
 
-const generateYear8Expanding = (): MathProblem => {
+const generateYear8Expanding = (combo: number = 0): MathProblem => {
   const letters = ['a', 'b', 'x', 'y', 'm', 'n'];
   let l1 = letters[Math.floor(Math.random() * letters.length)];
-  const a = Math.floor(Math.random() * 5) + 2; 
+  let a = Math.floor(Math.random() * 5) + 2; 
   let b = Math.floor(Math.random() * 4) + 1;
   let c = Math.floor(Math.random() * 9) + 1;
-  if (Math.random() < 0.2) c = -c;
+
+  if (combo >= 3) {
+    if (Math.random() < 0.5) a = -a;
+    if (Math.random() < 0.5) c = -c;
+  }
 
   const bStr = b === 1 ? '' : b;
   const cStr = c < 0 ? `- ${Math.abs(c)}` : `+ ${c}`;
@@ -924,7 +1061,7 @@ export const generateProblem = (mode: GameMode, options?: { forceQuadrant1?: boo
   } else if (mode === GameMode.YEAR8_ADD_SUB_ALGEBRA) {
     problem = generateYear8AddSubAlgebra(options?.combo || 0);
   } else if (mode === GameMode.YEAR8_MULT_DIV_ALGEBRA) {
-    problem = generateYear8MultDivAlgebra();
+    problem = generateYear8MultDivAlgebra(options?.combo || 0);
   } else if (mode === GameMode.YEAR8_FACTORISING) {
     problem = generateYear8Factorising();
   } else if (mode === GameMode.SEAL8_FACTORISE_DOTS) {
@@ -934,7 +1071,7 @@ export const generateProblem = (mode: GameMode, options?: { forceQuadrant1?: boo
   } else if (mode === GameMode.SEAL8_COMPLETING_SQUARE) {
     problem = generateCompletingSquare();
   } else if (mode === GameMode.YEAR8_EXPANDING) {
-    problem = generateYear8Expanding();
+    problem = generateYear8Expanding(options?.combo || 0);
   } else if (mode === GameMode.EXPANDING_NEGATIVES) {
     problem = generateExpandingNegativesProblem();
   } else if (mode === GameMode.SIMPLIFY_SURDS) {

@@ -514,22 +514,37 @@ const App: React.FC = () => {
     }
     
     const typedKeys = matches.map(t => {
-      const m = t.match(/^([+-]?\d*)([a-z]*)$/i);
+      const m = t.match(/^([+-]?\d*)([a-z0-9\^]*)$/i);
       if (!m) return 'unknown';
-      return m[2] ? m[2].toLowerCase().split('').sort().join('') : 'constant';
+      if (!m[2]) return 'constant';
+      const parts = [...m[2].matchAll(/[a-z](?:\^\d*)?/gi)].map(match => match[0].toLowerCase());
+      return parts.length > 0 ? parts.sort().join('') : 'constant';
     });
     
-    const numExpectedVars = expectedKeys.filter(k => k !== 'constant').length;
-    const numTypedVars = typedKeys.filter(k => k !== 'constant' && k !== 'unknown').length;
+    let numExpectedVarParts = 0;
+    for (const k of expectedKeys) {
+      if (k !== 'constant') {
+        const parts = [...k.matchAll(/[a-z](?:\^\d*)?/gi)];
+        numExpectedVarParts += parts.length;
+      }
+    }
+
+    let numTypedVarParts = 0;
+    for (const k of typedKeys) {
+      if (k !== 'constant' && k !== 'unknown') {
+        const parts = [...k.matchAll(/[a-z](?:\^\d*)?/gi)];
+        numTypedVarParts += parts.length;
+      }
+    }
     
-    if (numTypedVars < numExpectedVars) return null;
+    if (numTypedVarParts < numExpectedVarParts) return null;
     
     let feedback: FeedbackToken[] = [];
     let isAllCorrect = true;
     
     for (let i = 0; i < matches.length; i++) {
       const termStr = matches[i];
-      const m = termStr.match(/^([+-]?\d*)([a-z]*)$/i);
+      const m = termStr.match(/^([+-]?\d*)([a-z0-9\^]*)$/i);
       if (!m) {
         feedback.push({text: termStr, color: 'text-rose-500 text-shadow-sm'});
         isAllCorrect = false;
@@ -538,7 +553,15 @@ const App: React.FC = () => {
       
       let coefStr = m[1];
       let varStrOriginal = m[2];
-      let varStrMapped = varStrOriginal ? varStrOriginal.toLowerCase().split('').sort().join('') : 'constant';
+      
+      let varStrMapped = 'constant';
+      let varParts: string[] = [];
+      if (varStrOriginal) {
+        varParts = [...varStrOriginal.matchAll(/[a-z](?:\^\d*)?/gi)].map(match => match[0].toLowerCase());
+        if (varParts.length > 0) {
+          varStrMapped = varParts.sort().join('');
+        }
+      }
       
       let typedCoef = 1;
       if (coefStr === '' || coefStr === '+') typedCoef = 1;
@@ -549,38 +572,116 @@ const App: React.FC = () => {
       const expectedCoef = expectedTerms[varStrMapped];
       
       if (expectedCoef === undefined) {
-        // Check if the typed term is a prefix of any expected term
-        const isPrefixOfSomeVar = Object.keys(expectedTerms).some(k => {
-          if (k === 'constant') return false; 
+        let isPrefixWithCorrectCoef = false;
+        let isVarPrefixWithWrongCoef = false;
+        let isCoefPrefix = false;
+
+        for (const k of Object.keys(expectedTerms)) {
+          if (k === 'constant') continue;
           
           if (varStrOriginal !== '') {
-            // Check if typed variables are a subset of expected variables
-            const kChars = k.split('');
-            for (const c of varStrMapped) {
-              const idx = kChars.indexOf(c);
-              if (idx === -1) return false;
-              kChars.splice(idx, 1);
+            let kParts = [...k.matchAll(/[a-z](?:\^\d*)?/gi)].map(match => match[0].toLowerCase());
+            
+            let isPrefix = true;
+            for (const c of varParts) {
+              const idx = kParts.indexOf(c);
+              if (idx === -1) {
+                const partialMatchIdx = kParts.findIndex(kp => kp.startsWith(c));
+                if (partialMatchIdx === -1) {
+                   isPrefix = false;
+                   break;
+                }
+                kParts.splice(partialMatchIdx, 1);
+              } else {
+                kParts.splice(idx, 1);
+              }
             }
-            // Coefficient must match EXACTLY since variables started!
-            return typedCoef === expectedTerms[k];
+            if (isPrefix) {
+               if (typedCoef === expectedTerms[k]) {
+                  isPrefixWithCorrectCoef = true;
+                  break;
+               } else {
+                  isVarPrefixWithWrongCoef = true;
+               }
+            }
           } else {
-            // Processing coefficient: check if typed coefficient is a prefix
             const expC = expectedTerms[k];
             let typedNumStr = coefStr.replace(/^\+/, ''); 
             let expectedNumStr = expC.toString();
             
-            if (typedNumStr === '-' && expC < 0) return true;
-            if (expectedNumStr.startsWith(typedNumStr)) return true;
-            return false;
+            if (typedNumStr === '-' && expC < 0) { isCoefPrefix = true; break; }
+            if (expectedNumStr.startsWith(typedNumStr)) { isCoefPrefix = true; break; }
           }
-        });
-
-        if (isPrefixOfSomeVar) {
-          return null; // Still typing this term
         }
 
-        feedback.push({text: termStr, color: 'text-rose-500 text-shadow-sm'});
+        if (isPrefixWithCorrectCoef || isCoefPrefix) {
+          return null; // Still typing this term correctly
+        }
+
         isAllCorrect = false;
+        if (expectedKeys.length === 1) {
+           const onlyExpectedKey = expectedKeys[0];
+           const onlyExpectedCoef = expectedTerms[onlyExpectedKey];
+           
+           if (coefStr === '') {
+               // no text to color for coef
+           } else if (coefStr === '+' || coefStr === '-') {
+                feedback.push({text: coefStr, color: 'text-rose-500 text-shadow-sm'});
+           } else {
+               if (typedCoef === onlyExpectedCoef) {
+                   feedback.push({text: coefStr, color: 'text-emerald-500 text-shadow-sm'});
+               } else {
+                   feedback.push({text: coefStr, color: 'text-rose-500 text-shadow-sm'});
+               }
+           }
+           
+           if (varStrOriginal) {
+               if (varParts.join('') !== varStrOriginal) {
+                   feedback.push({text: varStrOriginal, color: 'text-rose-500 text-shadow-sm'});
+               } else {
+                   const expParts = [...onlyExpectedKey.matchAll(/[a-z](?:\^\d*)?/gi)].map(match => match[0].toLowerCase());
+                   for (const vp of varParts) {
+                       const idx = expParts.indexOf(vp);
+                       if (idx !== -1) {
+                           feedback.push({text: vp, color: 'text-emerald-500 text-shadow-sm'});
+                           expParts.splice(idx, 1);
+                       } else {
+                           const baseVarMatch = vp.match(/[a-z]/i);
+                           if (!baseVarMatch) {
+                               feedback.push({text: vp, color: 'text-rose-500 text-shadow-sm'});
+                               continue;
+                           }
+                           const baseVar = baseVarMatch[0];
+                           const pwr = vp.substring(baseVarMatch.index! + 1);
+                           
+                           const baseIdx = expParts.findIndex(p => p.startsWith(baseVar));
+                           if (baseIdx !== -1) {
+                               feedback.push({text: baseVar, color: 'text-emerald-500 text-shadow-sm'});
+                               if (pwr) {
+                                   feedback.push({text: pwr, color: 'text-rose-500 text-shadow-sm'});
+                               }
+                               // Do not splice, maybe they typed it twice? Or splice it? Let's splice it so we don't match it again
+                               expParts.splice(baseIdx, 1);
+                           } else {
+                               feedback.push({text: vp, color: 'text-rose-500 text-shadow-sm'});
+                           }
+                       }
+                   }
+               }
+           }
+        } else if (isVarPrefixWithWrongCoef) {
+            if (coefStr === '') {
+              feedback.push({text: varStrOriginal, color: 'text-rose-500 text-shadow-sm'});
+            } else if (coefStr === '+' || coefStr === '-') {
+              feedback.push({text: coefStr, color: 'text-rose-500 text-shadow-sm'});
+              feedback.push({text: varStrOriginal, color: 'text-emerald-500 text-shadow-sm'});
+            } else {
+               feedback.push({text: coefStr, color: 'text-rose-500 text-shadow-sm'});
+               feedback.push({text: varStrOriginal, color: 'text-emerald-500 text-shadow-sm'});
+            }
+        } else {
+            feedback.push({text: termStr, color: 'text-rose-500 text-shadow-sm'});
+        }
       } else {
         if (typedCoef === expectedCoef) {
           feedback.push({text: termStr, color: 'text-emerald-500 text-shadow-sm'});
@@ -639,11 +740,12 @@ const App: React.FC = () => {
       // Allow digits, x, +, -
       cleanVal = val.replace(/[^0-9xX+\-]/g, '').toLowerCase();
     } else if (currentProblemMode === GameMode.YEAR8_ADD_SUB_ALGEBRA || currentProblemMode === GameMode.YEAR8_EXPANDING) {
-      // Allow digits, letters, +, -
-      cleanVal = val.replace(/[^0-9a-zA-Z+\-]/g, '').toLowerCase();
+      // Allow digits, letters, +, -, ^
+      cleanVal = val.replace(/[^0-9a-zA-Z+\-^]/g, '').toLowerCase();
+      cleanVal = cleanVal.replace(/([a-z])([0-9])/gi, '$1^$2');
     } else if (currentProblemMode === GameMode.YEAR8_FACTORISING) {
-      let rawVal = val.replace(/[^0-9a-zA-Z+\-]/g, '').toLowerCase();
-      const rawInput = input.replace(/[^0-9a-zA-Z+\-]/g, '').toLowerCase();
+      let rawVal = val.replace(/[^0-9a-zA-Z+\-^]/g, '').toLowerCase();
+      const rawInput = input.replace(/[^0-9a-zA-Z+\-^]/g, '').toLowerCase();
 
       if (val.length < input.length && rawVal === rawInput && rawVal.length > 0) {
         rawVal = rawVal.substring(0, rawVal.length - 1);
@@ -786,14 +888,19 @@ const App: React.FC = () => {
          cleanVal = `(${innerStr})^2`;
       }
     } else if (currentProblemMode === GameMode.YEAR8_MULT_DIV_ALGEBRA) {
-      // Allow digits, a,b,x,y,m,n,/,+,- (maybe + and - just in case?)
-      cleanVal = val.replace(/[^0-9abxymn/+\-]/gi, '').toLowerCase();
+      // Allow digits, a,b,x,y,m,n,/,+,-,^
+      cleanVal = val.replace(/[^0-9abxymn/+\-^]/gi, '').toLowerCase();
+      cleanVal = cleanVal.replace(/([a-z])([0-9])/gi, '$1^$2');
     } else if (currentProblemMode === GameMode.TWO_STEP_EQUATIONS) {
       // Allow digits, -, /
       cleanVal = val.replace(/[^0-9\-/]/g, '');
     }
     
     setInput(cleanVal);
+
+    if (!cleanVal) {
+       setGranularFeedback(null);
+    }
 
     if (currentProblemMode === GameMode.SIMPLIFY_SURDS || currentProblemMode === GameMode.SIG_FIGS_SCI_NOTATION) {
       // We handle surd and sci notation logic in ActiveGame now, so this branch shouldn't be reached
@@ -828,9 +935,10 @@ const App: React.FC = () => {
               setGranularFeedback(null);
             }, 800);
           } else {
-            setLastIncorrectFeedback(feedbackResult.feedback);
-            setGranularFeedback(null);
-            triggerError(false, true, 250); // Instantly wipe input, trigger standard error shake
+            // Live show incorrect granular feedback and trigger wipe after delay
+            setGranularFeedback(feedbackResult.feedback);
+            setLastIncorrectFeedback(null);
+            triggerError(false, true, 800);
           }
         }
       }
@@ -941,11 +1049,42 @@ const App: React.FC = () => {
             handleCorrect();
             setIsSuccess(false);
           }, 250);
+        } else {
+          // Check for '1' prefix error (e.g. 1x^4/5 instead of x^4/5)
+          // If ans.str does not start with digits (or starts with a letter), 
+          // and cleanVal starts with 1 + that letter
+          const hasUnnecessaryOne = cleanVal.startsWith('1') && cleanVal.substring(1) === ans.str;
+          if (hasUnnecessaryOne && !ans.str.startsWith('1')) {
+             setLastPartialFeedback([{ text: cleanVal, color: 'text-amber-500 text-shadow-sm' }]);
+             setLastIncorrectFeedback(null);
+             setGranularFeedback(null);
+             setInput('');
+             return;
+          }
         }
       } else {
         const feedbackResult = getMultiVarFeedback(cleanVal, ans.terms);
         if (feedbackResult && Object.keys(ans.terms).length > 0) {
           if (feedbackResult.isAllCorrect) {
+            // Check for unnecessary '1' in multivar
+            const matches = cleanVal.match(/[+-]?[^-+]+/g);
+            let hasUnnecessaryOne = false;
+            if (matches) {
+              for (const m of matches) {
+                if (m.match(/^[+-]?1[a-z]/i)) {
+                   hasUnnecessaryOne = true;
+                }
+              }
+            }
+
+            if (hasUnnecessaryOne) {
+               setLastPartialFeedback([{ text: cleanVal, color: 'text-amber-500 text-shadow-sm' }]);
+               setLastIncorrectFeedback(null);
+               setGranularFeedback(null);
+               setInput('');
+               return;
+            }
+
             setGranularFeedback(feedbackResult.feedback);
             setIsSuccess(true);
             setTimeout(() => {
@@ -954,9 +1093,10 @@ const App: React.FC = () => {
               setGranularFeedback(null);
             }, 800);
           } else {
-             setLastIncorrectFeedback(feedbackResult.feedback);
-             setGranularFeedback(null);
-             triggerError(false, true, 250);
+             // Live show incorrect granular feedback and trigger wipe after delay
+             setGranularFeedback(feedbackResult.feedback);
+             setLastIncorrectFeedback(null);
+             triggerError(false, true, 800);
           }
         }
       }
@@ -1127,6 +1267,48 @@ const App: React.FC = () => {
           granularFeedback={granularFeedback}
           lastIncorrectFeedback={lastIncorrectFeedback}
           lastPartialFeedback={lastPartialFeedback}
+          onSubmitAnswer={() => {
+            let handled = false;
+            if (problem) {
+              const currentProblemMode = (mode === GameMode.CUSTOM && problem.mode) ? problem.mode : mode;
+              if (currentProblemMode === GameMode.YEAR8_MULT_DIV_ALGEBRA) {
+                const ans = JSON.parse(problem.answer.toString());
+                if (ans.isDiv) {
+                   setLastIncorrectFeedback([{ text: input, color: 'text-rose-500 text-shadow-sm' }]);
+                   triggerError(false, true, 250);
+                   handled = true;
+                } else {
+                   const feedbackResult = getMultiVarFeedback(input, ans.terms);
+                   if (feedbackResult) {
+                     setLastIncorrectFeedback(feedbackResult.feedback);
+                     setGranularFeedback(null);
+                     triggerError(false, true, 250);
+                   } else {
+                     setLastIncorrectFeedback([{ text: input, color: 'text-rose-500 text-shadow-sm' }]);
+                     triggerError(false, true, 250);
+                   }
+                   handled = true;
+                }
+              } else if (currentProblemMode === GameMode.YEAR8_ADD_SUB_ALGEBRA || currentProblemMode === GameMode.YEAR8_EXPANDING) {
+                const ans = JSON.parse(problem.answer.toString());
+                if (ans.type === 'multivar') {
+                   const feedbackResult = getMultiVarFeedback(input, ans.terms);
+                   if (feedbackResult) {
+                     setLastIncorrectFeedback(feedbackResult.feedback);
+                     setGranularFeedback(null);
+                     triggerError(false, true, 250);
+                   } else {
+                     setLastIncorrectFeedback([{ text: input, color: 'text-rose-500 text-shadow-sm' }]);
+                     triggerError(false, true, 250);
+                   }
+                   handled = true;
+                }
+              }
+            }
+            if (!handled) {
+               triggerError(false, true, 250);
+            }
+          }}
         />
       )}
     </>

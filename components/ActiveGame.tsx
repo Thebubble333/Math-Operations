@@ -31,6 +31,7 @@ interface ActiveGameProps {
   granularFeedback?: FeedbackToken[] | null;
   lastIncorrectFeedback?: FeedbackToken[] | null;
   lastPartialFeedback?: FeedbackToken[] | null;
+  onSubmitAnswer?: () => void;
 }
 
 const ActiveGame: React.FC<ActiveGameProps> = ({
@@ -59,6 +60,7 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
   granularFeedback,
   lastIncorrectFeedback,
   lastPartialFeedback,
+  onSubmitAnswer,
 }) => {
   const [surdOutside, setSurdOutside] = useState('');
   const [surdInside, setSurdInside] = useState('');
@@ -76,6 +78,16 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
   const [canGoNext, setCanGoNext] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
 
+  const isAlgebraMode = mode === GameMode.EXPANDING_NEGATIVES || 
+                        mode === GameMode.YEAR8_ADD_SUB_ALGEBRA || 
+                        mode === GameMode.YEAR8_MULT_DIV_ALGEBRA || 
+                        mode === GameMode.YEAR8_EXPANDING || 
+                        mode === GameMode.YEAR8_FACTORISING ||
+                        mode === GameMode.SEAL8_FACTORISE_DOTS ||
+                        mode === GameMode.SEAL8_FACTORISE_MONIC ||
+                        mode === GameMode.SEAL8_COMPLETING_SQUARE ||
+                        mode === GameMode.TWO_STEP_EQUATIONS;
+
   const progressPercentage = session.gameType === 'TIME_ATTACK' && session.timeLimit
     ? ((session.timeLimit - timeRemaining) / session.timeLimit) * 100
     : (session.correctCount / targetProblems) * 100;
@@ -90,6 +102,95 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
       return () => clearInterval(interval);
     }
   }, [session.gameType, session.timeLimit, session.startTime]);
+
+  const renderFeedbackToken = (text: string) => {
+    if (!isAlgebraMode) return text;
+    const parts = text.split('^');
+    if (parts.length === 1) return text;
+
+    const elements = [<span key={0} className="align-baseline">{parts[0]}</span>];
+    for (let i = 1; i < parts.length; i++) {
+        const pStr = parts[i];
+        let power = '';
+        let rest = '';
+        const match = pStr.match(/^(\d+)(.*)$/);
+        if (match) {
+            power = match[1];
+            rest = match[2];
+        } else {
+            power = pStr.charAt(0);
+            rest = pStr.substring(1);
+        }
+        elements.push(
+            <sup key={`p${i}`} className="text-[0.6em] font-bold relative inline-block mx-[1px] tracking-tight text-inherit">
+                {power}
+            </sup>
+        );
+        if (rest) {
+            elements.push(<span key={`r${i}`} className="align-baseline">{rest}</span>);
+        }
+    }
+    return <span className="inline-flex items-baseline">{elements}</span>;
+  };
+
+  const renderAlgebraInputOverlay = (text: string, isActive: boolean) => {
+    const parts = text.split('^');
+    if (parts.length === 1) {
+      return (
+        <span className="inline-flex items-baseline justify-center h-full">
+          <span>{parts[0]}</span>
+          {isActive && <span className={`w-1 h-[1em] bg-indigo-400 ml-1 inline-block ${isSuccess || showingAnswer ? 'opacity-0' : 'animate-pulse opacity-80'}`} style={{ verticalAlign: 'baseline' }} />}
+        </span>
+      );
+    }
+
+    const elements = [];
+    elements.push(<span key={0} className="align-baseline">{parts[0]}</span>);
+    
+    for (let i = 1; i < parts.length; i++) {
+        const pStr = parts[i];
+        
+        let power = '';
+        let rest = '';
+        const match = pStr.match(/^(\d+)(.*)$/);
+        if (match) {
+           power = match[1];
+           rest = match[2];
+        } else {
+           power = pStr.charAt(0);
+           rest = pStr.substring(1);
+        }
+
+        const isLast = i === parts.length - 1;
+        const isTypingPower = isLast && power === '';
+
+        elements.push(
+            <sup key={`p${i}`} className={`text-[0.6em] font-bold ${isSuccess ? 'text-emerald-500' : isError ? 'text-rose-500' : 'text-indigo-500'} relative inline-block mx-[2px] tracking-tight`}>
+                {power}
+                {isActive && isTypingPower && (
+                  <span className={`absolute top-0 -right-[4px] w-[3px] h-[1em] bg-indigo-400 inline-block ${isSuccess || showingAnswer ? 'opacity-0' : 'animate-pulse opacity-80'}`} />
+                )}
+            </sup>
+        );
+        if (rest) {
+            elements.push(<span key={`r${i}`} className="align-baseline">{rest}</span>);
+        }
+    }
+    
+    const lastPart = parts[parts.length - 1];
+    const matchLine = lastPart.match(/^(\d+)(.*)$/);
+    const lastRest = matchLine ? matchLine[2] : lastPart.substring(1);
+    
+    const isTypingPowerOverall = parts.length > 1 && lastRest === '';
+    
+    if (isActive && !isTypingPowerOverall) {
+        elements.push(
+            <span key="cursor" className={`w-1 h-[1em] bg-indigo-400 ml-1 inline-block ${isSuccess || showingAnswer ? 'opacity-0' : 'animate-pulse opacity-80'}`} style={{ verticalAlign: 'baseline' }} />
+        );
+    }
+
+    return <span className="inline-flex items-baseline justify-center h-full">{elements}</span>;
+  };
 
   useEffect(() => {
     setSurdOutside('');
@@ -627,7 +728,7 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
             </>
           ) : (
             <>
-              <div className="relative w-full max-w-xs mx-auto">
+              <div className="relative w-full max-w-xl mx-auto">
                 {unsimplifiedAnswer && (
                   <div className="text-center text-4xl sm:text-5xl font-black py-2 text-emerald-500 mb-4 opacity-80 whitespace-nowrap">
                     {unsimplifiedAnswer}
@@ -636,11 +737,13 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                 {lastPartialFeedback && (
                   <div className="flex flex-col items-center mb-4">
                     <div className="text-center text-4xl sm:text-5xl font-black py-2 text-emerald-500 opacity-80 whitespace-nowrap">
-                      Factorise fully
+                      {mode === GameMode.YEAR8_MULT_DIV_ALGEBRA ? 'Remove the 1' : 'Factorise fully'}
                     </div>
                     <div className="text-center text-5xl font-black opacity-80">
                       {lastPartialFeedback.map((fb, i) => (
-                        <span key={i} className={fb.color}>{fb.text}</span>
+                        <span key={i} className={fb.color}>
+                          {isAlgebraMode ? renderFeedbackToken(fb.text) : fb.text}
+                        </span>
                       ))}
                     </div>
                   </div>
@@ -648,22 +751,14 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                 {lastIncorrectFeedback && (
                   <div className="text-center text-5xl font-black py-2 mb-4 opacity-80 decoration-rose-500/50 line-through">
                     {lastIncorrectFeedback.map((fb, i) => (
-                      <span key={i} className={fb.color}>{fb.text}</span>
+                      <span key={i} className={fb.color}>
+                        {isAlgebraMode ? renderFeedbackToken(fb.text) : fb.text}
+                      </span>
                     ))}
                   </div>
                 )}
                 
                 {(() => {
-                  const isAlgebraMode = mode === GameMode.EXPANDING_NEGATIVES || 
-                                        mode === GameMode.YEAR8_ADD_SUB_ALGEBRA || 
-                                        mode === GameMode.YEAR8_MULT_DIV_ALGEBRA || 
-                                        mode === GameMode.YEAR8_EXPANDING || 
-                                        mode === GameMode.YEAR8_FACTORISING ||
-                                        mode === GameMode.SEAL8_FACTORISE_DOTS ||
-                                        mode === GameMode.SEAL8_FACTORISE_MONIC ||
-                                        mode === GameMode.SEAL8_COMPLETING_SQUARE ||
-                                        mode === GameMode.TWO_STEP_EQUATIONS;
-
                   return mode === GameMode.SEAL8_COMPLETING_SQUARE ? (
                     <div className="relative flex flex-col items-center justify-center space-y-1 mb-6 w-full max-w-[350px] mx-auto">
                       <div 
@@ -696,8 +791,9 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                             const parts = input.split('^');
                             const base = parts[0];
                             const powerAndRest = parts.length > 1 ? parts[1] : '';
-                            const power = powerAndRest.charAt(0);
-                            const rest = powerAndRest.substring(1);
+                            const match = powerAndRest.match(/^(\d*)(.*)$/);
+                            const power = match ? match[1] : powerAndRest.charAt(0);
+                            const rest = match ? match[2] : powerAndRest.substring(1);
                             
                             const isTypingPower = parts.length > 1 && power === '';
                             
@@ -728,7 +824,7 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                           onChange={(e) => handleInputChange(e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' && !isSuccess) {
-                              triggerError(false, true, 250);
+                              if (onSubmitAnswer) onSubmitAnswer(); else triggerError(false, true, 250);
                             }
                           }}
                           className="absolute bottom-0 left-0 w-full h-[5rem] opacity-0 text-transparent cursor-text outline-none caret-transparent"
@@ -741,90 +837,134 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                     </div>
                   ) : (input.includes('/') && mode !== GameMode.SEAL8_COMPLETING_SQUARE) ? (
                     <div className="flex flex-col items-center justify-center space-y-1 mb-6">
-                      <input
-                        ref={numRef}
-                        type={isAlgebraMode ? "text" : "tel"}
-                        inputMode={isAlgebraMode ? "text" : "numeric"}
-                        value={input.split('/')[0]}
-                        onFocus={() => setFracFocus('num')}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (v.includes('/')) {
-                            setFracFocus('den');
-                            denRef.current?.focus();
-                          } else {
-                            handleInputChange(`${v}/${input.split('/')[1] || ''}`);
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === '/') {
-                            e.preventDefault();
-                            setFracFocus('den');
-                            denRef.current?.focus();
-                          } else if (e.key === 'ArrowDown') {
-                            e.preventDefault();
-                            setFracFocus('den');
-                            denRef.current?.focus();
-                          } else if (e.key === 'Enter' && (mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS) && !isSuccess) {
-                            triggerError();
-                          }
-                        }}
-                        disabled={showingAnswer}
-                        className={`w-full bg-transparent text-center text-5xl sm:text-7xl font-black py-1 outline-none border-b-[6px] transition-all caret-indigo-500 ${
-                          isSuccess 
-                            ? 'text-emerald-500 border-emerald-500' 
-                            : isError 
-                              ? 'text-rose-500 border-rose-500' 
-                              : 'text-slate-900 border-slate-900 dark:text-white dark:border-white focus:border-indigo-500 dark:focus:border-indigo-400'
-                        }`}
-                        autoComplete="off"
-                      />
-                      <input
-                        ref={denRef}
-                        type={isAlgebraMode ? "text" : "tel"}
-                        inputMode={isAlgebraMode ? "text" : "numeric"}
-                        value={input.split('/')[1] || ''}
-                        onFocus={() => setFracFocus('den')}
-                        onChange={(e) => {
-                          const v = e.target.value.replace(/\//g, '');
-                          handleInputChange(`${input.split('/')[0]}/${v}`);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Backspace' && (input.split('/')[1] || '') === '') {
-                            e.preventDefault();
-                            handleInputChange(input.split('/')[0]);
-                            setFracFocus('num');
-                            setTimeout(() => inputRef.current?.focus(), 10);
-                          } else if (e.key === 'ArrowUp') {
-                            e.preventDefault();
-                            setFracFocus('num');
-                            numRef.current?.focus();
-                          } else if (e.key === 'Enter' && (mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS) && !isSuccess) {
-                            triggerError();
-                          }
-                        }}
-                        disabled={showingAnswer}
-                        className={`w-full bg-transparent text-center text-5xl sm:text-7xl font-black py-1 outline-none border-b-[6px] border-transparent transition-all caret-indigo-500 ${
-                          isSuccess 
-                            ? 'text-emerald-500' 
-                            : isError 
-                              ? 'text-rose-500' 
-                              : 'text-slate-900 dark:text-white focus:text-indigo-600 dark:focus:text-indigo-400'
-                        }`}
-                        autoComplete="off"
-                      />
+                      <div className="relative w-full">
+                        {isAlgebraMode && (
+                          <div className="absolute inset-0 pointer-events-none flex items-center justify-center border-b-[6px] border-transparent pt-6 pb-2 z-10 w-full px-4 sm:px-0 mx-auto h-full">
+                            <div className={`text-5xl sm:text-7xl font-black whitespace-nowrap overflow-visible h-full flex items-end justify-center ${isSuccess ? 'text-emerald-500' : isError ? 'text-rose-500' : 'text-slate-900 dark:text-white'}`}>
+                               {renderAlgebraInputOverlay(input.split('/')[0], fracFocus === 'num')}
+                            </div>
+                          </div>
+                        )}
+                        <input
+                          ref={numRef}
+                          type={isAlgebraMode ? "text" : "tel"}
+                          inputMode={isAlgebraMode ? "text" : "numeric"}
+                          value={input.split('/')[0]}
+                          onFocus={() => setFracFocus('num')}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (v.includes('/')) {
+                              setFracFocus('den');
+                              denRef.current?.focus();
+                            } else {
+                              handleInputChange(`${v}/${input.split('/')[1] || ''}`);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === '/') {
+                              e.preventDefault();
+                              setFracFocus('den');
+                              denRef.current?.focus();
+                            } else if (e.key === 'ArrowDown') {
+                              e.preventDefault();
+                              setFracFocus('den');
+                              denRef.current?.focus();
+                            } else if (e.key === 'Enter' && (mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS || mode === GameMode.YEAR8_MULT_DIV_ALGEBRA) && !isSuccess) {
+                              triggerError(false, true, 250);
+                            }
+                          }}
+                          disabled={showingAnswer}
+                          className={`w-full bg-transparent text-center text-5xl sm:text-7xl font-black pt-6 pb-2 outline-none border-b-[6px] transition-all ${
+                            isAlgebraMode ? 'caret-transparent text-transparent' : 'caret-indigo-500'
+                          } ${
+                            isAlgebraMode
+                            ? isSuccess ? 'border-emerald-500' : isError ? 'border-rose-500' : 'border-slate-800 dark:border-white focus:border-indigo-500'
+                            : isSuccess 
+                              ? 'text-emerald-500 border-emerald-500' 
+                              : isError 
+                                ? 'text-rose-500 border-rose-500' 
+                                : 'text-slate-900 border-slate-900 dark:text-white dark:border-white focus:border-indigo-500 dark:focus:border-indigo-400'
+                          }`}
+                          autoComplete="off"
+                          autoCorrect="off" 
+                          autoCapitalize="off" 
+                          spellCheck="false"
+                        />
+                      </div>
+                      
+                      <div className="relative w-full">
+                        {isAlgebraMode && (
+                          <div className="absolute inset-0 pointer-events-none flex items-center justify-center pt-6 pb-2 z-10 w-full px-4 sm:px-0 mx-auto h-full">
+                            <div className={`text-5xl sm:text-7xl font-black whitespace-nowrap overflow-visible h-full flex items-end justify-center ${isSuccess ? 'text-emerald-500' : isError ? 'text-rose-500' : 'text-slate-900 dark:text-white'}`}>
+                               {renderAlgebraInputOverlay(input.split('/')[1] || '', fracFocus === 'den')}
+                            </div>
+                          </div>
+                        )}
+                        <input
+                          ref={denRef}
+                          type={isAlgebraMode ? "text" : "tel"}
+                          inputMode={isAlgebraMode ? "text" : "numeric"}
+                          value={input.split('/')[1] || ''}
+                          onFocus={() => setFracFocus('den')}
+                          onChange={(e) => {
+                            const v = e.target.value.replace(/\//g, '');
+                            handleInputChange(`${input.split('/')[0]}/${v}`);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Backspace' && (input.split('/')[1] || '') === '') {
+                              e.preventDefault();
+                              handleInputChange(input.split('/')[0]);
+                              setFracFocus('num');
+                              setTimeout(() => inputRef.current?.focus(), 10);
+                            } else if (e.key === 'ArrowUp') {
+                              e.preventDefault();
+                              setFracFocus('num');
+                              numRef.current?.focus();
+                            } else if (e.key === 'Enter' && (mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS || mode === GameMode.YEAR8_MULT_DIV_ALGEBRA) && !isSuccess) {
+                              triggerError(false, true, 250);
+                            }
+                          }}
+                          disabled={showingAnswer}
+                          className={`w-full bg-transparent text-center text-5xl sm:text-7xl font-black pt-6 pb-2 outline-none border-b-[6px] border-transparent transition-all ${
+                            isAlgebraMode ? 'caret-transparent text-transparent' : 'caret-indigo-500'
+                          } ${
+                            isAlgebraMode 
+                              ? ''
+                              : isSuccess 
+                                ? 'text-emerald-500' 
+                                : isError 
+                                  ? 'text-rose-500' 
+                                  : 'text-slate-900 dark:text-white focus:text-indigo-600 dark:focus:text-indigo-400'
+                          }`}
+                          autoComplete="off"
+                          autoCorrect="off" 
+                          autoCapitalize="off" 
+                          spellCheck="false"
+                        />
+                      </div>
                     </div>
                   ) : (
                     <div className="relative w-full">
                       {granularFeedback && (
-                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center border-b-8 border-transparent py-4 z-10 w-full px-4 sm:px-0 mx-auto">
-                          <div className="text-7xl font-black whitespace-nowrap overflow-hidden">
+                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center border-b-8 border-transparent pt-10 pb-4 z-10 w-full px-4 sm:px-0 mx-auto">
+                          <div className="text-7xl font-black whitespace-nowrap overflow-visible flex items-end">
                              {granularFeedback.map((fb, i) => (
-                                <span key={i} className={fb.color}>{fb.text}</span>
+                                <span key={i} className={fb.color}>
+                                  {isAlgebraMode ? renderFeedbackToken(fb.text) : fb.text}
+                                </span>
                              ))}
                           </div>
                         </div>
                       )}
+                      
+                      {(!granularFeedback && isAlgebraMode) && (
+                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center border-b-8 border-transparent pt-10 pb-4 z-10 w-full px-4 sm:px-0 mx-auto h-full">
+                          <div className={`text-7xl font-black whitespace-nowrap overflow-visible h-full flex items-end justify-center ${isSuccess ? 'text-emerald-500' : isError ? 'text-rose-500' : 'text-slate-900 dark:text-white'}`}>
+                             {renderAlgebraInputOverlay(input, true)}
+                          </div>
+                        </div>
+                      )}
+
                       <input
                         ref={inputRef}
                         type={isAlgebraMode ? "text" : (mode === GameMode.SIG_FIGS_SCI_NOTATION ? "text" : "tel")}
@@ -870,20 +1010,26 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                         }}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && (mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.TWO_STEP_EQUATIONS || mode === GameMode.YEAR8_ADD_SUB_ALGEBRA || mode === GameMode.YEAR8_MULT_DIV_ALGEBRA || mode === GameMode.YEAR8_EXPANDING || mode === GameMode.YEAR8_FACTORISING || mode === GameMode.SEAL8_FACTORISE_DOTS || mode === GameMode.SEAL8_FACTORISE_MONIC || mode === GameMode.SEAL8_COMPLETING_SQUARE) && !isSuccess) {
-                            triggerError(false, true, 250);
+                            if (onSubmitAnswer) onSubmitAnswer();
+                            else triggerError(false, true, 250);
                           }
                         }}
-                        className={`w-full bg-transparent text-center text-7xl font-black py-4 outline-none border-b-8 transition-all caret-indigo-500 ${
-                          granularFeedback 
-                            ? `text-transparent ${isSuccess ? 'border-emerald-500' : 'border-rose-500'}`
+                        className={`w-full bg-transparent text-center text-7xl font-black pt-10 pb-4 outline-none border-b-8 transition-all ${
+                          (granularFeedback || isAlgebraMode) ? 'caret-transparent text-transparent' : 'caret-indigo-500'
+                        } ${
+                          (granularFeedback || isAlgebraMode)
+                            ? isSuccess ? 'border-emerald-500' : 'border-rose-500'
                             : isSuccess 
                               ? 'text-emerald-500 border-emerald-500' 
                               : isError 
                                 ? 'text-rose-500 border-rose-500' 
                                 : 'text-slate-900 dark:text-white border-slate-200 dark:border-slate-800 focus:border-indigo-500 dark:focus:border-indigo-400'
-                        }`}
+                        } ${(granularFeedback || isAlgebraMode) ? (!isSuccess && !isError ? 'border-slate-200 dark:border-slate-800 focus:border-indigo-500 dark:focus:border-indigo-400' : '') : ''}`}
                         placeholder=""
                         autoComplete="off"
+                        autoCorrect="off" 
+                        autoCapitalize="off" 
+                        spellCheck="false"
                       />
                     </div>
                   );
@@ -893,9 +1039,9 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
               {(() => {
                 let symbols: string[] = [];
                 if (mode === GameMode.EXPANDING_NEGATIVES || mode === GameMode.YEAR8_ADD_SUB_ALGEBRA || mode === GameMode.YEAR8_EXPANDING) {
-                  symbols = ['+', '-'];
+                  symbols = ['+', '-', '^'];
                 } else if (mode === GameMode.YEAR8_FACTORISING || mode === GameMode.SEAL8_FACTORISE_DOTS || mode === GameMode.SEAL8_FACTORISE_MONIC) {
-                  symbols = ['+', '-', '(', ')'];
+                  symbols = ['+', '-', '(', ')', '^'];
                 } else if (mode === GameMode.TWO_STEP_EQUATIONS) {
                   symbols = ['/', '-'];
                 } else if (mode === GameMode.YEAR8_MULT_DIV_ALGEBRA) {
