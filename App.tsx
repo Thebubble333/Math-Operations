@@ -15,6 +15,8 @@ import ActiveGame from './components/ActiveGame';
 import DevTools from './components/DevTools';
 import FractionSimplifierGame from './components/FractionSimplifierGame';
 import FractionAdditionGame from './components/FractionAdditionGame';
+import AlgFractQuadGame from './components/AlgFractQuadGame';
+import QuadraticFormula from './components/QuadraticFormula';
 
 const TARGET_PROBLEMS = 20;
 
@@ -1225,6 +1227,8 @@ const App: React.FC = () => {
           <Route path="/custom" element={<CustomGameMenu startNewGame={startNewGame} onBack={() => navigate('/')} />} />
           <Route path="/algebraic-fractions-prototype" element={<FractionSimplifierGame />} />
           <Route path="/algebraic-fractions-add-subtract" element={<FractionAdditionGame />} />
+          <Route path="/algebraic-fractions-quad" element={<AlgFractQuadGame />} />
+          <Route path="/quadratic-formula-draft" element={<QuadraticFormula />} />
         </Routes>
       )}
 

@@ -71,6 +71,8 @@ const Seal8Menu: React.FC<Seal8MenuProps> = ({ startNewGame }) => {
               { id: GameMode.TWO_STEP_EQUATIONS, label: 'Two-Step Equations', icon: 'ax+b', color: 'bg-orange-500', route: '' },
               { id: '', label: 'Alg Fractions', icon: 'a/b', color: 'bg-pink-500', route: '/algebraic-fractions-prototype' },
               { id: '', label: '+/- Fractions', icon: 'a/b+c/d', color: 'bg-pink-600', route: '/algebraic-fractions-add-subtract' },
+              { id: '', label: 'Alg Fract + Quad', icon: '(x+a)/(x+b)', color: 'bg-pink-700', route: '/algebraic-fractions-quad' },
+              { id: '', label: 'Quad Formula', icon: '(-b±√Δ)/2a', color: 'bg-red-500', route: '/quadratic-formula-draft' },
             ].map(btn => (
               <button
                 key={btn.label}

@@ -273,481 +273,99 @@ function generateProblem(questionIndex: number = 0): ProblemParams {
         while (v === 0) v = rInt(min, max);
         return v * rSign();
     };
+
     const fmt = (num: number) => num < 0 ? `${num}` : `+${num}`;
     const fmtB = (num: number, v: string) => num < 0 ? `(${v}${num})` : `(${v}+${num})`;
-    
-    const vars = ['a', 'b', 'c', 'm', 'n', 'p', 'q', 'x', 'y', 'z', 't', 's', 'u', 'v'];
-    let v1 = vars[rInt(0, vars.length - 1)];
-    let v2 = vars[rInt(0, vars.length - 1)];
-    while (v2 === v1) v2 = vars[rInt(0, vars.length - 1)];
 
-    const factorisingTemplates = [
-        () => {
-            let a = rNonZero(2, 5); let c = rNonZero(2, 5);
-            let b = rNonZero(2, 5); let B = rNonZero(1, 5);
-            let n1 = [`${a * c}`, v1, fmt(a * c * B)]; 
-            let d1 = [`${b}`, v2];
-            let k = rNonZero(1, 3);
-            let n2 = [`${b * k}`, `${v2}^2`];
-            let m = rNonZero(1, 3);
-            let d2 = [`${a * m}`, v1, fmt(a * m * B)]; 
-            let finalExpr = getFinal(
-                (a*c)*(b*k), {[v1]:0, [v2]:2},
-                b * a * m,   {[v1]:0, [v2]:1},
-                fmtB(B, v1), 1, 1
-            );
-            return {
-                f1: { num: autoWrap(n1), den: autoWrap(d1) },
-                f2: { num: autoWrap(n2), den: autoWrap(d2) },
-                op: '\\times',
-                finalExpr
-            };
-        },
-        () => {
-            let k = rNonZero(2, 5);
-            let B = rNonZero(1, 5);
-            let n1 = [`${k}`, v2];
-            let d1 = [v1, fmt(B)];
-            let k2 = rNonZero(2, 4);
-            let n2 = [`${k * k2}`, `${v2}^2`];
-            let m2 = rNonZero(2, 4);
-            let d2 = [`${m2}${v1}`, fmt(m2 * B)]; 
-            let finalExpr = getFinal(
-                k * m2, {[v1]:0, [v2]:1},
-                k * k2, {[v1]:0, [v2]:2},
-                fmtB(B, v1), 1, 1
-            );
-            return {
-                f1: { num: autoWrap(n1), den: autoWrap(d1) },
-                f2: { num: autoWrap(n2), den: autoWrap(d2) },
-                op: '\\div',
-                finalExpr
-            };
-        },
-        () => {
-            let c = rNonZero(2, 5);
-            let k = rNonZero(2, 5);
-            let m = rNonZero(1, 5);
-            let n1 = [`${c}`, `${v1}^2`];
-            let d1 = [`${c}`, v1, fmt(c*m)];
-            let n2 = [`${k}`, v1, fmt(k*m)];
-            let d2 = [`${k}`, v1];
-            let isT = rBool();
-
-            let finalExpr = isT ?
-                getFinal(c*k, {[v1]:2}, c*k, {[v1]:1}, fmtB(m, v1), 1, 1) :
-                getFinal(c*k, {[v1]:3}, c*k, {}, fmtB(m, v1), 0, 2);
-
-            return {
-                f1: { num: autoWrap(n1), den: autoWrap(d1) },
-                f2: { num: autoWrap(n2), den: autoWrap(d2) },
-                op: isT ? '\\times' : '\\div',
-                finalExpr
-            };
-        },
-        () => {
-            // ax / ((x-1)(bx-2)) * (x-1) / (cx)
-            let a = rNonZero(2, 6);
-            let b = rNonZero(2, 4);
-            let c = rNonZero(2, 6);
-            let k = rNonZero(1, 4);
-            let d = rNonZero(1, 5) * -1; // -1
-            let e = rNonZero(1, 5) * -1; // -2
-            
-            // let's simplify a/c
-            a = a * k; c = c * k;
-            
-            let bracket1 = fmtB(d, v1); // (x-1)
-            let bracket2 = `(${b}${v1}${fmt(e)})`; // (bx-2)
-            
-            let isT = rBool();
-
-            let finalExpr = isT ? getFinal(
-                a, {}, c, {}, bracket2, 0, 1
-            ) : getFinal(
-                a*c, {[v1]:2}, 1, {}, bracket1, 0, 2, bracket2, 0, 1
-            );
-            
-            let d1 = [bracket1, bracket2];
-            let n2 = [bracket1];
-            
-            return {
-                f1: { num: autoWrap([`${a}`, v1]), den: d1 },
-                f2: { num: n2, den: autoWrap([`${c}`, v1]) },
-                op: isT ? '\\times' : '\\div',
-                finalExpr
-            };
-        },
-        () => {
-            // ax / ((x-c)(bx+d)) * (bx+d) / x
-            let a = rNonZero(2, 6);
-            let b = rNonZero(2, 4);
-            let c = rNonZero(1, 5) * -1;
-            let d = rNonZero(1, 5);
-            
-            let bracket1 = fmtB(c, v1); // (x-3)
-            let bracket2 = `(${b}${v1}${fmt(d)})`; // (4x+7)
-            
-            let isT = rBool();
-
-            let finalExpr = isT ? getFinal(
-                a, {}, 1, {}, bracket1, 0, 1
-            ) : getFinal(
-                a, {[v1]:2}, 1, {}, bracket1, 0, 1, bracket2, 0, 2
-            );
-            
-            return {
-                f1: { num: autoWrap([`${a}`, v1]), den: [bracket1, bracket2] },
-                f2: { num: [bracket2], den: autoWrap([v1]) },
-                op: isT ? '\\times' : '\\div',
-                finalExpr
-            };
-        },
-        () => {
-            // (x+a) / ((x+b)(x+c)) * (x+b) / (x+a)
-            let a = rNonZero(1, 5);
-            let b = rNonZero(1, 5);
-            let c = rNonZero(1, 5);
-            while(b===a) b = rNonZero(1, 5);
-            while(c===a || c===b) c = rNonZero(1, 5);
-            
-            let ba = fmtB(a, v1);
-            let bb = fmtB(b, v1);
-            let bc = fmtB(c, v1);
-
-            let isT = rBool();
-
-            let finalExpr = isT ? getFinal(
-                1, {}, 1, {}, bc, 0, 1
-            ) : `\\frac{${ba}^2}{${bb}^2${bc}}`;
-            
-            return {
-                f1: { num: [ba], den: [bb, bc] },
-                f2: { num: [bb], den: [ba] },
-                op: isT ? '\\times' : '\\div',
-                finalExpr
-            };
-        },
-        () => {
-            // a / (x(bx-c)) * x(x+d) / f
-            let a = rNonZero(2, 5);
-            let f = rNonZero(2, 5);
-            let k = rNonZero(2, 3);
-            a = a * k; f = f * k;
-            
-            let b = rNonZero(2, 4);
-            let c = rNonZero(1, 5) * -1;
-            let d = rNonZero(1, 5);
-            
-            let b1 = `(${b}${v1}${fmt(c)})`;
-            let b2 = fmtB(d, v1);
-            
-            let finalExpr = getFinal(
-                a, {}, f, {}, b2, 1, 0, b1, 0, 1
-            );
-            
-            return {
-                f1: { num: autoWrap([`${a}`]), den: [v1, b1] },
-                f2: { num: [v1, b2], den: autoWrap([`${f}`]) },
-                op: '\\times',
-                finalExpr
-            };
-        },
-        () => {
-            // (a x^2) / (b(x-c)^2) * (d(x-c)) / (f x^4)
-            let a = rNonZero(2, 6);
-            let b = rNonZero(2, 6);
-            let d = rNonZero(2, 6);
-            let f = rNonZero(2, 6);
-            
-            let k = rNonZero(2, 4);
-            a = a * k; b = b * k;
-            let m = rNonZero(2, 4);
-            d = d * m; f = f * m;
-            
-            let c = rNonZero(1, 5) * -1;
-            let b1 = fmtB(c, v1);
-            
-            let finalExpr = getFinal(
-                a*d, {}, b*f, {[v1]:2}, b1, 0, 1
-            );
-            
-            return {
-                f1: { num: autoWrap([`${a}`, `${v1}^2`]), den: autoWrap([`${b}`, `${b1}^2`]) },
-                f2: { num: autoWrap([`${d}`, b1]), den: autoWrap([`${f}`, `${v1}^4`]) },
-                op: '\\times',
-                finalExpr
-            };
-        },
-        () => {
-             // (a(x-b)^2) / ((x+c)(x-d)) div (e(x-b)) / (f(x-d))
-             let a = rNonZero(2, 6);
-             let e = rNonZero(2, 6);
-             let k = rNonZero(2,4);
-             a *= k; e *= k;
-             
-             let f = rNonZero(2, 6);
-             
-             let b = rNonZero(1, 5) * -1;
-             let c = rNonZero(1, 5);
-             let d = rNonZero(1, 5) * -1;
-             
-             let bb = fmtB(b, v1);
-             let bc = fmtB(c, v1);
-             let bd = fmtB(d, v1);
-             
-             let finalExpr = getFinal(
-                 a*f, {}, e, {}, bb, 1, 0, bc, 0, 1
-             );
-             
-             return {
-                 f1: { num: autoWrap([`${a}`, `${bb}^2`]), den: autoWrap([bc, bd]) },
-                 f2: { num: autoWrap([`${e}`, bb]), den: autoWrap([`${f}`, bd]) },
-                 op: '\\div',
-                 finalExpr
-             };
-        },
-        () => {
-            // e.g. 4t / (5(x-1)) div 12t / (x-1)
-            let a = rNonZero(2, 6);
-            let a_factor = rNonZero(2, 4);
-            let b = rNonZero(2, 6);
-            let d = a * a_factor;
-            let c = rNonZero(1, 5) * rSign();
-            
-            let vOther = vars[rInt(0, vars.length - 1)];
-            while (vOther === v1 || vOther === v2) vOther = vars[rInt(0, vars.length - 1)];
-            
-            let bracket = fmtB(c, v1);
-            let n1 = [`${a}`, vOther];
-            let d1 = [`${b}`, bracket];
-            let n2 = [`${d}`, vOther];
-            let d2 = [bracket];
-
-            let finalExpr = `\\frac{1}{${b * a_factor}}`;
-            
-            return {
-                f1: { num: autoWrap(n1), den: autoWrap(d1) },
-                f2: { num: autoWrap(n2), den: autoWrap(d2) },
-                op: '\\div',
-                finalExpr
-            };
-        },
-        () => {
-            // e.g. (3x(y+2)) / (4t) * (8t^2) / (9x)
-            let a = rNonZero(2, 5);
-            let b = rNonZero(2, 5);
-            let k = rNonZero(2, 4);
-            let m = rNonZero(2, 4);
-            let d = b * k;
-            let f = a * m;
-            let c = rNonZero(1, 5);
-            
-            let vOther = vars[rInt(0, vars.length - 1)];
-            while (vOther === v1 || vOther === v2) vOther = vars[rInt(0, vars.length - 1)];
-            
-            let bracket = fmtB(c, v2);
-            let n1 = [`${a}`, v1, bracket];
-            let d1 = [`${b}`, vOther];
-            let n2 = [`${d}`, `${vOther}^2`];
-            let d2 = [`${f}`, v1];
-
-            let finalExpr = `\\frac{${k}${vOther}${bracket}}{${m}}`;
-            if (m === 1) finalExpr = `${k}${vOther}${bracket}`;
-
-            return {
-                f1: { num: autoWrap(n1), den: autoWrap(d1) },
-                f2: { num: autoWrap(n2), den: autoWrap(d2) },
-                op: '\\times',
-                finalExpr
-            };
-        }
-    ];
-
-    const simpleTemplates = [
-        () => {
-            let a = rNonZero(2, 5); 
-            let n1 = [`${a}`, v1]; 
-            let d1 = [`${a}`, v1, fmt(1)]; 
-            let B1 = rNonZero(1, 5); let B2 = rNonZero(1, 5);
-            while (B1 === B2) B2 = rNonZero(1, 5);
-            let n2 = [v1, fmt(B1)];
-            let d2 = [v1, fmt(B2)];
-            let isT = rBool();
-            let finalExpr = isT ? 
-                `\\frac{${a}${v1}${fmtB(B1, v1)}}{(${a}${v1}+1)${fmtB(B2, v1)}}` : 
-                `\\frac{${a}${v1}${fmtB(B2, v1)}}{(${a}${v1}+1)${fmtB(B1, v1)}}`;
-            return {
-                f1: { num: autoWrap(n1), den: autoWrap(d1) },
-                f2: { num: autoWrap(n2), den: autoWrap(d2) },
-                op: isT ? '\\times' : '\\div',
-                finalExpr
-            };
-        },
-        () => {
-            let a = rNonZero(2, 7);
-            let b = rNonZero(2, 7);
-            let n1 = [`${a * b}`, v1];
-            let d1 = [`${b}`, v2];
-            let n2 = [v2];
-            let d2 = [`${a}`, v1];
-            let finalExpr = getFinal(
-                a*b, {[v1]:1, [v2]:1},
-                a*b, {[v1]:1, [v2]:1},
-                "", 0, 0
-            );
-            return {
-                f1: { num: autoWrap(n1), den: autoWrap(d1) },
-                f2: { num: autoWrap(n2), den: autoWrap(d2) },
-                op: '\\times',
-                finalExpr
-            };
-        },
-        () => {
-            // ax / b * c / (dy)
-            let a = rNonZero(1, 5) * rSign(); let b = rNonZero(2, 5);
-            let c = rNonZero(2, 5) * rSign(); let d = rNonZero(1, 5);
-            
-            // force some canceling
-            let k = rNonZero(2, 4);
-            c = c * k; b = b * k;
-            
-            let isT = rBool();
-
-            let finalExpr = isT ? getFinal(
-                a*c, {[v1]:1}, b*d, {[v2]:1}, "", 0, 0
-            ) : getFinal(
-                a*d, {[v1]:1, [v2]:1}, b*c, {}, "", 0, 0
-            );
-            
-            return {
-                f1: { num: autoWrap([`${a}`, v1]), den: autoWrap([`${b}`]) },
-                f2: { num: autoWrap([`${c}`]), den: autoWrap([`${d}`, v2]) },
-                op: isT ? '\\times' : '\\div',
-                finalExpr
-            };
-        },
-        () => {
-            // ax / b * (cy) / (-dx)
-            let a = rNonZero(1, 5) * rSign(); let b = rNonZero(2, 5);
-            let c = rNonZero(2, 5) * rSign(); let d = rNonZero(1, 5) * -1;
-            
-            let isT = rBool();
-
-            let finalExpr = isT ? getFinal(
-                a*c, {[v1]:1, [v2]:1}, b*d, {[v1]:1}, "", 0, 0
-            ) : getFinal(
-                a*d, {[v1]:2}, b*c, {[v2]:1}, "", 0, 0
-            );
-            
-            return {
-                f1: { num: autoWrap([`${a}`, v1]), den: autoWrap([`${b}`]) },
-                f2: { num: autoWrap([`${c}`, v2]), den: autoWrap([`${d}`, v1]) },
-                op: isT ? '\\times' : '\\div',
-                finalExpr
-            };
-        },
-        () => {
-            // a / (cx) div (b / dx) -> a/(cx) * (dx)/b
-            let a = rNonZero(1, 5) * rSign(); let b = rNonZero(2, 5);
-            let c = rNonZero(1, 5); let d = rNonZero(1, 5) * rSign();
-            let k = rNonZero(2, 4);
-            b = b * k; d = d * k;
-
-            let isT = rBool();
-
-            let finalExpr = isT ? getFinal(
-                a*b, {}, c*d, {[v1]:2}, "", 0, 0
-            ) : getFinal(
-                a*d, {[v1]:1}, c*b, {[v1]:1}, "", 0, 0
-            );
-            
-            return {
-                f1: { num: autoWrap([`${a}`]), den: autoWrap([`${c}`, v1]) },
-                f2: { num: autoWrap([`${b}`]), den: autoWrap([`${d}`, v1]) },
-                op: isT ? '\\times' : '\\div',
-                finalExpr
-            };
-        },
-        () => {
-            // (a * x * y) / b div (c * x) / (d * y)
-            let a = rNonZero(1, 5); let b = rNonZero(2, 5);
-            let c = rNonZero(2, 5); let d = rNonZero(1, 5);
-            
-            let isT = rBool();
-
-            let finalExpr = isT ? getFinal(
-                a*c, {[v1]:2, [v2]:1}, b*d, {[v2]:1}, "", 0, 0
-            ) : getFinal(
-                a*d, {[v1]:1, [v2]:2}, b*c, {[v1]:1}, "", 0, 0
-            );
-            
-            return {
-                f1: { num: autoWrap([`${a}`, v1, v2]), den: autoWrap([`${b}`]) },
-                f2: { num: autoWrap([`${c}`, v1]), den: autoWrap([`${d}`, v2]) },
-                op: isT ? '\\times' : '\\div',
-                finalExpr
-            };
-        },
-        () => {
-            // (cx)/(dy) * (ax) / (by)
-            let a = rNonZero(1, 4); let b = rNonZero(2, 5);
-            let c = rNonZero(2, 5) * -1; let d = rNonZero(1, 5);
-            
-            let isT = rBool();
-
-            let finalExpr = isT ? getFinal(
-                a*c, {[v1]:2}, b*d, {[v2]:2}, "", 0, 0
-            ) : getFinal(
-                c*b, {[v1]:1, [v2]:1}, d*a, {[v1]:1, [v2]:1}, "", 0, 0
-            );
-            
-            return {
-                f1: { num: autoWrap([`${c}`, v1]), den: autoWrap([`${d}`, v2]) },
-                f2: { num: autoWrap([`${a}`, v1]), den: autoWrap([`${b}`, v2]) },
-                op: isT ? '\\times' : '\\div',
-                finalExpr
-            };
-        },
-        () => {
-            let v3 = vars[rInt(0, vars.length - 1)];
-            while (v3 === v1 || v3 === v2) v3 = vars[rInt(0, vars.length - 1)];
-
-            //  (a*v1)/(b*v3) * (c*v3)/(d*v2)
-            let a = rNonZero(1, 4) * rSign(); let b = rNonZero(2, 5);
-            let c = rNonZero(2, 5) * rSign(); let d = rNonZero(1, 5);
-            
-            let k = rNonZero(2, 3);
-            b = b * k; c = c * k;
-
-            let isT = rBool();
-
-            let finalExpr = isT ? getFinal(
-                a*c, {[v1]:1, [v3]:1}, b*d, {[v3]:1, [v2]:1}, "", 0, 0
-            ) : getFinal(
-                a*d, {[v1]:1, [v2]:1}, b*c, {[v3]:2}, "", 0, 0
-            );
-            
-            return {
-                f1: { num: autoWrap([`${a}`, v1]), den: autoWrap([`${b}`, v3]) },
-                f2: { num: autoWrap([`${c}`, v3]), den: autoWrap([`${d}`, v2]) },
-                op: isT ? '\\times' : '\\div',
-                finalExpr
-            };
-        }
-    ];
-
-    const allTemplates = [...factorisingTemplates, ...simpleTemplates];
-
-    let t = allTemplates;
-    if (questionIndex % 2 === 1) { // 0-indexed: index 1 is 2nd question
-        t = factorisingTemplates;
+    function makeQuad(c1: number, c2: number) {
+        let sum = c1 + c2;
+        let prod = c1 * c2;
+        let sumTerm = sum === 0 ? '' : (sum === 1 ? '+x' : (sum === -1 ? '-x' : `${fmt(sum)}x`));
+        let prodTerm = prod === 0 ? '' : `${fmt(prod)}`;
+        return `x^2${sumTerm}${prodTerm}`;
     }
 
-    return t[rInt(0, t.length - 1)]();
+    const templates = [
+        () => { // Template 1: User example
+           let a = Math.abs(rNonZero(1, 5)); // to ensure x^2 - a^2
+           let b = rNonZero(1, 5);
+           while (b === a || b === -a) b = rNonZero(1, 5);
+           let k = rNonZero(2, 6);
+           let m = rNonZero(2, 6);
+           
+           return {
+               f1: { num: [makeQuad(a, -a)], den: [`${k}x^2${fmt(k*a)}x`] },
+               f2: { num: [makeQuad(-a, b)], den: [`${m}x`] },
+               op: '\\div',
+               finalExpr: getFinal(m, {}, k, {}, fmtB(b, 'x'), 0, 1)
+           };
+        },
+        () => { // Template 2: Multiplication with quadratics
+           // (x^2 + (a+b)x + ab) / (x^2 - b^2) * (x - b) / (kx + ka)
+           let a = rNonZero(1, 5);
+           let b = Math.abs(rNonZero(1, 5));
+           while (Math.abs(a) === b) b = Math.abs(rNonZero(1, 5));
+           let k = rNonZero(2, 6);
+           
+           return {
+               f1: { num: [makeQuad(a, b)], den: [makeQuad(b, -b)] },
+               f2: { num: [`x${fmt(-b)}`], den: [`${k}x${fmt(k*a)}`] },
+               op: '\\times',
+               finalExpr: getFinal(1, {}, k, {}, "", 0, 0)
+           };
+        },
+        () => { // Template 3: Div DOPS and Monic
+           // (kx^2 - k*a^2) / (x^2 + (a+b)x + ab) div (kx - ka) / (x + b)
+           let a = Math.abs(rNonZero(1, 5));
+           let b = rNonZero(1, 5);
+           while (a === Math.abs(b)) b = rNonZero(1, 5);
+           let k = rNonZero(2, 5);
+           
+           return {
+               f1: { num: [`${k}x^2${fmt(-k*a*a)}`], den: [makeQuad(a, b)] },
+               f2: { num: [`${k}x${fmt(-k*a)}`], den: [`x${fmt(b)}`] },
+               op: '\\div',
+               finalExpr: "1" 
+           };
+        },
+        () => { // Template 4: Two Monics
+           // (x^2 + (a+b)x + ab) / (x^2 + (a+c)x + ac) * (x+c)/(x+b)
+           let a = rNonZero(1, 5);
+           let b = rNonZero(1, 5);
+           let c = rNonZero(1, 5);
+           while (new Set([Math.abs(a), Math.abs(b), Math.abs(c)]).size !== 3) {
+               b = rNonZero(1, 5);
+               c = rNonZero(1, 5);
+           }
+           
+           return {
+               f1: { num: [makeQuad(a, b)], den: [makeQuad(a, c)] },
+               f2: { num: [`x${fmt(c)}`], den: [`x${fmt(b)}`] },
+               op: '\\times',
+               finalExpr: "1"
+           };
+        },
+        () => { // Template 5: Quad and HCF Division
+           // (x^2 + (a+b)x + ab) / (kx^2 + kax) div (x + b) / (m x^2)
+           let a = rNonZero(1, 5);
+           let b = rNonZero(1, 5);
+           while(Math.abs(a) === Math.abs(b)) b = rNonZero(1, 5);
+           let k = rNonZero(2, 5);
+           let m = rNonZero(2, 5);
+           
+           return {
+               f1: { num: [makeQuad(a, b)], den: [`${k}x^2${fmt(k*a)}x`] },
+               f2: { num: [`x${fmt(b)}`], den: [`${m}x^2`] },
+               op: '\\div',
+               finalExpr: getFinal(m, {'x': 1}, k, {}, "", 0, 0)
+           };
+        }
+    ];
+
+    return templates[rInt(0, templates.length - 1)]();
 }
 
-export default function FractionSimplifierGame() {
+export default function AlgFractQuadGame() {
   const navigate = useNavigate();
   
   const [mode, setMode] = useState<Mode>('EDIT');
