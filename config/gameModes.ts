@@ -4,6 +4,7 @@ export enum GameCategory {
   ESSENTIAL = 'Essential Skills',
   YEAR_8 = 'Year 8',
   SEAL_8 = '8 SEAL',
+  YEAR_9 = 'Year 9',
   METHODS_12 = '12 Methods',
   SPEC_11 = '11 Specialist',
 }
@@ -259,6 +260,20 @@ export const GAME_MODES: GameModeConfig[] = [
     darkActiveBg: 'dark:bg-emerald-900/30',
     darkActiveText: 'dark:text-emerald-300'
   },
+  
+  // Year 9
+  {
+    id: GameMode.YEAR9_BOTH_SIDES,
+    label: 'Pronumerals Both Sides',
+    category: GameCategory.YEAR_9,
+    icon: 'ax+b=cx+d',
+    color: 'bg-indigo-600',
+    activeBorder: 'border-indigo-600',
+    activeText: 'text-indigo-700',
+    activeBg: 'bg-indigo-50',
+    darkActiveBg: 'dark:bg-indigo-900/30',
+    darkActiveText: 'dark:text-indigo-300'
+  }
 ];
 
 export const getModesByCategory = (category: GameCategory): GameModeConfig[] => {

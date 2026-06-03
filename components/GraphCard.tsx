@@ -86,6 +86,23 @@ const GraphCard: React.FC<GraphCardProps> = ({
   const extraElements = useMemo(() => {
     const elements: React.ReactNode[] = [];
 
+    if (type === 'hyperbola' || type === 'truncus' || type === 'exponential') {
+      // Horizontal Asymptote at y = k
+      if (k >= -5 && k <= 5) {
+        const yPos = toSvgY(k);
+        elements.push(
+          <line 
+            key="ha" 
+            x1="0" y1={yPos} x2="100" y2={yPos} 
+            stroke="currentColor" 
+            strokeWidth={config.gridStrokeWidth * 2} 
+            strokeDasharray="4,2" 
+            className="text-slate-400 dark:text-slate-500 opacity-70" 
+          />
+        );
+      }
+    }
+    
     if (type === 'hyperbola' || type === 'truncus') {
       // Vertical Asymptote at x = h
       if (h >= -5 && h <= 5) {
@@ -94,20 +111,6 @@ const GraphCard: React.FC<GraphCardProps> = ({
           <line 
             key="va" 
             x1={xPos} y1="0" x2={xPos} y2="100" 
-            stroke="currentColor" 
-            strokeWidth={config.gridStrokeWidth * 2} 
-            strokeDasharray="4,2" 
-            className="text-slate-400 dark:text-slate-500 opacity-70" 
-          />
-        );
-      }
-      // Horizontal Asymptote at y = k
-      if (k >= -5 && k <= 5) {
-        const yPos = toSvgY(k);
-        elements.push(
-          <line 
-            key="ha" 
-            x1="0" y1={yPos} x2="100" y2={yPos} 
             stroke="currentColor" 
             strokeWidth={config.gridStrokeWidth * 2} 
             strokeDasharray="4,2" 
@@ -136,8 +139,7 @@ const GraphCard: React.FC<GraphCardProps> = ({
   }, [type, a, h, k, config]);
 
   const paths = useMemo(() => {
-    const points: string[] = [];
-    const points2: string[] = []; // For discontinuous graphs
+    const allPaths: string[][] = [];
     
     // Coordinate conversion
     // SVG 100x100. Center (50, 50). Scale 10px per unit. Range -5 to 5.
@@ -148,61 +150,83 @@ const GraphCard: React.FC<GraphCardProps> = ({
     const minX = -5;
     const maxX = 5;
 
-    const generatePoints = (start: number, end: number, func: (x: number) => number) => {
-      const pts: string[] = [];
+    const generateContinuousPaths = (start: number, end: number, func: (x: number) => number, isTan: boolean = false) => {
+      const generatedPaths: string[][] = [];
+      let currentPath: string[] = [];
+      let prevY: number | null = null;
+      
       for (let x = start; x <= end; x += step) {
         const y = func(x);
-        // Clamp for rendering
-        if (Math.abs(y) < 10) { // Only draw if within visible Y range (roughly)
-          pts.push(`${toSvgX(x)},${toSvgY(y)}`);
-        } else {
-           // If out of bounds, we can either skip or clamp. 
-           // For continuous lines, skipping creates gaps. 
-           // Clamping to edge + margin is better.
-           const clampedY = y > 0 ? 10 : -10;
-           pts.push(`${toSvgX(x)},${toSvgY(clampedY)}`);
+        
+        if (isTan && prevY !== null && Math.abs(y - prevY) > 10 && (y * prevY < 0)) {
+           // Asymptote crossed, start new path
+           generatedPaths.push([...currentPath]);
+           currentPath = [];
         }
+
+        if (Math.abs(y) < 10) {
+          currentPath.push(`${toSvgX(x)},${toSvgY(y)}`);
+        } else {
+           const clampedY = y > 0 ? 10 : -10;
+           currentPath.push(`${toSvgX(x)},${toSvgY(clampedY)}`);
+        }
+        prevY = y;
       }
-      return pts;
+      if (currentPath.length > 0) {
+        generatedPaths.push(currentPath);
+      }
+      return generatedPaths.map(p => p.join(' '));
     };
 
     switch (type) {
       case 'linear':
-        points.push(...generatePoints(minX, maxX, (x) => a * (x - h) + k));
+        allPaths.push(...generateContinuousPaths(minX, maxX, (x) => a * (x - h) + k));
         break;
 
       case 'quadratic':
-        points.push(...generatePoints(minX, maxX, (x) => a * Math.pow(x - h, 2) + k));
+        allPaths.push(...generateContinuousPaths(minX, maxX, (x) => a * Math.pow(x - h, 2) + k));
         break;
 
       case 'cubic':
-        points.push(...generatePoints(minX, maxX, (x) => a * Math.pow(x - h, 3) + k));
+        allPaths.push(...generateContinuousPaths(minX, maxX, (x) => a * Math.pow(x - h, 3) + k));
+        break;
+
+      case 'exponential':
+        allPaths.push(...generateContinuousPaths(minX, maxX, (x) => a * Math.exp(h * x) + k));
+        break;
+        
+      case 'sin':
+        allPaths.push(...generateContinuousPaths(minX, maxX, (x) => a * Math.sin(h * x) + k));
+        break;
+
+      case 'cos':
+        allPaths.push(...generateContinuousPaths(minX, maxX, (x) => a * Math.cos(h * x) + k));
+        break;
+
+      case 'tan':
+        allPaths.push(...generateContinuousPaths(minX, maxX, (x) => a * Math.tan(h * x) + k, true));
         break;
 
       case 'sqrt':
         const startX = Math.max(minX, h);
         if (startX <= maxX) {
-          points.push(...generatePoints(startX, maxX, (x) => a * Math.sqrt(x - h) + k));
+          allPaths.push(...generateContinuousPaths(startX, maxX, (x) => a * Math.sqrt(x - h) + k));
         }
         break;
 
       case 'hyperbola':
-        // Discontinuity at x = h
         if (minX < h) {
            const leftPts = [];
-           // Go close to asymptote
            for (let x = minX; x < h - 0.05; x += step) {
              const y = a / (x - h) + k;
              if (Math.abs(y) < 10) leftPts.push(`${toSvgX(x)},${toSvgY(y)}`);
              else leftPts.push(`${toSvgX(x)},${toSvgY(y > 0 ? 10 : -10)}`);
            }
-           // Add point very close to asymptote for steep line
            const closeX = h - 0.02;
            const closeY = a / (closeX - h) + k;
            const clampedY = closeY > 0 ? 10 : -10;
            leftPts.push(`${toSvgX(closeX)},${toSvgY(clampedY)}`);
-           
-           points.push(...leftPts);
+           allPaths.push(leftPts.join(' '));
         }
         if (maxX > h) {
            const rightPts = [];
@@ -210,13 +234,12 @@ const GraphCard: React.FC<GraphCardProps> = ({
            const closeY = a / (closeX - h) + k;
            const clampedY = closeY > 0 ? 10 : -10;
            rightPts.push(`${toSvgX(closeX)},${toSvgY(clampedY)}`);
-
            for (let x = h + 0.05; x <= maxX; x += step) {
              const y = a / (x - h) + k;
              if (Math.abs(y) < 10) rightPts.push(`${toSvgX(x)},${toSvgY(y)}`);
              else rightPts.push(`${toSvgX(x)},${toSvgY(y > 0 ? 10 : -10)}`);
            }
-           points2.push(...rightPts);
+           allPaths.push(rightPts.join(' '));
         }
         break;
 
@@ -232,7 +255,7 @@ const GraphCard: React.FC<GraphCardProps> = ({
            const closeY = a / Math.pow(closeX - h, 2) + k;
            const clampedY = closeY > 0 ? 10 : -10;
            leftPts.push(`${toSvgX(closeX)},${toSvgY(clampedY)}`);
-           points.push(...leftPts);
+           allPaths.push(leftPts.join(' '));
         }
         if (maxX > h) {
            const rightPts = [];
@@ -245,12 +268,12 @@ const GraphCard: React.FC<GraphCardProps> = ({
              if (Math.abs(y) < 10) rightPts.push(`${toSvgX(x)},${toSvgY(y)}`);
              else rightPts.push(`${toSvgX(x)},${toSvgY(y > 0 ? 10 : -10)}`);
            }
-           points2.push(...rightPts);
+           allPaths.push(rightPts.join(' '));
         }
         break;
     }
 
-    return [points.join(' '), points2.join(' ')];
+    return allPaths;
   }, [type, a, h, k]);
 
   return (
@@ -270,24 +293,17 @@ const GraphCard: React.FC<GraphCardProps> = ({
         {extraElements}
 
         {/* Graphs */}
-        <polyline 
-          points={paths[0]} 
-          fill="none" 
-          stroke="#2563eb" 
-          strokeWidth={config.graphStrokeWidth}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        {paths[1] && (
+        {paths.map((pathStr, i) => pathStr ? (
           <polyline 
-            points={paths[1]} 
+            key={i}
+            points={pathStr} 
             fill="none" 
             stroke="#2563eb" 
             strokeWidth={config.graphStrokeWidth}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-        )}
+        ) : null)}
       </svg>
     </div>
   );

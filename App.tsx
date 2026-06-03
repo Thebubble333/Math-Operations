@@ -17,6 +17,8 @@ import FractionSimplifierGame from './components/FractionSimplifierGame';
 import FractionAdditionGame from './components/FractionAdditionGame';
 import AlgFractQuadGame from './components/AlgFractQuadGame';
 import QuadraticFormula from './components/QuadraticFormula';
+import Year9Menu from './components/Year9Menu';
+import PronumeralsBothSides from './components/PronumeralsBothSides';
 
 const TARGET_PROBLEMS = 20;
 
@@ -1222,6 +1224,7 @@ const App: React.FC = () => {
           } />
           <Route path="/8mainstream" element={<Year8Menu startNewGame={startNewGame} />} />
           <Route path="/8seal" element={<Seal8Menu startNewGame={startNewGame} />} />
+          <Route path="/9mainstream" element={<Year9Menu startNewGame={startNewGame} />} />
           <Route path="/11spec" element={<Spec11Menu startNewGame={startNewGame} />} />
           <Route path="/12methods" element={<Methods12Menu startNewGame={startNewGame} />} />
           <Route path="/custom" element={<CustomGameMenu startNewGame={startNewGame} onBack={() => navigate('/')} />} />
@@ -1229,6 +1232,7 @@ const App: React.FC = () => {
           <Route path="/algebraic-fractions-add-subtract" element={<FractionAdditionGame />} />
           <Route path="/algebraic-fractions-quad" element={<AlgFractQuadGame />} />
           <Route path="/quadratic-formula-draft" element={<QuadraticFormula />} />
+          <Route path="/pronumerals-both-sides" element={<PronumeralsBothSides />} />
         </Routes>
       )}
 

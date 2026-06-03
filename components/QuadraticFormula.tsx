@@ -269,7 +269,7 @@ export default function QuadraticFormula() {
                             <span className="text-slate-300">)</span>
                             
                             {stage === 0 && (
-                                <button type="submit" className="ml-4 opacity-0 w-0 h-0 p-0 m-0 overflow-hidden">Submit</button>
+                                <button type="submit" className="ml-4 px-4 py-2 bg-indigo-500 text-white rounded-lg font-bold uppercase tracking-widest shadow-md hover:bg-indigo-600 hover:scale-105 transition-all text-sm">Check</button>
                             )}
                         </form>
 
@@ -291,6 +291,7 @@ export default function QuadraticFormula() {
                                             onChange={handleLineChange}
                                             placeholder="simplify..."
                                         />
+                                        <button type="submit" className="ml-4 px-4 py-2 bg-indigo-500 text-white rounded-lg font-bold uppercase tracking-widest shadow-md hover:bg-indigo-600 hover:scale-105 transition-all text-sm">Check</button>
                                     </form>
                                 )}
                             </div>

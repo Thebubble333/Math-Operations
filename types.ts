@@ -22,6 +22,7 @@ export enum GameMode {
   SEAL8_FACTORISE_DOTS = 'seal8_factorise_dots',
   SEAL8_FACTORISE_MONIC = 'seal8_factorise_monic',
   SEAL8_COMPLETING_SQUARE = 'seal8_completing_square',
+  YEAR9_BOTH_SIDES = 'year9_both_sides',
   CUSTOM = 'custom',
   NONE = 'none'
 }
@@ -44,7 +45,7 @@ export interface CurrentStats {
   timeLimit?: number; // in seconds
 }
 
-export type GraphType = 'linear' | 'quadratic' | 'cubic' | 'hyperbola' | 'truncus' | 'sqrt';
+export type GraphType = 'linear' | 'quadratic' | 'cubic' | 'hyperbola' | 'truncus' | 'sqrt' | 'exponential';
 
 export interface GraphParams {
   type: GraphType;

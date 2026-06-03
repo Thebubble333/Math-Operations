@@ -1,25 +1,61 @@
 
 import { GameMode, MathProblem, GraphType, GraphParams } from '../types';
 
+let recentGraphHistory: GraphType[] = [];
+let lastAnswerIndex = -1;
+
 const generateGraphProblem = (): MathProblem => {
-  const types: GraphType[] = ['linear', 'quadratic', 'cubic', 'hyperbola', 'truncus', 'sqrt'];
-  const type = types[Math.floor(Math.random() * types.length)];
+  const types: GraphType[] = ['linear', 'quadratic', 'cubic', 'hyperbola', 'truncus', 'sqrt', 'exponential', 'sin', 'cos', 'tan'];
+  
+  let availableTypes = types.filter(t => !recentGraphHistory.includes(t));
+  if (availableTypes.length === 0) {
+    availableTypes = types;
+  }
+  
+  const type = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+  
+  recentGraphHistory.push(type);
+  if (recentGraphHistory.length > 3) {
+    recentGraphHistory.shift();
+  }
   
   // Parameters
-  const a = Math.random() < 0.5 ? 1 : -1;
-  const h = Math.floor(Math.random() * 7) - 3; // -3 to 3
-  const k = Math.floor(Math.random() * 7) - 3; // -3 to 3
+  const aMagOptions = type === 'linear' ? [1, 1, 1, 1, 2, 2, 3] : (['sin', 'cos', 'tan'].includes(type) ? [1, 2, 3, 4] : [1]);
+  const aMag = aMagOptions[Math.floor(Math.random() * aMagOptions.length)];
+  const a = (Math.random() < 0.5 ? 1 : -1) * aMag;
+  
+  let h = Math.floor(Math.random() * 9) - 4; // -4 to 4
+  const k = Math.floor(Math.random() * 9) - 4; // -4 to 4
+
+  // For exponential, we use h as the sign of x (1 or -1) to match +/- e^(+/-x) + k
+  if (type === 'exponential') {
+    h = Math.random() < 0.5 ? 1 : -1;
+  }
+
+  // For trig functions, h acts as the coefficient m inside the trig function
+  if (['sin', 'cos', 'tan'].includes(type)) {
+    const mOptions = [0.5, -0.5, 1, -1, 2, -2];
+    h = mOptions[Math.floor(Math.random() * mOptions.length)];
+  }
 
   let question = '';
   const formatNumber = (n: number) => n < 0 ? `(${n})` : `${n}`;
   const formatShift = (val: number) => val === 0 ? '' : val > 0 ? ` - ${val}` : ` + ${Math.abs(val)}`;
   const formatVertical = (val: number) => val === 0 ? '' : val > 0 ? ` + ${val}` : ` - ${Math.abs(val)}`;
   
+  const formatTrigMx = (m: number) => {
+    if (m === 1) return 'x';
+    if (m === -1) return '-x';
+    if (m === 0.5) return '\\frac{x}{2}';
+    if (m === -0.5) return '-\\frac{x}{2}';
+    return `${m}x`;
+  };
+
   switch (type) {
     case 'linear':
       // y = a(x - h) + k -> y = ax - ah + k
       const intercept = -a * h + k;
-      question = `y = ${a === 1 ? '' : '-'}x ${formatVertical(intercept)}`;
+      question = `y = ${a === 1 ? '' : a === -1 ? '-' : a}x ${formatVertical(intercept)}`;
       break;
     case 'quadratic':
       question = `y = ${a === 1 ? '' : '-'} (x${formatShift(h)})^2${formatVertical(k)}`;
@@ -28,10 +64,7 @@ const generateGraphProblem = (): MathProblem => {
       question = `y = ${a === 1 ? '' : '-'} (x${formatShift(h)})^3${formatVertical(k)}`;
       break;
     case 'hyperbola':
-      // Remove parentheses if h is 0 for cleaner look: 1/x vs 1/(x-2)
       const denomH = h === 0 ? 'x' : `x${formatShift(h)}`;
-      // If h is not 0, we might want parentheses around the denominator if it's complex, but for 1/(x-h) it's standard.
-      // Actually, standard LaTeX for 1/(x-h) is \frac{1}{x-h}.
       question = `y = ${a === 1 ? '' : '-'}\\frac{1}{${denomH}}${formatVertical(k)}`;
       break;
     case 'truncus':
@@ -41,19 +74,41 @@ const generateGraphProblem = (): MathProblem => {
     case 'sqrt':
       question = `y = ${a === 1 ? '' : '-'}\\sqrt{x${formatShift(h)}}${formatVertical(k)}`;
       break;
+    case 'exponential':
+      question = `y = ${a === 1 ? '' : '-'}e^{${h === 1 ? '' : '-'}x}${formatVertical(k)}`;
+      break;
+    case 'sin':
+      question = `y = ${a === 1 ? '' : a === -1 ? '-' : a}\\sin(${formatTrigMx(h)})${formatVertical(k)}`;
+      break;
+    case 'cos':
+      question = `y = ${a === 1 ? '' : a === -1 ? '-' : a}\\cos(${formatTrigMx(h)})${formatVertical(k)}`;
+      break;
+    case 'tan':
+      question = `y = ${a === 1 ? '' : a === -1 ? '-' : a}\\tan(${formatTrigMx(h)})${formatVertical(k)}`;
+      break;
   }
 
   // Clean up double spaces or empty parts
-  question = question.replace(/\s+/g, ' ').trim();
+  question = question.trim().replace(/\s+/g, ' ').replace(/^y = \+/, 'y = ');
 
   const correctParams: GraphParams = { type, a, h, k };
   const options: GraphParams[] = [correctParams];
 
   // Generate distractors
   while (options.length < 4) {
-    const da = Math.random() < 0.5 ? 1 : -1;
-    const dh = Math.floor(Math.random() * 7) - 3;
-    const dk = Math.floor(Math.random() * 7) - 3;
+    const daMagOptions = type === 'linear' ? [1, 2, 3] : (['sin', 'cos', 'tan'].includes(type) ? [1, 2, 3, 4] : [1]);
+    const da = (Math.random() < 0.5 ? 1 : -1) * daMagOptions[Math.floor(Math.random() * daMagOptions.length)];
+    let dh = Math.floor(Math.random() * 9) - 4;
+    const dk = Math.floor(Math.random() * 9) - 4;
+    
+    if (type === 'exponential') {
+      dh = Math.random() < 0.5 ? 1 : -1;
+    }
+    
+    if (['sin', 'cos', 'tan'].includes(type)) {
+      const mOptions = [0.5, -0.5, 1, -1, 2, -2];
+      dh = mOptions[Math.floor(Math.random() * mOptions.length)];
+    }
     
     // Ensure uniqueness
     const isDuplicate = options.some(o => o.a === da && o.h === dh && o.k === dk);
@@ -68,7 +123,14 @@ const generateGraphProblem = (): MathProblem => {
     [options[i], options[j]] = [options[j], options[i]];
   }
 
-  const answerIndex = options.findIndex(o => o.a === a && o.h === h && o.k === k);
+  let answerIndex = options.findIndex(o => o.a === a && o.h === h && o.k === k);
+  
+  if (answerIndex === lastAnswerIndex) {
+    const swapWith = (answerIndex + 1 + Math.floor(Math.random() * (options.length - 1))) % options.length;
+    [options[answerIndex], options[swapWith]] = [options[swapWith], options[answerIndex]];
+    answerIndex = swapWith;
+  }
+  lastAnswerIndex = answerIndex;
 
   return {
     question,
