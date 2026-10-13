@@ -159,6 +159,13 @@ const App: React.FC = () => {
         
         const isMethodsOrSpec = [
           GameMode.METHODS_GRAPHS,
+          GameMode.METHODS_DERIVATIVES,
+          GameMode.METHODS_ANTIDERIVATIVES,
+          GameMode.METHODS_MIXED_CALCULUS,
+          GameMode.YEAR12_MAXIMAL_DOMAIN,
+          GameMode.YEAR12_RANGE,
+          GameMode.METHODS_SAMPLE_PROPORTIONS,
+          GameMode.METHODS_MARGIN_STEPS,
           GameMode.TRIG_EXACT_VALUES,
           GameMode.INVERSE_TRIG_EXACT_VALUES
         ].includes(selectedMode);
@@ -205,8 +212,21 @@ const App: React.FC = () => {
       gameType: selectedMode === GameMode.CUSTOM && customConfig ? customConfig.gameType : globalGameType,
       timeLimit: selectedMode === GameMode.CUSTOM && customConfig ? customConfig.timeLimit : (globalGameType === 'TIME_ATTACK' ? globalTimeLimit : undefined)
     });
-    // Only focus input if not in graph/trig mode
-    if (problemMode !== GameMode.METHODS_GRAPHS && problemMode !== GameMode.TRIG_EXACT_VALUES && problemMode !== GameMode.INVERSE_TRIG_EXACT_VALUES) {
+    // Only focus input if not in graph/trig/calculus mode
+    const isSpecialInputMode = [
+      GameMode.METHODS_GRAPHS,
+      GameMode.METHODS_DERIVATIVES,
+      GameMode.METHODS_ANTIDERIVATIVES,
+      GameMode.METHODS_MIXED_CALCULUS,
+      GameMode.YEAR12_MAXIMAL_DOMAIN,
+      GameMode.YEAR12_RANGE,
+      GameMode.METHODS_SAMPLE_PROPORTIONS,
+      GameMode.METHODS_MARGIN_STEPS,
+      GameMode.TRIG_EXACT_VALUES,
+      GameMode.INVERSE_TRIG_EXACT_VALUES
+    ].includes(problemMode);
+
+    if (!isSpecialInputMode) {
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
@@ -733,8 +753,31 @@ const App: React.FC = () => {
     
     let cleanVal = val;
 
+    const isSpecialInputMode = [
+      GameMode.METHODS_GRAPHS,
+      GameMode.METHODS_DERIVATIVES,
+      GameMode.METHODS_ANTIDERIVATIVES,
+      GameMode.METHODS_MIXED_CALCULUS,
+      GameMode.YEAR12_MAXIMAL_DOMAIN,
+      GameMode.YEAR12_RANGE,
+      GameMode.METHODS_SAMPLE_PROPORTIONS,
+      GameMode.METHODS_MARGIN_STEPS,
+      GameMode.TRIG_EXACT_VALUES,
+      GameMode.INVERSE_TRIG_EXACT_VALUES,
+      GameMode.SIMPLIFY_SURDS,
+      GameMode.EXPANDING_NEGATIVES,
+      GameMode.TWO_STEP_EQUATIONS,
+      GameMode.YEAR8_ADD_SUB_ALGEBRA,
+      GameMode.YEAR8_MULT_DIV_ALGEBRA,
+      GameMode.YEAR8_EXPANDING,
+      GameMode.YEAR8_FACTORISING,
+      GameMode.SEAL8_FACTORISE_DOTS,
+      GameMode.SEAL8_FACTORISE_MONIC,
+      GameMode.SEAL8_COMPLETING_SQUARE
+    ].includes(currentProblemMode);
+
     // Only clean input for arithmetic modes
-    if (currentProblemMode !== GameMode.TRIG_EXACT_VALUES && currentProblemMode !== GameMode.INVERSE_TRIG_EXACT_VALUES && currentProblemMode !== GameMode.METHODS_GRAPHS && currentProblemMode !== GameMode.SIMPLIFY_SURDS && currentProblemMode !== GameMode.EXPANDING_NEGATIVES && currentProblemMode !== GameMode.TWO_STEP_EQUATIONS && currentProblemMode !== GameMode.YEAR8_ADD_SUB_ALGEBRA && currentProblemMode !== GameMode.YEAR8_MULT_DIV_ALGEBRA && currentProblemMode !== GameMode.YEAR8_EXPANDING && currentProblemMode !== GameMode.YEAR8_FACTORISING && currentProblemMode !== GameMode.SEAL8_FACTORISE_DOTS && currentProblemMode !== GameMode.SEAL8_FACTORISE_MONIC && currentProblemMode !== GameMode.SEAL8_COMPLETING_SQUARE) {
+    if (!isSpecialInputMode) {
       // Allow digits and minus sign
       cleanVal = val.replace(/[^0-9-]/g, '');
     } else if (currentProblemMode === GameMode.SIMPLIFY_SURDS) {
@@ -1129,18 +1172,42 @@ const App: React.FC = () => {
 
     if (cleanVal === problem.answer.toString()) {
       setIsSuccess(true);
-      const delay = (currentProblemMode === GameMode.TRIG_EXACT_VALUES || currentProblemMode === GameMode.INVERSE_TRIG_EXACT_VALUES) ? 1000 : 250;
+      const isSlowDelayMode = [
+        GameMode.TRIG_EXACT_VALUES,
+        GameMode.INVERSE_TRIG_EXACT_VALUES,
+        GameMode.METHODS_GRAPHS,
+        GameMode.METHODS_DERIVATIVES,
+        GameMode.METHODS_ANTIDERIVATIVES,
+        GameMode.METHODS_MIXED_CALCULUS,
+        GameMode.YEAR12_MAXIMAL_DOMAIN,
+        GameMode.YEAR12_RANGE,
+        GameMode.METHODS_SAMPLE_PROPORTIONS,
+        GameMode.METHODS_MARGIN_STEPS
+      ].includes(currentProblemMode);
+      
+      const delay = isSlowDelayMode ? 1000 : 250;
       setTimeout(() => {
         handleCorrect();
         setIsSuccess(false);
       }, delay);
-    } else if (currentProblemMode !== GameMode.TRIG_EXACT_VALUES && currentProblemMode !== GameMode.INVERSE_TRIG_EXACT_VALUES && currentProblemMode !== GameMode.METHODS_GRAPHS) {
+    } else if (![
+      GameMode.METHODS_GRAPHS,
+      GameMode.METHODS_DERIVATIVES,
+      GameMode.METHODS_ANTIDERIVATIVES,
+      GameMode.METHODS_MIXED_CALCULUS,
+      GameMode.YEAR12_MAXIMAL_DOMAIN,
+      GameMode.YEAR12_RANGE,
+      GameMode.METHODS_SAMPLE_PROPORTIONS,
+      GameMode.METHODS_MARGIN_STEPS,
+      GameMode.TRIG_EXACT_VALUES,
+      GameMode.INVERSE_TRIG_EXACT_VALUES
+    ].includes(currentProblemMode)) {
       // Arithmetic mode error handling (length based)
       if (cleanVal.length >= problem.answer.toString().length) {
         triggerError();
       }
     } else {
-      // Immediate error for button-click modes (Trig/Graphs)
+      // Immediate error for button-click modes (Trig/Graphs/Calculus)
       let isSignError = false;
       if (currentProblemMode === GameMode.TRIG_EXACT_VALUES || currentProblemMode === GameMode.INVERSE_TRIG_EXACT_VALUES) {
         const ans = problem.answer.toString();
@@ -1148,7 +1215,7 @@ const App: React.FC = () => {
           isSignError = true;
         }
       }
-      triggerError(isSignError);
+      triggerError(isSignError, true, 800);
     }
   };
 

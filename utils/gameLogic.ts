@@ -1,5 +1,8 @@
 
 import { GameMode, MathProblem, GraphType, GraphParams } from '../types';
+import { generateCalculusProblem } from './calculusGame';
+import { generateDomainRangeProblem } from './domainRangeGame';
+import { generateSampleProportionsProblem } from './sampleProportionsGame';
 
 let recentGraphHistory: GraphType[] = [];
 let lastAnswerIndex = -1;
@@ -1144,6 +1147,12 @@ export const generateProblem = (mode: GameMode, options?: { forceQuadrant1?: boo
     problem = generateIndexLawsProblem();
   } else if (mode === GameMode.METHODS_GRAPHS) {
     problem = generateGraphProblem();
+  } else if (mode === GameMode.METHODS_DERIVATIVES || mode === GameMode.METHODS_ANTIDERIVATIVES || mode === GameMode.METHODS_MIXED_CALCULUS) {
+    problem = generateCalculusProblem(mode);
+  } else if (mode === GameMode.YEAR12_MAXIMAL_DOMAIN || mode === GameMode.YEAR12_RANGE) {
+    problem = generateDomainRangeProblem(mode);
+  } else if (mode === GameMode.METHODS_SAMPLE_PROPORTIONS || mode === GameMode.METHODS_MARGIN_STEPS) {
+    problem = generateSampleProportionsProblem(mode);
   } else if (mode === GameMode.INVERSE_TRIG_EXACT_VALUES) {
     problem = generateInverseTrigProblem();
   } else if (mode === GameMode.TRIG_EXACT_VALUES) {

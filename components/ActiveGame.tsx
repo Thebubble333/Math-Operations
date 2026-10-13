@@ -4,6 +4,8 @@ import { GameMode, GameStats, CurrentStats, MathProblem, GraphConfig, FeedbackTo
 import Numpad from './Numpad';
 import GraphCard from './GraphCard';
 import TrigGame from './TrigGame';
+import SampleProportionsGame from './SampleProportionsGame';
+import MathText from './MathText';
 
 interface ActiveGameProps {
   mode: GameMode;
@@ -486,15 +488,17 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
         } else {
           setInput(ans.value);
         }
+      } else if (problem.options) {
+        // Multiple choice modes (Domain, Range, Calculus, Sample Proportions, Graphs, etc.)
+        setInput(problem.answer.toString());
       } else {
         // Fallback for arithmetic modes (ADD_SUB, MULT_DIV, INDEX_LAWS, MIXED, etc.)
         setInput(problem.answer.toString());
       }
     }
     
-    setTimeout(() => {
-      setCanGoNext(true);
-    }, 1000);
+    // Allow advancing immediately upon showing answer
+    setCanGoNext(true);
   };
 
   useEffect(() => {
@@ -575,6 +579,11 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
             {(() => {
               const isLatexMode = [
                 GameMode.METHODS_GRAPHS,
+                GameMode.METHODS_DERIVATIVES,
+                GameMode.METHODS_ANTIDERIVATIVES,
+                GameMode.METHODS_MIXED_CALCULUS,
+                GameMode.YEAR12_MAXIMAL_DOMAIN,
+                GameMode.YEAR12_RANGE,
                 GameMode.TRIG_EXACT_VALUES,
                 GameMode.INVERSE_TRIG_EXACT_VALUES,
                 GameMode.INDEX_LAWS,
@@ -591,8 +600,21 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                 GameMode.SEAL8_COMPLETING_SQUARE
               ].includes(mode);
 
+              const isCalculusMode = [
+                GameMode.METHODS_DERIVATIVES,
+                GameMode.METHODS_ANTIDERIVATIVES,
+                GameMode.METHODS_MIXED_CALCULUS,
+              ].includes(mode);
+
+              const isDomainRangeMode = mode === GameMode.YEAR12_MAXIMAL_DOMAIN || mode === GameMode.YEAR12_RANGE;
+              const isSampleProportionsMode = mode === GameMode.METHODS_SAMPLE_PROPORTIONS || mode === GameMode.METHODS_MARGIN_STEPS;
+
+              if (isSampleProportionsMode) {
+                return null;
+              }
+
               return (
-                <div className={`${isLatexMode ? 'text-4xl sm:text-6xl py-4' : 'text-8xl sm:text-[10rem]'} font-black tracking-tighter text-slate-800 dark:text-slate-50 tabular-nums select-none drop-shadow-sm`}>
+                <div className={`${isLatexMode ? (isDomainRangeMode ? 'text-2xl sm:text-4xl py-2' : isCalculusMode ? 'text-3xl sm:text-5xl py-4' : 'text-3xl sm:text-6xl py-4') : 'text-7xl sm:text-[10rem]'} !leading-normal font-black tracking-tight text-slate-800 dark:text-slate-50 tabular-nums select-none drop-shadow-sm flex justify-center items-center max-w-full px-2 text-center`}>
                   {isLatexMode ? (
                     problem && mode === GameMode.SIG_FIGS_SCI_NOTATION && JSON.parse(problem.answer).type === 'count_sf' ? (
                       <div className="flex items-center justify-center">
@@ -618,7 +640,7 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
                         <Latex>{`$?$`}</Latex>
                       </div>
                     ) : (
-                      <Latex>{`$${problem?.question}$`}</Latex>
+                      <MathText content={problem?.question || ''} />
                     )
                   ) : (
                     problem?.question
@@ -628,21 +650,60 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
             })()}
           </div>
           
+          {problem?.graph && (
+            <div className="w-full max-w-sm mx-auto px-4 mb-4">
+              <GraphCard 
+                params={problem.graph}
+                config={graphConfig}
+                className="w-full shadow-sm"
+              />
+            </div>
+          )}
+          
           {mode === GameMode.METHODS_GRAPHS && problem?.options ? (
             <div 
               className="grid gap-6 max-w-[95vw] mx-auto w-full px-4"
               style={{ gridTemplateColumns: `repeat(${graphConfig.gridColumns}, minmax(0, 1fr))` }}
             >
-              {problem.options.map((opt, idx) => (
-                <GraphCard 
-                  key={idx}
-                  params={opt}
-                  config={graphConfig}
-                  onClick={() => !showingAnswer && handleInputChange(idx.toString())}
-                  selected={showingAnswer ? idx === problem.answer : undefined}
-                  className={`w-full shadow-sm hover:shadow-xl transition-shadow duration-200 ${showingAnswer && idx !== problem.answer ? 'opacity-50' : ''}`}
-                />
-              ))}
+              {problem.options.map((opt, idx) => {
+                const isSelectedAndCorrect = (showingAnswer || isSuccess) && idx.toString() === problem.answer.toString();
+                const isSelectedAndWrong = isError && input === idx.toString();
+                return (
+                  <GraphCard 
+                    key={idx}
+                    params={opt}
+                    config={graphConfig}
+                    onClick={() => !showingAnswer && !isSuccess && !isError && handleInputChange(idx.toString())}
+                    selected={isSelectedAndCorrect || isSelectedAndWrong}
+                    isCorrect={isSelectedAndCorrect}
+                    isError={isSelectedAndWrong}
+                    className={`w-full shadow-sm hover:shadow-xl transition-shadow duration-200 ${(showingAnswer || isSuccess) && !isSelectedAndCorrect ? 'opacity-50' : ''}`}
+                  />
+                );
+              })}
+            </div>
+          ) : ([GameMode.METHODS_DERIVATIVES, GameMode.METHODS_ANTIDERIVATIVES, GameMode.METHODS_MIXED_CALCULUS, GameMode.YEAR12_MAXIMAL_DOMAIN, GameMode.YEAR12_RANGE].includes(mode)) && problem?.options ? (
+            <div className={`grid grid-cols-1 sm:grid-cols-2 ${problem.options.length === 6 ? 'lg:grid-cols-3' : ''} gap-4 sm:gap-6 w-full ${problem.options.length === 6 ? 'max-w-5xl' : 'max-w-4xl'} mx-auto px-4 mt-2 sm:mt-6 mb-8`}>
+              {problem.options.map((opt: string, idx: number) => {
+                const isSelectedAndCorrect = (showingAnswer || isSuccess) && idx.toString() === problem.answer.toString();
+                const isSelectedAndWrong = isError && input === idx.toString();
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => !showingAnswer && !isSuccess && !isError && handleInputChange(idx.toString())}
+                    disabled={showingAnswer || isSuccess || isError}
+                    className={`min-h-[100px] sm:min-h-[120px] text-base sm:text-2xl !leading-normal p-4 sm:p-6 rounded-3xl border-4 transition-all flex items-center justify-center font-bold tracking-wider shadow-sm
+                      ${isSelectedAndCorrect ? 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 shadow-emerald-500/20' :
+                        isSelectedAndWrong ? 'border-rose-500 bg-rose-500/10 text-rose-700 dark:text-rose-300 shadow-rose-500/20' :
+                        'border-slate-200/80 dark:border-slate-700/80 hover:border-indigo-400 hover:shadow-xl hover:bg-slate-50 dark:hover:bg-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100'
+                      } ${(showingAnswer || isSuccess) && !isSelectedAndCorrect ? 'opacity-40 grayscale-[0.5]' : ''}`}
+                  >
+                    <div className="max-w-full overflow-x-auto overflow-y-hidden scrollbar-none whitespace-nowrap flex items-center justify-center px-1">
+                      <MathText content={opt} />
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           ) : (mode === GameMode.TRIG_EXACT_VALUES || mode === GameMode.INVERSE_TRIG_EXACT_VALUES) && problem ? (
             <TrigGame 
@@ -653,6 +714,14 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
               isInverse={mode === GameMode.INVERSE_TRIG_EXACT_VALUES}
               showingAnswer={showingAnswer}
               correctAnswer={problem.answer.toString()}
+            />
+          ) : (mode === GameMode.METHODS_SAMPLE_PROPORTIONS || mode === GameMode.METHODS_MARGIN_STEPS) && problem ? (
+            <SampleProportionsGame 
+              problem={problem}
+              onAnswer={handleInputChange}
+              isSuccess={isSuccess}
+              isError={isError}
+              showingAnswer={showingAnswer}
             />
           ) : mode === GameMode.SIMPLIFY_SURDS ? (
             <>

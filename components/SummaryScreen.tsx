@@ -45,6 +45,13 @@ const SummaryScreen: React.FC<SummaryScreenProps> = ({
       case GameMode.YEAR8_MULT_DIV_ALGEBRA: return 'Mult/Div Algebra';
       case GameMode.YEAR8_EXPANDING: return 'Expanding';
       case GameMode.YEAR8_FACTORISING: return 'Factorising';
+      case GameMode.METHODS_DERIVATIVES: return 'Derivatives';
+      case GameMode.METHODS_ANTIDERIVATIVES: return 'Antidiff';
+      case GameMode.METHODS_MIXED_CALCULUS: return 'Mixed Calculus';
+      case GameMode.YEAR12_MAXIMAL_DOMAIN: return 'Maximal Domain';
+      case GameMode.YEAR12_RANGE: return 'Function Range';
+      case GameMode.METHODS_SAMPLE_PROPORTIONS: return 'Sample Proportions';
+      case GameMode.METHODS_MARGIN_STEPS: return 'Simplify Margin';
       case GameMode.CUSTOM: return 'Custom Game';
       default: return 'Unknown Mode';
     }

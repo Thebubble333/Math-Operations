@@ -6,6 +6,8 @@ interface GraphCardProps {
   config?: GraphConfig;
   onClick?: () => void;
   selected?: boolean;
+  isCorrect?: boolean;
+  isError?: boolean;
   className?: string;
 }
 
@@ -66,6 +68,8 @@ const GraphCard: React.FC<GraphCardProps> = ({
   params, 
   onClick, 
   selected, 
+  isCorrect,
+  isError,
   className = '',
   config = {
     gridColumns: 4,
@@ -76,81 +80,138 @@ const GraphCard: React.FC<GraphCardProps> = ({
     axisFontSize: 9
   }
 }) => {
-  const { type, a, h, k } = params;
+    const { type, a, h, k, domainContext } = params;
 
-  // Coordinate conversion
-  // SVG 100x100. Center (50, 50). Scale 10px per unit. Range -5 to 5.
-  const toSvgX = (x: number) => 50 + x * 10;
-  const toSvgY = (y: number) => 50 - y * 10;
-
-  const extraElements = useMemo(() => {
-    const elements: React.ReactNode[] = [];
-
-    if (type === 'hyperbola' || type === 'truncus' || type === 'exponential') {
-      // Horizontal Asymptote at y = k
-      if (k >= -5 && k <= 5) {
-        const yPos = toSvgY(k);
-        elements.push(
-          <line 
-            key="ha" 
-            x1="0" y1={yPos} x2="100" y2={yPos} 
-            stroke="currentColor" 
-            strokeWidth={config.gridStrokeWidth * 2} 
-            strokeDasharray="4,2" 
-            className="text-slate-400 dark:text-slate-500 opacity-70" 
-          />
-        );
-      }
-    }
-    
-    if (type === 'hyperbola' || type === 'truncus') {
-      // Vertical Asymptote at x = h
-      if (h >= -5 && h <= 5) {
-        const xPos = toSvgX(h);
-        elements.push(
-          <line 
-            key="va" 
-            x1={xPos} y1="0" x2={xPos} y2="100" 
-            stroke="currentColor" 
-            strokeWidth={config.gridStrokeWidth * 2} 
-            strokeDasharray="4,2" 
-            className="text-slate-400 dark:text-slate-500 opacity-70" 
-          />
-        );
-      }
-    }
-
-    if (type === 'sqrt') {
-      // Endpoint at (h, k)
-      if (h >= -5 && h <= 5 && k >= -5 && k <= 5) {
-        elements.push(
-          <circle 
-            key="endpoint" 
-            cx={toSvgX(h)} 
-            cy={toSvgY(k)} 
-            r={config.graphStrokeWidth * 0.8} 
-            fill="#2563eb" 
-          />
-        );
-      }
-    }
-
-    return elements;
-  }, [type, a, h, k, config]);
-
-  const paths = useMemo(() => {
-    const allPaths: string[][] = [];
-    
     // Coordinate conversion
-    // SVG 100x100. Center (50, 50). Scale 10px per unit. Range -5 to 5.
     const toSvgX = (x: number) => 50 + x * 10;
     const toSvgY = (y: number) => 50 - y * 10;
 
-    const step = 0.1;
-    const minX = -5;
-    const maxX = 5;
+    const extraElements = useMemo(() => {
+      const asymptotes: React.ReactNode[] = [];
+      const endpoints: React.ReactNode[] = [];
 
-    const generateContinuousPaths = (start: number, end: number, func: (x: number) => number, isTan: boolean = false) => {
+      if (type === 'hyperbola' || type === 'truncus' || type === 'exponential') {
+        if (k >= -5 && k <= 5) {
+          const yPos = toSvgY(k);
+          asymptotes.push(
+            <line 
+              key="ha" 
+              x1="0" y1={yPos} x2="100" y2={yPos} 
+              stroke="currentColor" 
+              strokeWidth={config.gridStrokeWidth * 2} 
+              strokeDasharray="4,2" 
+              className="text-slate-400 dark:text-slate-500 opacity-70" 
+            />
+          );
+        }
+      }
+      
+      if (type === 'hyperbola' || type === 'truncus') {
+        if (h >= -5 && h <= 5) {
+          const xPos = toSvgX(h);
+          asymptotes.push(
+            <line 
+              key="va" 
+              x1={xPos} y1="0" x2={xPos} y2="100" 
+              stroke="currentColor" 
+              strokeWidth={config.gridStrokeWidth * 2} 
+              strokeDasharray="4,2" 
+              className="text-slate-400 dark:text-slate-500 opacity-70" 
+            />
+          );
+        }
+      }
+
+      if (domainContext) {
+        const { type: dcType, startX, endX, startOpen, endOpen } = domainContext;
+        
+        // Draw endpoints if range/domain bounded
+        const drawEndpoint = (xVal: number, isOpen: boolean, key: string) => {
+          let yVal = 0;
+          switch (type) {
+            case 'linear': yVal = a * (xVal - h) + k; break;
+            case 'quadratic': yVal = a * Math.pow(xVal - h, 2) + k; break;
+            case 'cubic': yVal = a * Math.pow(xVal - h, 3) + k; break;
+            case 'exponential': yVal = a * Math.exp(h * xVal) + k; break;
+            case 'sin': yVal = a * Math.sin(h * xVal) + k; break;
+            case 'cos': yVal = a * Math.cos(h * xVal) + k; break;
+            case 'tan': yVal = a * Math.tan(h * xVal) + k; break;
+            case 'sqrt': yVal = a * Math.sqrt(xVal - h) + k; break;
+            case 'hyperbola': yVal = a / (xVal - h) + k; break;
+            case 'truncus': yVal = a / Math.pow(xVal - h, 2) + k; break;
+          }
+          if (xVal >= -6 && xVal <= 6 && yVal >= -6 && yVal <= 6) {
+             endpoints.push(
+               <circle
+                 key={key}
+                 cx={toSvgX(xVal)}
+                 cy={toSvgY(yVal)}
+                 r={config.graphStrokeWidth * 1.5}
+                 stroke="currentColor"
+                 strokeWidth={config.graphStrokeWidth}
+                 className={isOpen ? "text-indigo-600 dark:text-indigo-400 fill-white dark:fill-slate-800" : "text-indigo-600 dark:text-indigo-400 fill-current"}
+               />
+             );
+          }
+        };
+
+        if (startX !== undefined && startX !== null) {
+          drawEndpoint(startX, !!startOpen, 'start-endpoint');
+        } else if (type === 'sqrt') {
+          // Default sqrt start point
+          drawEndpoint(h, false, 'start-endpoint-sqrt');
+        }
+        
+        if (endX !== undefined && endX !== null) {
+          drawEndpoint(endX, !!endOpen, 'end-endpoint');
+        }
+
+        // Draw Turning point if quadratic and within bounds
+        if (type === 'quadratic' && dcType === 'range') {
+          const isTpWithinBounds = (startX === undefined || startX === null || h > startX) && (endX === undefined || endX === null || h < endX);
+          if (isTpWithinBounds) {
+             endpoints.push(
+               <circle
+                 key="tp"
+                 cx={toSvgX(h)}
+                 cy={toSvgY(k)}
+                 r={config.graphStrokeWidth * 1.5}
+                 fill="currentColor"
+                 className="text-pink-500"
+               />
+             );
+          }
+        }
+      } else if (type === 'sqrt') {
+        // default endpoint
+        if (h >= -5 && h <= 5 && k >= -5 && k <= 5) {
+          endpoints.push(
+            <circle 
+              key="endpoint" 
+              cx={toSvgX(h)} 
+              cy={toSvgY(k)} 
+              r={config.graphStrokeWidth * 0.8} 
+              fill="#2563eb" 
+            />
+          );
+        }
+      }
+
+      return { asymptotes, endpoints };
+    }, [type, a, h, k, config, domainContext, toSvgX, toSvgY]);
+
+    const paths = useMemo(() => {
+      const allPaths: string[][] = [];
+      const step = 0.1;
+      let minX = -6;
+      let maxX = 6;
+      
+      if (domainContext) {
+        if (domainContext.startX !== undefined && domainContext.startX !== null) minX = domainContext.startX;
+        if (domainContext.endX !== undefined && domainContext.endX !== null) maxX = domainContext.endX;
+      }
+
+      const generateContinuousPaths = (start: number, end: number, func: (x: number) => number, isTan: boolean = false) => {
       const generatedPaths: string[][] = [];
       let currentPath: string[] = [];
       let prevY: number | null = null;
@@ -278,19 +339,23 @@ const GraphCard: React.FC<GraphCardProps> = ({
 
   return (
     <div 
-      onClick={onClick}
+      onClick={selected ? undefined : onClick}
       className={`
-        relative aspect-square bg-white dark:bg-slate-800 rounded-xl border-2 cursor-pointer transition-all
-        hover:border-blue-400 hover:shadow-md
-        ${selected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200 dark:border-slate-700'}
+        relative aspect-square bg-white dark:bg-slate-800 rounded-xl border-[4px] cursor-pointer transition-all
+        hover:border-indigo-400 hover:shadow-xl
+        ${
+          selected && isCorrect ? 'border-emerald-500 bg-emerald-500/10 shadow-emerald-500/20 shadow-md ring-4 ring-emerald-500/30' :
+          selected && isError ? 'border-rose-500 bg-rose-500/10 shadow-rose-500/20 shadow-md ring-4 ring-rose-500/30' :
+          selected ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-slate-200 dark:border-slate-700'
+        }
         ${className}
       `}
     >
       <svg viewBox="0 0 100 100" className="w-full h-full p-2" preserveAspectRatio="xMidYMid meet">
         <GridBackground config={config} />
         
-        {/* Asymptotes and Endpoints */}
-        {extraElements}
+        {/* Asymptotes */}
+        {extraElements.asymptotes}
 
         {/* Graphs */}
         {paths.map((pathStr, i) => pathStr ? (
@@ -304,6 +369,9 @@ const GraphCard: React.FC<GraphCardProps> = ({
             strokeLinejoin="round"
           />
         ) : null)}
+
+        {/* Endpoints and TP */}
+        {extraElements.endpoints}
       </svg>
     </div>
   );

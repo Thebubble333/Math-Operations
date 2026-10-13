@@ -25,6 +25,8 @@ const Methods12Menu: React.FC<Methods12MenuProps> = ({ startNewGame }) => {
             {[
               { id: GameMode.METHODS_GRAPHS, label: 'Graphs', icon: '📈', color: 'bg-pink-500' },
               { id: GameMode.TRIG_EXACT_VALUES, label: 'Trig', icon: '📐', color: 'bg-purple-500' },
+              { id: GameMode.YEAR12_MAXIMAL_DOMAIN, label: 'Domain', icon: 'D', color: 'bg-amber-500' },
+              { id: GameMode.YEAR12_RANGE, label: 'Range', icon: 'R', color: 'bg-orange-500' },
             ].map(btn => (
               <button
                 key={btn.id}
@@ -33,6 +35,49 @@ const Methods12Menu: React.FC<Methods12MenuProps> = ({ startNewGame }) => {
               >
                 <div className={`w-auto min-w-[3rem] px-3 h-12 rounded-2xl ${btn.color} text-white flex items-center justify-center mb-3 shadow-md transform group-hover:scale-90 transition-all duration-200`}>
                   <span className="text-xl font-bold">{btn.icon}</span>
+                </div>
+                <span className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">{btn.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-xl font-bold whitespace-nowrap text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 px-2">Calculus</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {[
+              { id: GameMode.METHODS_DERIVATIVES, label: 'Derivatives', icon: '𝑑/𝑑𝑥', color: 'bg-emerald-500' },
+              { id: GameMode.METHODS_ANTIDERIVATIVES, label: 'Antidiff', icon: '∫', color: 'bg-teal-500' },
+              { id: GameMode.METHODS_MIXED_CALCULUS, label: 'Mixed', icon: 'Δ', color: 'bg-cyan-600' },
+            ].map(btn => (
+              <button
+                key={btn.id}
+                onClick={() => startNewGame(btn.id)}
+                className="group relative h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-800 border-b-4 border-slate-200 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-300 dark:hover:border-emerald-800 rounded-3xl shadow-lg transition-all duration-150 hover:translate-y-1 hover:border-b-0 active:scale-95 z-0 hover:z-10"
+              >
+                <div className={`w-auto min-w-[3rem] px-3 h-12 rounded-2xl ${btn.color} text-white flex items-center justify-center mb-3 shadow-md transform group-hover:scale-90 transition-all duration-200`}>
+                  <span className={btn.icon.includes('/') ? "text-lg font-bold font-serif italic" : "text-2xl font-bold"}>{btn.icon}</span>
+                </div>
+                <span className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">{btn.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-xl font-bold whitespace-nowrap text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 px-2">Probability & Statistics</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 max-w-xl mx-auto">
+            {[
+              { id: GameMode.METHODS_SAMPLE_PROPORTIONS, label: 'Sample Prop', icon: 'p̂', color: 'bg-violet-600' },
+              { id: GameMode.METHODS_MARGIN_STEPS, label: 'Simplify Margin', icon: '𝑧√', color: 'bg-fuchsia-600' },
+            ].map(btn => (
+              <button
+                key={btn.id}
+                onClick={() => startNewGame(btn.id)}
+                className="group relative h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-800 border-b-4 border-slate-200 dark:border-slate-700 hover:bg-violet-50 dark:hover:bg-violet-950/30 hover:border-violet-300 dark:hover:border-violet-800 rounded-3xl shadow-lg transition-all duration-150 hover:translate-y-1 hover:border-b-0 active:scale-95 z-0 hover:z-10"
+              >
+                <div className={`w-auto min-w-[3rem] px-3 h-12 rounded-2xl ${btn.color} text-white flex items-center justify-center mb-3 shadow-md transform group-hover:scale-90 transition-all duration-200`}>
+                  <span className="text-2xl font-bold font-serif italic">{btn.icon}</span>
                 </div>
                 <span className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">{btn.label}</span>
               </button>
