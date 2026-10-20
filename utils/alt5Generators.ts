@@ -58,7 +58,7 @@ export const ALT5_CATEGORIES = [
   { id: 13, title: 'Equation Transformations' },
 ];
 
-// Helper to ensure 4 unique multiple choice options
+// Helper to ensure 4 unique multiple choice options without ever hanging
 function createOptions(correct: string, rawDistractors: string[]): { options: string[]; correctIndex: number } {
   const uniqueDistractors: string[] = [];
   for (const d of rawDistractors) {
@@ -67,32 +67,39 @@ function createOptions(correct: string, rawDistractors: string[]): { options: st
     }
     if (uniqueDistractors.length === 3) break;
   }
-  // If fewer than 3, generate mathematical fallback distractors without "+ 1" artifacts
+
   let fallbackCount = 1;
-  while (uniqueDistractors.length < 3) {
+  while (uniqueDistractors.length < 3 && fallbackCount <= 20) {
     let fallback = '';
-    if (correct.includes('=')) {
-      // Modify constant or sign
-      fallback = correct.replace(/([+-]?\s*\d+)$/, (m, num) => {
-        const n = parseInt(num.replace(/\s+/g, ''), 10);
-        const sign = n + fallbackCount >= 0 ? '+ ' : '- ';
-        return `${sign}${Math.abs(n + fallbackCount)}`;
-      });
-      if (fallback === correct) {
-        fallback = correct.startsWith('y = -') ? correct.replace('y = -', 'y = ') : correct.replace('y = ', 'y = -');
+    if (correct.startsWith('y =')) {
+      if (/([+-]\s*\d+)$/.test(correct)) {
+        fallback = correct.replace(/([+-]\s*\d+)$/, (m) => {
+          const n = parseInt(m.replace(/\s+/g, ''), 10);
+          const nextVal = n + (fallbackCount % 2 === 1 ? fallbackCount : -fallbackCount);
+          const finalVal = nextVal === 0 ? n + fallbackCount + 1 : nextVal;
+          return finalVal >= 0 ? `+ ${finalVal}` : `- ${Math.abs(finalVal)}`;
+        });
+      } else {
+        fallback = `${correct} ${fallbackCount % 2 === 1 ? '+' : '-'} ${fallbackCount}`;
       }
+    } else if (correct.startsWith('x =')) {
+      fallback = `x = ${fallbackCount + 3}, ${-(fallbackCount + 2)}`;
     } else if (correct.includes('(') && correct.includes(')')) {
       fallback = correct.replace(/(-?\d+)/, (m, n) => String(parseInt(n, 10) + fallbackCount));
     } else if (/^-?\d+$/.test(correct.trim())) {
       fallback = String(parseInt(correct.trim(), 10) + fallbackCount);
+    } else if (correct.includes('\\sqrt{')) {
+      fallback = correct.replace(/\\sqrt\{(\d+)\}/, (m, n) => `\\sqrt{${parseInt(n, 10) + fallbackCount}}`);
     } else {
-      fallback = `${correct} (alt ${fallbackCount})`;
+      fallback = `${correct} (${fallbackCount})`;
     }
-    if (!uniqueDistractors.includes(fallback) && fallback !== correct) {
+
+    if (fallback && fallback !== correct && !uniqueDistractors.includes(fallback)) {
       uniqueDistractors.push(fallback);
     }
     fallbackCount++;
   }
+
   const all = [correct, ...uniqueDistractors.slice(0, 3)];
   const shuffled = shuffleArray(all);
   const correctIndex = shuffled.indexOf(correct);
@@ -521,7 +528,9 @@ export function generateQuestion2(difficulty: 'standard' | 'challenging'): Alt5Q
     const distractors = [
       formatPointLatex(makeFraction(x2 - x1, 2), makeFraction(y2 - y1, 2)),
       formatPointLatex(midY, midX),
-      formatPointLatex(makeFraction(x1 + x2 + 1, 2), makeFraction(y1 + y2 - 1, 2))
+      formatPointLatex(makeFraction(x1 + x2, 1), makeFraction(y1 + y2, 1)),
+      formatPointLatex(makeFraction(x1 + x2 + 2, 2), makeFraction(y1 + y2 - 2, 2)),
+      formatPointLatex(makeFraction(-(x1 + x2), 2), makeFraction(-(y1 + y2), 2))
     ];
     const { options, correctIndex } = createOptions(correct, distractors);
     return {
@@ -543,8 +552,10 @@ export function generateQuestion2(difficulty: 'standard' | 'challenging'): Alt5Q
     const correct = distSurd.latex;
     const distractors = [
       `${distSq}`,
+      `${Math.abs(dx) + Math.abs(dy)}`,
       `\\sqrt{${distSq + 2}}`,
-      simplifySurd(distSq + 4).latex
+      simplifySurd(distSq + 4).latex,
+      simplifySurd(Math.abs(dx * dx - dy * dy) || (distSq + 5)).latex
     ];
     const { options, correctIndex } = createOptions(correct, distractors);
     return {
@@ -570,7 +581,9 @@ export function generateQuestion2(difficulty: 'standard' | 'challenging'): Alt5Q
     const distractors = [
       formatLineEq(wrongSlope, wrongC),
       formatLineEq(makeFraction(-m.num, m.den), c),
-      formatLineEq(m, makeFraction(-c.num, c.den))
+      formatLineEq(m, makeFraction(c.num === 0 ? m.den : -c.num, c.den)),
+      formatLineEq(makeFraction(-m.num, m.den), makeFraction(c.num + m.den, c.den)),
+      formatLineEq(m, makeFraction(c.num + 2 * m.den, c.den))
     ];
     const { options, correctIndex } = createOptions(correct, distractors);
     return {
@@ -628,7 +641,9 @@ export function generateQuestion3(difficulty: 'standard' | 'challenging'): Alt5Q
   const distractors = [
     formatLineEq(m, cDist1),
     formatLineEq(m, cDist2),
-    formatLineEq(mDist3, cDist3)
+    formatLineEq(mDist3, cDist3),
+    formatLineEq(m, makeFraction(y1, 1)),
+    formatLineEq(mDist3, c)
   ];
 
   const { options, correctIndex } = createOptions(correctLine, distractors);
@@ -692,7 +707,9 @@ export function generateQuestion4(difficulty: 'standard' | 'challenging'): Alt5Q
   const distractors = [
     formatLineEq(m1, cParallel),
     formatLineEq(mRecipPos, cRecipPos),
-    formatLineEq(m2, cDist3)
+    formatLineEq(m2, cDist3),
+    formatLineEq(m2, makeFraction(py, 1)),
+    formatLineEq(mRecipPos, c2)
   ];
 
   const { options, correctIndex } = createOptions(correctLine, distractors);
@@ -745,7 +762,10 @@ export function generateQuestion5(difficulty: 'standard' | 'challenging'): Alt5Q
   }
 
   const c1 = makeFraction(randomInt(-5, 5), 1);
-  const c2 = makeFraction(randomInt(-5, 5), 1);
+  let c2 = makeFraction(randomInt(-5, 5), 1);
+  while (c2.num === c1.num) {
+    c2 = makeFraction(randomInt(-6, 6), 1);
+  }
 
   // Present line 1 in y = mx + c and line 2 in Ax + By = C
   const line1Str = formatLineEq(m1, c1);
@@ -832,7 +852,10 @@ export function generateQuestion6(difficulty: 'standard' | 'challenging'): Alt5Q
   const distractors = [
     formatPointLatex(makeFraction(-solX.num, solX.den), solY),
     formatPointLatex(solY, solX),
-    formatPointLatex(solX, makeFraction(-solY.num, solY.den))
+    formatPointLatex(solX, makeFraction(-solY.num, solY.den)),
+    formatPointLatex(makeFraction(solX.num + solX.den, solX.den), solY),
+    formatPointLatex(solX, makeFraction(solY.num - solY.den, solY.den)),
+    formatPointLatex(makeFraction(-solX.num, solX.den), makeFraction(-solY.num, solY.den))
   ];
 
   const { options, correctIndex } = createOptions(correct, distractors);
@@ -911,9 +934,10 @@ export function generateQuestion7(difficulty: 'standard' | 'challenging'): Alt5Q
     prompt = `Given the quadratic $${eqPrompt}$, find the exact coordinates of its $x$-intercepts.`;
     correct = `(${sortedRoots[0]}, 0) \\text{ and } (${sortedRoots[1]}, 0)`;
     distractors = [
-      `(${-sortedRoots[0]}, 0) \\text{ and } (${-sortedRoots[1]}, 0)`,
+      `(${-sortedRoots[1]}, 0) \\text{ and } (${-sortedRoots[0]}, 0)`,
       `(0, ${sortedRoots[0]}) \\text{ and } (0, ${sortedRoots[1]})`,
-      `(${sortedRoots[0] - 1}, 0) \\text{ and } (${sortedRoots[1] + 1}, 0)`
+      `(${sortedRoots[0] - 1}, 0) \\text{ and } (${sortedRoots[1] + 1}, 0)`,
+      `(${sortedRoots[0] + 1}, 0) \\text{ and } (${sortedRoots[1] + 2}, 0)`
     ];
     steps = [
       `\\text{Equation: } ${eqPrompt}`,
@@ -927,7 +951,9 @@ export function generateQuestion7(difficulty: 'standard' | 'challenging'): Alt5Q
     distractors = [
       `(${c}, 0)`,
       `(0, ${-c})`,
-      `(0, ${c > 0 ? c + 2 : c - 2})`
+      `(0, ${c + 2})`,
+      `(0, ${c - 2})`,
+      `(${r1}, ${r2})`
     ];
     steps = [
       `\\text{Equation: } ${eqPrompt}`,
@@ -941,7 +967,9 @@ export function generateQuestion7(difficulty: 'standard' | 'challenging'): Alt5Q
     distractors = [
       formatPointLatex(makeFraction(-tpX.num, tpX.den), tpY),
       formatPointLatex(tpX, makeFraction(-tpY.num, tpY.den)),
-      formatPointLatex(tpY, tpX)
+      formatPointLatex(tpY, tpX),
+      formatPointLatex(makeFraction(tpX.num + tpX.den, tpX.den), tpY),
+      formatPointLatex(tpX, makeFraction(tpY.num - tpY.den, tpY.den))
     ];
     steps = [
       `\\text{Equation: } ${eqPrompt}`,
@@ -1003,9 +1031,11 @@ export function generateQuestion8(difficulty: 'standard' | 'challenging'): Alt5Q
     : (validSols.length === 1 ? `x = ${validSols[0]}` : `x = ${validSols.join(', ')}`);
 
   const distractors = [
-    `x = ${validSols.map(s => -s).join(', ')}`,
+    `x = ${validSols.map(s => (s === 0 ? 0 : -s)).join(', ')}`,
     `x = ${sol1}, ${sol2}`,
+    `x = ${sol1 - 1}, ${sol2 + 1}`,
     validSols.length > 0 ? `x = ${validSols[0]}` : `x = ${h}`,
+    `x = ${h}`,
     '\\text{No points of intersection}'
   ];
 
@@ -1195,10 +1225,13 @@ export function generateQuestion10(difficulty: 'standard' | 'challenging'): Alt5
   // Distractor 3: sign flip on a
   const negAStr = formatFractionLatex(makeFraction(-a.num, a.den));
 
+  const altKTerm = k === 0 ? '+ 2' : (k > 0 ? `- ${k}` : `+ ${Math.abs(k)}`);
   const distractors = [
     `y = ${aStr}${wrongHTerm} ${kTerm}`.trim(),
     `y = ${wrongAStr}${hTerm} ${kTerm}`.trim(),
-    `y = ${negAStr}${hTerm} ${kTerm}`.trim()
+    `y = ${negAStr}${hTerm} ${kTerm}`.trim(),
+    `y = ${aStr}${hTerm} ${altKTerm}`.trim(),
+    `y = ${negAStr}${wrongHTerm} ${kTerm}`.trim()
   ];
 
   const { options, correctIndex } = createOptions(correct, distractors);
@@ -1257,10 +1290,13 @@ export function generateQuestion11(difficulty: 'standard' | 'challenging'): Alt5
   const wrongFactor2 = `(x ${r2 >= 0 ? '+ ' + r2 : '- ' + Math.abs(r2)})`;
   const negAStr = formatFractionLatex(makeFraction(-a.num, a.den));
 
+  const altAStr = a.num === 2 && a.den === 1 ? '3' : '2';
   const distractors = [
     `y = ${aStr}${wrongFactor1}${wrongFactor2}`,
     `y = ${negAStr}${factor1}${factor2}`,
-    `y = 2${factor1}${factor2}`
+    `y = ${altAStr}${factor1}${factor2}`,
+    `y = ${negAStr}${wrongFactor1}${wrongFactor2}`,
+    `y = ${aStr}${wrongFactor1}${factor2}`
   ];
 
   const { options, correctIndex } = createOptions(correct, distractors);
@@ -1341,7 +1377,9 @@ export function generateQuestion12(difficulty: 'standard' | 'challenging'): Alt5
   const distractors = [
     formatPointLatex(newY, newX),
     formatPointLatex(makeFraction(-newX.num, newX.den), newY),
-    formatPointLatex(newX, makeFraction(-newY.num, newY.den))
+    formatPointLatex(newX, makeFraction(-newY.num, newY.den)),
+    formatPointLatex(makeFraction(-newX.num, newX.den), makeFraction(-newY.num, newY.den)),
+    formatPointLatex(makeFraction(newX.num + 2, newX.den), newY)
   ];
 
   const { options, correctIndex } = createOptions(correct, distractors);

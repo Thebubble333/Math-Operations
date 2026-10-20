@@ -21,8 +21,8 @@ export const Alt5Practice: React.FC = () => {
   const [difficultyMode, setDifficultyMode] = useState<'standard' | 'challenging' | 'mixed'>('standard');
   const [quizMode, setQuizMode] = useState<'mc' | 'self_check'>('mc');
 
-  // Quiz round state
-  const [questions, setQuestions] = useState<Alt5Question[]>([]);
+  // Quiz round state - initialized synchronously so first render is immediate
+  const [questions, setQuestions] = useState<Alt5Question[]>(() => generateAlt5Round('standard'));
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [roundNumber, setRoundNumber] = useState<number>(1);
 
@@ -54,10 +54,6 @@ export const Alt5Practice: React.FC = () => {
     setIsRoundFinished(false);
     cardTopRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
-
-  useEffect(() => {
-    startNewRound(difficultyMode);
-  }, [difficultyMode]);
 
   const currentQ = questions[currentIndex];
 
@@ -278,7 +274,10 @@ export const Alt5Practice: React.FC = () => {
               {(['standard', 'challenging', 'mixed'] as const).map(diff => (
                 <button
                   key={diff}
-                  onClick={() => setDifficultyMode(diff)}
+                  onClick={() => {
+                    setDifficultyMode(diff);
+                    startNewRound(diff);
+                  }}
                   className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
                     difficultyMode === diff
                       ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs'

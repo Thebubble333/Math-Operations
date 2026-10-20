@@ -221,22 +221,31 @@
         if (u.length === 3) break;
       }
       let c = 1;
-      while (u.length < 3) {
+      while (u.length < 3 && c <= 20) {
         let f = '';
-        if (correct.includes('=')) {
-          f = correct.replace(/([+-]?\s*\d+)$/, (m, num) => {
-            const n = parseInt(num.replace(/\s+/g, ''), 10);
-            return (n + c >= 0 ? '+ ' : '- ') + Math.abs(n + c);
-          });
-          if (f === correct) f = correct.startsWith('y = -') ? correct.replace('y = -', 'y = ') : correct.replace('y = ', 'y = -');
+        if (correct.startsWith('y =')) {
+          if (/([+-]\s*\d+)$/.test(correct)) {
+            f = correct.replace(/([+-]\s*\d+)$/, (m) => {
+              const n = parseInt(m.replace(/\s+/g, ''), 10);
+              const nextVal = n + (c % 2 === 1 ? c : -c);
+              const finalVal = nextVal === 0 ? n + c + 1 : nextVal;
+              return finalVal >= 0 ? `+ ${finalVal}` : `- ${Math.abs(finalVal)}`;
+            });
+          } else {
+            f = `${correct} ${c % 2 === 1 ? '+' : '-'} ${c}`;
+          }
+        } else if (correct.startsWith('x =')) {
+          f = `x = ${c + 3}, ${-(c + 2)}`;
         } else if (correct.includes('(') && correct.includes(')')) {
           f = correct.replace(/(-?\d+)/, (m, n) => String(parseInt(n, 10) + c));
         } else if (/^-?\d+$/.test(correct.trim())) {
           f = String(parseInt(correct.trim(), 10) + c);
+        } else if (correct.includes('\\sqrt{')) {
+          f = correct.replace(/\\sqrt\{(\d+)\}/, (m, n) => `\\sqrt{${parseInt(n, 10) + c}}`);
         } else {
-          f = `${correct} (alt ${c})`;
+          f = `${correct} (${c})`;
         }
-        if (!u.includes(f) && f !== correct) u.push(f);
+        if (f && !u.includes(f) && f !== correct) u.push(f);
         c++;
       }
       const all = shuffle([correct, ...u.slice(0, 3)]);
@@ -562,9 +571,14 @@
       const aStr = a.num === 1 ? '' : a.num === -1 ? '-' : `${a.num}`;
       const correct = `y = ${aStr}${hTerm} ${kTerm}`.trim();
       const prompt = `A parabola has turning point $(${h}, ${k})$ and passes through $P(${x1}, ${y1})$. Find its equation in turning point form.`;
+      const altKTerm = k === 0 ? '+ 2' : (k > 0 ? `- ${k}` : `+ ${Math.abs(k)}`);
+      const wrongHTerm = `(x ${h >= 0 ? '+ ' + h : '- ' + Math.abs(h)})^2`;
+      const negAStr = a.num === -1 ? '' : a.num === 1 ? '-' : `${-a.num}`;
       const { options, correctIndex } = createOptions(correct, [
-        `y = ${aStr}(x ${h >= 0 ? '+ ' + h : '- ' + Math.abs(h)})^2 ${kTerm}`.trim(),
-        `y = ${-a.num}${hTerm} ${kTerm}`.trim()
+        `y = ${aStr}${wrongHTerm} ${kTerm}`.trim(),
+        `y = ${negAStr}${hTerm} ${kTerm}`.trim(),
+        `y = ${aStr}${hTerm} ${altKTerm}`.trim(),
+        `y = ${negAStr}${wrongHTerm} ${kTerm}`.trim()
       ]);
       return {
         categoryId: 10, title: 'Parabola Equations (Turning Point Form)', diff, prompt, options, correctIndex,
@@ -575,14 +589,19 @@
     function genQ11(diff) {
       const r1 = randInt(-4, 0), r2 = randInt(1, 4);
       const a = randChoice([-2, -1, 1, 2]);
-      const x1 = 0, y1 = a * (x1 - r1) * (x1 - r2);
+      const x1 = r1 === 0 ? -1 : 0, y1 = a * (x1 - r1) * (x1 - r2);
       const aStr = a === 1 ? '' : a === -1 ? '-' : `${a}`;
-      const f1 = `(x ${r1 > 0 ? '- ' + r1 : '+ ' + Math.abs(r1)})`, f2 = `(x ${r2 > 0 ? '- ' + r2 : '+ ' + Math.abs(r2)})`;
+      const negAStr = a === -1 ? '' : a === 1 ? '-' : `${-a}`;
+      const altAStr = a === 2 ? '3' : '2';
+      const f1 = r1 === 0 ? 'x' : `(x ${r1 > 0 ? '- ' + r1 : '+ ' + Math.abs(r1)})`, f2 = `(x ${r2 > 0 ? '- ' + r2 : '+ ' + Math.abs(r2)})`;
+      const wf1 = `(x ${r1 >= 0 ? '+ ' + r1 : '- ' + Math.abs(r1)})`, wf2 = `(x ${r2 >= 0 ? '+ ' + r2 : '- ' + Math.abs(r2)})`;
       const correct = `y = ${aStr}${f1}${f2}`;
       const prompt = `A parabola has $x$-intercepts at $(${r1}, 0)$ and $(${r2}, 0)$ and passes through $P(${x1}, ${y1})$. Find its equation in factorised form.`;
       const { options, correctIndex } = createOptions(correct, [
-        `y = ${aStr}(x ${r1 >= 0 ? '+ ' + r1 : '- ' + Math.abs(r1)})(x ${r2 >= 0 ? '+ ' + r2 : '- ' + Math.abs(r2)})`,
-        `y = ${-a}${f1}${f2}`
+        `y = ${aStr}${wf1}${wf2}`,
+        `y = ${negAStr}${f1}${f2}`,
+        `y = ${altAStr}${f1}${f2}`,
+        `y = ${negAStr}${wf1}${wf2}`
       ]);
       return {
         categoryId: 11, title: 'Parabola Equations (Factorised Form)', diff, prompt, options, correctIndex,
@@ -599,7 +618,7 @@
       else if (trans === 'translate_right') { const s = randInt(2, 4); desc = `translated ${s} units right`; correct = fmtPoint(px + s, py); }
       else { const k = 2; desc = `dilated by factor ${k} from the $x$-axis`; correct = fmtPoint(px, py * k); }
       const prompt = `The point $P(${px}, ${py})$ is ${desc}. State the exact coordinates of $P'$.`;
-      const { options, correctIndex } = createOptions(correct, [fmtPoint(-px, -py), fmtPoint(py, px), fmtPoint(px, -py)]);
+      const { options, correctIndex } = createOptions(correct, [fmtPoint(-px, -py), fmtPoint(py, px), fmtPoint(px, -py), fmtPoint(-px, py), fmtPoint(px + 2, py - 2)]);
       return {
         categoryId: 12, title: 'Point Transformations', diff, prompt, options, correctIndex,
         steps: [`Transformation: ${desc} \\implies P'${correct}`]
@@ -608,14 +627,14 @@
 
     function genQ13(diff) {
       const trans = randChoice(['translate_up', 'translate_right', 'reflect_x', 'dilate_x', 'dilate_y']);
-      let desc = '', correct = '';
-      if (trans === 'translate_up') { const k = randInt(2, 5); desc = `translated ${k} units up`; correct = `y = x^2 + ${k}`; }
-      else if (trans === 'translate_right') { const h = randInt(2, 5); desc = `translated ${h} units right`; correct = `y = (x - ${h})^2`; }
-      else if (trans === 'reflect_x') { desc = 'reflected in the $x$-axis'; correct = 'y = -x^2'; }
-      else if (trans === 'dilate_x') { const k = randInt(2, 4); desc = `dilated by factor ${k} from the $x$-axis`; correct = `y = ${k}x^2`; }
-      else { const k = 2; desc = `dilated by factor ${k} from the $y$-axis`; correct = `y = \\frac{x^2}{${k * k}}`; }
+      let desc = '', correct = '', dists = [];
+      if (trans === 'translate_up') { const k = randInt(2, 5); desc = `translated ${k} units up`; correct = `y = x^2 + ${k}`; dists = [`y = x^2 - ${k}`, `y = (x + ${k})^2`, `y = ${k}x^2`]; }
+      else if (trans === 'translate_right') { const h = randInt(2, 5); desc = `translated ${h} units right`; correct = `y = (x - ${h})^2`; dists = [`y = (x + ${h})^2`, `y = x^2 - ${h}`, `y = ${h}x^2`]; }
+      else if (trans === 'reflect_x') { desc = 'reflected in the $x$-axis'; correct = 'y = -x^2'; dists = ['y = x^2', 'y = -x', 'y = \\frac{1}{x^2}']; }
+      else if (trans === 'dilate_x') { const k = randInt(2, 4); desc = `dilated by factor ${k} from the $x$-axis`; correct = `y = ${k}x^2`; dists = [`y = \\frac{x^2}{${k}}`, `y = \\frac{x^2}{${k * k}}`, `y = ${k * k}x^2`]; }
+      else { const k = 2; desc = `dilated by factor ${k} from the $y$-axis`; correct = `y = \\frac{x^2}{${k * k}}`; dists = [`y = ${k * k}x^2`, `y = ${k}x^2`, `y = \\frac{x^2}{${k}}`]; }
       const prompt = `The parabola $y = x^2$ is ${desc}. State its new equation in simplest form.`;
-      const { options, correctIndex } = createOptions(correct, ['y = -x^2', 'y = (x + 2)^2', 'y = 2x^2']);
+      const { options, correctIndex } = createOptions(correct, dists);
       return {
         categoryId: 13, title: 'Equation Transformations', diff, prompt, options, correctIndex,
         steps: [`Base: y = x^2 \\implies ${desc} \\implies ${correct}`]
