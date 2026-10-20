@@ -19,6 +19,8 @@ import AlgFractQuadGame from './components/AlgFractQuadGame';
 import QuadraticFormula from './components/QuadraticFormula';
 import Year9Menu from './components/Year9Menu';
 import PronumeralsBothSides from './components/PronumeralsBothSides';
+import PartialFractionsGame from './components/PartialFractionsGame';
+import Alt5Practice from './components/Alt5Practice';
 
 const TARGET_PROBLEMS = 20;
 
@@ -1300,6 +1302,11 @@ const App: React.FC = () => {
           <Route path="/algebraic-fractions-quad" element={<AlgFractQuadGame />} />
           <Route path="/quadratic-formula-draft" element={<QuadraticFormula />} />
           <Route path="/pronumerals-both-sides" element={<PronumeralsBothSides />} />
+          <Route path="/11spec/partial-fractions" element={<PartialFractionsGame />} />
+          <Route path="/partial-fractions" element={<PartialFractionsGame />} />
+          <Route path="/8seal/alt5-practice" element={<Alt5Practice />} />
+          <Route path="/alt-5-practice" element={<Alt5Practice />} />
+          <Route path="/alt5-practice" element={<Alt5Practice />} />
         </Routes>
       )}
 

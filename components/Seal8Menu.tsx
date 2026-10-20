@@ -20,6 +20,31 @@ const Seal8Menu: React.FC<Seal8MenuProps> = ({ startNewGame }) => {
 
       <div className="w-full max-w-4xl space-y-8">
         <div>
+          <div className="flex items-center justify-between mb-4 px-2">
+            <h2 className="text-xl font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+              <span>Linear & Quadratic Graphs</span>
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-800">ALT 5</span>
+            </h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[
+              { id: '', label: 'ALT 5 Practice', icon: '📈', color: 'bg-indigo-600', route: '/8seal/alt5-practice' },
+            ].map(btn => (
+              <button
+                key={btn.label}
+                onClick={() => btn.route ? navigate(btn.route) : startNewGame(btn.id as GameMode)}
+                className="group relative h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-800 border-b-4 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:border-indigo-300 dark:hover:border-indigo-700 rounded-3xl shadow-lg transition-all duration-150 hover:translate-y-1 hover:border-b-0 active:scale-95 z-0 hover:z-10 ring-2 ring-indigo-500/20"
+              >
+                <div className={`w-auto min-w-[3rem] px-3 h-12 rounded-2xl ${btn.color} text-white flex items-center justify-center mb-3 shadow-md transform group-hover:scale-90 transition-all duration-200`}>
+                  <span className="text-2xl">{btn.icon}</span>
+                </div>
+                <span className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight text-center px-1">{btn.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
           <h2 className="text-xl font-bold whitespace-nowrap text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 px-2">Index Laws & Surds</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[

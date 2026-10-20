@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ALT 5: Sketching Linear and Quadratic Graphs - Year 8 SEAL</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- KaTeX CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <style>
+    .math-font { font-family: KaTeX_Main, Times New Roman, serif; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen p-4 sm:p-6 antialiased selection:bg-indigo-500 selection:text-white">
+  <div class="max-w-4xl mx-auto space-y-6">
+    <!-- Simplified Top Header -->
+    <header class="bg-white p-3.5 sm:p-4 rounded-2xl shadow-xs border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 class="text-lg sm:text-xl font-black text-indigo-600 tracking-tight leading-none">ALT 5 Practice</h1>
+        <p class="text-xs text-slate-400 font-medium mt-1">Linear & Quadratic Graphs — Year 8 SEAL</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 text-xs font-bold">
+        <!-- Difficulty -->
+        <div class="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+          <button id="diffStandard" onclick="setDifficulty('standard')" class="px-2.5 py-1 rounded-lg bg-slate-900 text-white transition">Standard</button>
+          <button id="diffChallenging" onclick="setDifficulty('challenging')" class="px-2.5 py-1 rounded-lg text-slate-600 hover:bg-slate-200 transition">Challenging</button>
+          <button id="diffMixed" onclick="setDifficulty('mixed')" class="px-2.5 py-1 rounded-lg text-slate-600 hover:bg-slate-200 transition">Mixed</button>
+        </div>
+        <!-- Mode Toggle -->
+        <div class="bg-slate-100 p-0.5 rounded-xl border border-slate-200 flex">
+          <button id="btnModeMC" onclick="setMode('mc')" class="px-2.5 py-1 rounded-lg bg-indigo-600 text-white shadow-xs transition">MC</button>
+          <button id="btnModeSelf" onclick="setMode('self_check')" class="px-2.5 py-1 rounded-lg text-slate-600 hover:text-indigo-600 transition">Paper</button>
+        </div>
+        <!-- Stats Pill -->
+        <div class="hidden sm:flex items-center gap-2 bg-slate-50 px-3 py-1 rounded-xl border border-slate-200 text-xs">
+          <span class="text-slate-400" id="pillRoundQ">Q1/15</span>
+          <span class="text-slate-300">|</span>
+          <span class="text-slate-400">Score:</span>
+          <span class="text-emerald-700 font-extrabold" id="pillRoundScore">0/0</span>
+          <span class="text-slate-300">|</span>
+          <span class="text-indigo-700 font-extrabold" id="pillTotalAcc">100%</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Round Progress Bar -->
+    <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+      <div id="roundProgressBar" class="bg-indigo-600 h-full transition-all duration-300" style="width: 0%"></div>
+    </div>
+
+    <!-- Active Question View -->
+    <main id="questionContainer" class="bg-white rounded-3xl p-5 sm:p-7 border border-slate-200 shadow-md space-y-5">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 gap-2">
+        <div class="flex items-center gap-2 min-w-0">
+          <span id="badgeCategoryNum" class="w-7 h-7 rounded-xl bg-indigo-100 text-indigo-600 font-black text-xs flex items-center justify-center shrink-0">#1</span>
+          <span id="badgeCategoryTitle" class="font-extrabold text-slate-800 text-sm truncate">Category</span>
+          <span id="badgeDifficulty" class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 shrink-0">standard</span>
+        </div>
+        <button id="btnNextQuestionTop" onclick="handleNextQuestion()" class="hidden px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black text-xs sm:text-sm uppercase tracking-wider rounded-xl shadow-md transition flex items-center gap-1.5 animate-pulse shrink-0">Next Question →</button>
+      </div>
+
+      <div id="promptText" class="text-base sm:text-lg font-semibold text-slate-800 leading-relaxed py-2"></div>
+
+      <!-- Table View (for Restricted Domain) -->
+      <div id="tableContainer" class="hidden overflow-x-auto my-4"></div>
+
+      <!-- Multiple Choice Options -->
+      <div id="mcContainer" class="space-y-3">
+        <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Select the correct mathematical answer:</div>
+        <div id="optionsGrid" class="grid grid-cols-1 gap-3"></div>
+      </div>
+
+      <!-- Self Check Actions -->
+      <div id="selfCheckContainer" class="hidden space-y-4 pt-2">
+        <div id="selfCheckInitial" class="text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-300 space-y-3">
+          <p class="text-sm text-slate-500 font-medium">Work out this problem on paper first before revealing the solution.</p>
+          <button onclick="revealSelfCheckSolution()" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black text-sm uppercase tracking-wider rounded-2xl shadow-md transition">Check Answer & View Worked Solution</button>
+        </div>
+        <div id="selfCheckGrade" class="hidden bg-indigo-50/70 p-4 rounded-2xl border border-indigo-200 text-center space-y-3">
+          <div class="text-xs font-black uppercase tracking-wider text-indigo-700">Self-Grade Your Working:</div>
+          <div class="flex justify-center gap-3">
+            <button onclick="submitSelfGrade(true)" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition shadow active:scale-95">Got It! (+1)</button>
+            <button onclick="submitSelfGrade(false)" class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition shadow active:scale-95">Need Practice</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Worked Solution View -->
+      <div id="solutionContainer" class="hidden mt-6 pt-6 border-t border-slate-200 space-y-4">
+        <div class="text-xs font-black uppercase tracking-widest text-indigo-600">Step-by-Step Worked Solution</div>
+        <div id="solutionSteps" class="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200 font-mono text-xs sm:text-sm space-y-2 overflow-x-auto text-slate-800 leading-relaxed"></div>
+        <div id="solutionGraph" class="pt-2"></div>
+        <div class="flex justify-end pt-4">
+          <button id="btnNextQuestion" onclick="handleNextQuestion()" class="px-8 py-3.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black text-sm uppercase tracking-wider rounded-2xl shadow-lg transition">Next Question →</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Scorecard Section -->
+    <div id="scorecardContainer" class="hidden bg-white rounded-3xl p-6 sm:p-10 border border-slate-200 shadow-xl space-y-8 text-center">
+      <div class="w-20 h-20 bg-indigo-100 text-indigo-600 text-4xl flex items-center justify-center rounded-3xl mx-auto shadow-inner">🏆</div>
+      <div class="space-y-2">
+        <h2 class="text-3xl sm:text-4xl font-black text-slate-900 uppercase tracking-tight" id="scorecardHeading">Section Completed!</h2>
+        <p class="text-slate-500 text-sm max-w-md mx-auto" id="scorecardSubtext"></p>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-lg mx-auto text-center">
+        <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+          <div class="text-xs font-bold text-slate-400 uppercase">Total Solved</div>
+          <div class="text-xl font-black text-slate-800" id="statTotalSolved">0</div>
+        </div>
+        <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+          <div class="text-xs font-bold text-slate-400 uppercase">Total Correct</div>
+          <div class="text-xl font-black text-emerald-600" id="statTotalCorrect">0</div>
+        </div>
+        <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 col-span-2 sm:col-span-1">
+          <div class="text-xs font-bold text-slate-400 uppercase">Accuracy</div>
+          <div class="text-xl font-black text-indigo-600" id="statAccuracy">100%</div>
+        </div>
+      </div>
+
+      <div class="text-left space-y-3 max-w-2xl mx-auto">
+        <h3 class="text-xs font-black uppercase tracking-wider text-slate-400 px-1">Topic Mastery Breakdown:</h3>
+        <div id="topicBreakdownGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs"></div>
+      </div>
+
+      <div class="flex flex-wrap justify-center gap-4 pt-4">
+        <button onclick="startNextSection()" class="px-8 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm uppercase tracking-wider rounded-2xl shadow-lg transition active:scale-95">Start Next Section (15 New Questions) 🔄</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Math and Procedural Generators
+    function gcd(a, b) {
+      let x = Math.abs(Math.round(a));
+      let y = Math.abs(Math.round(b));
+      while (y !== 0) { const t = y; y = x % y; x = t; }
+      return x || 1;
+    }
+    function makeFrac(n, d = 1) {
+      if (d === 0) throw new Error("Zero denominator");
+      let num = Math.round(n), den = Math.round(d);
+      if (den < 0) { num = -num; den = -den; }
+      const g = gcd(num, den);
+      return { num: num / g, den: den / g };
+    }
+    function fmtFrac(f, sign = false) {
+      if (f.den === 1) return (sign && f.num > 0) ? `+${f.num}` : `${f.num}`;
+      const s = f.num < 0 ? '-' : (sign ? '+' : '');
+      return `${s}\\frac{${Math.abs(f.num)}}{${f.den}}`;
+    }
+    function fmtLinear(f, v = 'x', lead = true) {
+      if (f.num === 0) return '';
+      if (f.den === 1) {
+        if (f.num === 1) return lead ? v : `+ ${v}`;
+        if (f.num === -1) return lead ? `-${v}` : `- ${v}`;
+        return lead ? `${f.num}${v}` : (f.num > 0 ? `+ ${f.num}${v}` : `- ${Math.abs(f.num)}${v}`);
+      }
+      const s = Math.abs(f.num) === 1 ? `\\frac{1}{${f.den}}${v}` : `\\frac{${Math.abs(f.num)}}{${f.den}}${v}`;
+      return lead ? (f.num > 0 ? s : `-${s}`) : (f.num > 0 ? `+ ${s}` : `- ${s}`);
+    }
+    function fmtConst(f, lead = false) {
+      if (f.num === 0) return lead ? '0' : '';
+      const isNeg = f.num < 0;
+      const absVal = Math.abs(f.num);
+      const str = f.den === 1 ? `${absVal}` : `\\frac{${absVal}}{${f.den}}`;
+      if (lead) return isNeg ? `-${str}` : str;
+      return isNeg ? `- ${str}` : `+ ${str}`;
+    }
+    function fmtPoint(x, y) {
+      const fx = typeof x === 'number' ? makeFrac(x) : x;
+      const fy = typeof y === 'number' ? makeFrac(y) : y;
+      if (fx.den === 1 && fy.den === 1) {
+        return `(${fx.num}, ${fy.num})`;
+      }
+      return `\\left(${fmtFrac(fx)}, ${fmtFrac(fy)}\\right)`;
+    }
+    function simplifySurd(n) {
+      const val = Math.abs(Math.round(n));
+      if (val === 0) return { coeff: 0, rad: 0, latex: '0' };
+      let coeff = 1, rad = val;
+      for (let i = Math.floor(Math.sqrt(val)); i >= 2; i--) {
+        if (rad % (i * i) === 0) {
+          coeff *= i;
+          rad /= (i * i);
+          break;
+        }
+      }
+      if (rad === 1) return { coeff, rad: 1, latex: `${coeff}` };
+      if (coeff === 1) return { coeff: 1, rad, latex: `\\sqrt{${rad}}` };
+      return { coeff, rad, latex: `${coeff}\\sqrt{${rad}}` };
+    }
+    function randChoice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+    function randInt(min, max, noZero = false) {
+      let v = Math.floor(Math.random() * (max - min + 1)) + min;
+      if (noZero && v === 0) v = min === 0 ? max : min;
+      return v;
+    }
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+    function fmtLineEq(m, c) {
+      const mTerm = fmtLinear(m, 'x', true);
+      if (!mTerm) return `y = ${fmtConst(c, true)}`;
+      if (c.num === 0) return `y = ${mTerm}`;
+      const cTerm = fmtConst(c, false);
+      return `y = ${mTerm} ${cTerm}`;
+    }
+    function createOptions(correct, dists) {
+      const u = [];
+      for (const d of dists) {
+        if (d && d !== correct && !u.includes(d)) u.push(d);
+        if (u.length === 3) break;
+      }
+      let c = 1;
+      while (u.length < 3) {
+        let f = '';
+        if (correct.includes('=')) {
+          f = correct.replace(/([+-]?\s*\d+)$/, (m, num) => {
+            const n = parseInt(num.replace(/\s+/g, ''), 10);
+            return (n + c >= 0 ? '+ ' : '- ') + Math.abs(n + c);
+          });
+          if (f === correct) f = correct.startsWith('y = -') ? correct.replace('y = -', 'y = ') : correct.replace('y = ', 'y = -');
+        } else if (correct.includes('(') && correct.includes(')')) {
+          f = correct.replace(/(-?\d+)/, (m, n) => String(parseInt(n, 10) + c));
+        } else if (/^-?\d+$/.test(correct.trim())) {
+          f = String(parseInt(correct.trim(), 10) + c);
+        } else {
+          f = `${correct} (alt ${c})`;
+        }
+        if (!u.includes(f) && f !== correct) u.push(f);
+        c++;
+      }
+      const all = shuffle([correct, ...u.slice(0, 3)]);
+      return { options: all, correctIndex: all.indexOf(correct) };
+    }
+
+    // 13 Question Generators
+    function genQ1(diff) {
+      const type = diff === 'standard' ? randChoice(['vertical', 'horizontal', 'origin', 'slope_intercept']) : randChoice(['general', 'fractional']);
+      if (type === 'vertical') {
+        const a = randInt(-5, 5, true);
+        const prompt = `Sketch the line $x = ${a}$. Select the correct graph:`;
+        const correctGraph = { type: 'linear', isVertical: true, verticalX: a, points: [{ x: a, y: 0, label: `(${a}, 0)` }] };
+        const gChoices = [
+          { graph: correctGraph, isCorrect: true },
+          { graph: { type: 'linear', lineSlope: 0, lineIntercept: a, points: [{ x: 0, y: a, label: `(0, ${a})` }] }, isCorrect: false },
+          { graph: { type: 'linear', isVertical: true, verticalX: -a, points: [{ x: -a, y: 0, label: `(${-a}, 0)` }] }, isCorrect: false },
+          { graph: { type: 'linear', lineSlope: 0, lineIntercept: -a, points: [{ x: 0, y: -a, label: `(0, ${-a})` }] }, isCorrect: false }
+        ];
+        const sh = shuffle(gChoices);
+        return {
+          categoryId: 1, title: 'Sketching Linear Graphs', diff, prompt,
+          graphOptions: sh.map(c => c.graph), options: ['Graph A', 'Graph B', 'Graph C', 'Graph D'],
+          correctIndex: sh.findIndex(c => c.isCorrect),
+          steps: [`\\text{Equation: } x = ${a}`, `x\\text{-intercept: } (${a}, 0)`, `\\text{Vertical line parallel to } y\\text{-axis (no } y\\text{-intercept).}`],
+          graph: correctGraph
+        };
+      }
+      if (type === 'horizontal') {
+        const b = randInt(-5, 5, true);
+        const prompt = `Sketch the line $y = ${b}$. Select the correct graph:`;
+        const correctGraph = { type: 'linear', lineSlope: 0, lineIntercept: b, points: [{ x: 0, y: b, label: `(0, ${b})` }] };
+        const gChoices = [
+          { graph: correctGraph, isCorrect: true },
+          { graph: { type: 'linear', isVertical: true, verticalX: b, points: [{ x: b, y: 0, label: `(${b}, 0)` }] }, isCorrect: false },
+          { graph: { type: 'linear', lineSlope: 0, lineIntercept: -b, points: [{ x: 0, y: -b, label: `(0, ${-b})` }] }, isCorrect: false },
+          { graph: { type: 'linear', isVertical: true, verticalX: -b, points: [{ x: -b, y: 0, label: `(${-b}, 0)` }] }, isCorrect: false }
+        ];
+        const sh = shuffle(gChoices);
+        return {
+          categoryId: 1, title: 'Sketching Linear Graphs', diff, prompt,
+          graphOptions: sh.map(c => c.graph), options: ['Graph A', 'Graph B', 'Graph C', 'Graph D'],
+          correctIndex: sh.findIndex(c => c.isCorrect),
+          steps: [`\\text{Equation: } y = ${b}`, `y\\text{-intercept: } (0, ${b})`, `\\text{Horizontal line parallel to } x\\text{-axis (no } x\\text{-intercept).}`],
+          graph: correctGraph
+        };
+      }
+      if (type === 'origin') {
+        const m = randInt(-3, 3, true);
+        const prompt = `Sketch the line $y = ${m}x$. Select the correct graph:`;
+        const correctGraph = { type: 'linear', lineSlope: m, lineIntercept: 0, points: [{ x: 0, y: 0, label: '(0, 0)' }, { x: 1, y: m, label: `(1, ${m})` }] };
+        const gChoices = [
+          { graph: correctGraph, isCorrect: true },
+          { graph: { type: 'linear', lineSlope: -m, lineIntercept: 0, points: [{ x: 0, y: 0, label: '(0, 0)' }, { x: 1, y: -m, label: `(1, ${-m})` }] }, isCorrect: false },
+          { graph: { type: 'linear', lineSlope: m, lineIntercept: 2, points: [{ x: 0, y: 2, label: '(0, 2)' }] }, isCorrect: false },
+          { graph: { type: 'linear', lineSlope: -m, lineIntercept: -2, points: [{ x: 0, y: -2, label: '(0, -2)' }] }, isCorrect: false }
+        ];
+        const sh = shuffle(gChoices);
+        return {
+          categoryId: 1, title: 'Sketching Linear Graphs', diff, prompt,
+          graphOptions: sh.map(c => c.graph), options: ['Graph A', 'Graph B', 'Graph C', 'Graph D'],
+          correctIndex: sh.findIndex(c => c.isCorrect),
+          steps: [`\\text{Line passes through origin } (0, 0) \\text{ with gradient } m = ${m}.`],
+          graph: correctGraph
+        };
+      }
+      const mVal = randInt(-3, 3, true);
+      const cVal = randInt(-5, 5, true);
+      const xInt = makeFrac(-cVal, mVal);
+      const eq = fmtLineEq(makeFrac(mVal), makeFrac(cVal));
+      const prompt = `Sketch the line $${eq}$. Select the correct graph:`;
+      const correctGraph = { type: 'linear', lineSlope: mVal, lineIntercept: cVal, points: [{ x: xInt.num / xInt.den, y: 0, label: `(${fmtFrac(xInt)}, 0)` }, { x: 0, y: cVal, label: `(0, ${cVal})` }] };
+      const gChoices = [
+        { graph: correctGraph, isCorrect: true },
+        { graph: { type: 'linear', lineSlope: -mVal, lineIntercept: cVal, points: [{ x: -xInt.num / xInt.den, y: 0, label: `(${fmtFrac(makeFrac(cVal, mVal))}, 0)` }, { x: 0, y: cVal, label: `(0, ${cVal})` }] }, isCorrect: false },
+        { graph: { type: 'linear', lineSlope: mVal, lineIntercept: -cVal, points: [{ x: -xInt.num / xInt.den, y: 0, label: `(${fmtFrac(makeFrac(cVal, mVal))}, 0)` }, { x: 0, y: -cVal, label: `(0, ${-cVal})` }] }, isCorrect: false },
+        { graph: { type: 'linear', lineSlope: -mVal, lineIntercept: -cVal, points: [{ x: xInt.num / xInt.den, y: 0, label: `(${fmtFrac(xInt)}, 0)` }, { x: 0, y: -cVal, label: `(0, ${-cVal})` }] }, isCorrect: false }
+      ];
+      const sh = shuffle(gChoices);
+      return {
+        categoryId: 1, title: 'Sketching Linear Graphs', diff, prompt,
+        graphOptions: sh.map(c => c.graph), options: ['Graph A', 'Graph B', 'Graph C', 'Graph D'],
+        correctIndex: sh.findIndex(c => c.isCorrect),
+        steps: [`y\\text{-intercept: Set } x = 0 \\implies (0, ${cVal})`, `x\\text{-intercept: Set } y = 0 \\implies x = ${fmtFrac(xInt)} \\implies ${fmtPoint(xInt, 0)}`],
+        graph: correctGraph
+      };
+    }
+
+    function genQ2(diff) {
+      const x1 = randInt(-5, 5), y1 = randInt(-5, 5);
+      const dx = randChoice([3, 4, 6]) * (Math.random() < 0.5 ? 1 : -1);
+      const dy = randChoice([4, 3, 8]) * (Math.random() < 0.5 ? 1 : -1);
+      const x2 = x1 + dx, y2 = y1 + dy;
+      const mid = fmtPoint(makeFrac(x1 + x2, 2), makeFrac(y1 + y2, 2));
+      const distSq = dx * dx + dy * dy;
+      const surd = simplifySurd(distSq);
+      const m = makeFrac(dy, dx);
+      const c = makeFrac(y1 * m.den - m.num * x1, m.den);
+      const line = fmtLineEq(m, c);
+
+      const task = randChoice(['midpoint', 'distance', 'line']);
+      if (task === 'midpoint') {
+        const prompt = `Given the two points $A(${x1}, ${y1})$ and $B(${x2}, ${y2})$, find the exact coordinates of their midpoint $M$.`;
+        const wrongMid = fmtPoint(makeFrac(x2 - x1, 2), makeFrac(y2 - y1, 2));
+        const { options, correctIndex } = createOptions(mid, [wrongMid, fmtPoint(makeFrac(y1 + y2, 2), makeFrac(x1 + x2, 2)), fmtPoint(x1 + x2, y1 + y2)]);
+        return {
+          categoryId: 2, title: 'Midpoint of a Line Segment', diff, prompt, options, correctIndex,
+          steps: [`M = \\left(\\frac{${x1}+(${x2})}{2},\\, \\frac{${y1}+(${y2})}{2}\\right) = ${mid}`]
+        };
+      } else if (task === 'distance') {
+        const prompt = `Given the two points $A(${x1}, ${y1})$ and $B(${x2}, ${y2})$, find the exact distance $d(A, B)$ in simplest surd or integer form.`;
+        const { options, correctIndex } = createOptions(surd.latex, [`${distSq}`, `\\sqrt{${distSq + 3}}`, `${dx + dy}`]);
+        return {
+          categoryId: 2, title: 'Distance Between Two Points', diff, prompt, options, correctIndex,
+          steps: [`d = \\sqrt{(${dx})^2 + (${dy})^2} = \\sqrt{${distSq}} = ${surd.latex}`]
+        };
+      } else {
+        const prompt = `Determine the equation of the line passing through $A(${x1}, ${y1})$ and $B(${x2}, ${y2})$ in $y = mx + c$ form.`;
+        const wrongLine = fmtLineEq(makeFrac(dx, dy), c);
+        const { options, correctIndex } = createOptions(line, [wrongLine, fmtLineEq(makeFrac(-m.num, m.den), c), fmtLineEq(m, makeFrac(-c.num, c.den))]);
+        return {
+          categoryId: 2, title: 'Line Equation from Two Points', diff, prompt, options, correctIndex,
+          steps: [`m = \\frac{${y2}-(${y1})}{${x2}-(${x1})} = ${fmtFrac(m)}`, `y - (${y1}) = ${fmtFrac(m)}(x - (${x1})) \\implies ${line}`]
+        };
+      }
+    }
+
+    function genQ3(diff) {
+      const x1 = randInt(-4, 4, true), y1 = randInt(-5, 5);
+      const m = diff === 'standard' ? makeFrac(randInt(-3, 3, true)) : makeFrac(randInt(-5, 5, true), randChoice([2, 3, 4]));
+      const c = makeFrac(y1 * m.den - m.num * x1, m.den);
+      const line = fmtLineEq(m, c);
+      const prompt = `A line has gradient $m = ${fmtFrac(m)}$ and passes through $P(${x1}, ${y1})$. Find its equation in $y = mx + c$ form.`;
+      const cWrong = makeFrac(y1 * m.den + m.num * x1, m.den);
+      const { options, correctIndex } = createOptions(line, [fmtLineEq(m, cWrong), fmtLineEq(makeFrac(-m.num, m.den), c), `y = ${fmtFrac(m)}x + ${y1}`]);
+      return {
+        categoryId: 3, title: 'Line Equation from Gradient and Point', diff, prompt, options, correctIndex,
+        steps: [`y - y_1 = m(x - x_1) \\implies y - (${y1}) = ${fmtFrac(m)}(x - (${x1})) \\implies ${line}`]
+      };
+    }
+
+    function genQ4(diff) {
+      const m1 = diff === 'standard' ? makeFrac(randChoice([-3, -2, 2, 3])) : makeFrac(randChoice([-4, -3, 3, 4]), randChoice([2, 3]));
+      const l1 = fmtLineEq(m1, makeFrac(randInt(-4, 4)));
+      const px = randInt(-4, 4, true), py = randInt(-5, 5);
+      const m2 = makeFrac(-m1.den, m1.num);
+      const c2 = makeFrac(py * m2.den - m2.num * px, m2.den);
+      const line2 = fmtLineEq(m2, c2);
+      const prompt = `Determine the equation of the line perpendicular to $L: ${l1}$ passing through $P(${px}, ${py})$ in $y = mx + c$ form.`;
+      const { options, correctIndex } = createOptions(line2, [
+        fmtLineEq(m1, makeFrac(py * m1.den - m1.num * px, m1.den)),
+        fmtLineEq(makeFrac(m1.den, m1.num), c2),
+        fmtLineEq(m2, makeFrac(py * m2.den + m2.num * px, m2.den))
+      ]);
+      return {
+        categoryId: 4, title: 'Perpendicular Line Equations', diff, prompt, options, correctIndex,
+        steps: [`m_1 = ${fmtFrac(m1)} \\implies m_2 = -\\frac{1}{m_1} = ${fmtFrac(m2)}`, `y - (${py}) = ${fmtFrac(m2)}(x - (${px})) \\implies ${line2}`]
+      };
+    }
+
+    function genQ5(diff) {
+      const rel = randChoice(['Parallel', 'Perpendicular', 'Neither']);
+      const m1 = makeFrac(randChoice([-3, -2, 2, 3]));
+      let m2 = rel === 'Parallel' ? { ...m1 } : (rel === 'Perpendicular' ? makeFrac(-m1.den, m1.num) : makeFrac(-m1.num, m1.den));
+      const c1 = makeFrac(randInt(-4, 4)), c2 = makeFrac(randInt(-4, 4));
+      const l1 = fmtLineEq(m1, c1);
+      const A = -m2.num, B = m2.den, C = c2.num;
+      const l2 = `${A}x + ${B}y = ${C}`;
+      const prompt = `Determine if the pair of lines are parallel, perpendicular, or neither by comparing their gradients:\n$L_1: ${l1}$\n$L_2: ${l2}$`;
+      const allChoices = shuffle(['Parallel', 'Perpendicular', 'Neither', 'Coincident (same line)']);
+      const correctIndex = allChoices.indexOf(rel);
+      return {
+        categoryId: 5, title: 'Parallel, Perpendicular, or Neither', diff, prompt, options: allChoices, correctIndex,
+        steps: [`m_1 = ${fmtFrac(m1)}, \\quad ${l2} \\implies m_2 = ${fmtFrac(m2)}`, `Result: \\mathbf{${rel}}`]
+      };
+    }
+
+    function genQ6(diff) {
+      const sx = makeFrac(randInt(-4, 4)), sy = makeFrac(randInt(-4, 4));
+      const m1 = makeFrac(randChoice([-2, -1, 1, 2]));
+      let m2 = makeFrac(randChoice([-3, 3, 4]));
+      const c1 = makeFrac(sy.num * m1.den - m1.num * sx.num, m1.den);
+      const c2 = makeFrac(sy.num * m2.den - m2.num * sx.num, m2.den);
+      const prompt = `Find the exact coordinates of the point of intersection of the two lines:\n(1) $${fmtLineEq(m1, c1)}$\n(2) $${fmtLineEq(m2, c2)}$`;
+      const correct = fmtPoint(sx, sy);
+      const { options, correctIndex } = createOptions(correct, [fmtPoint(-sx.num, sy.num), fmtPoint(sy.num, sx.num), fmtPoint(sx.num, -sy.num)]);
+      return {
+        categoryId: 6, title: 'Point of Intersection', diff, prompt, options, correctIndex,
+        steps: [`\\text{Equate: } ${fmtLineEq(m1, c1)} = ${fmtLineEq(m2, c2)}`, `x = ${fmtFrac(sx)}, \\quad y = ${fmtFrac(sy)} \\implies ${correct}`]
+      };
+    }
+
+    function genQ7(diff) {
+      const r1 = randInt(-4, 0), r2 = randInt(1, 4);
+      const a = diff === 'standard' ? 1 : randChoice([-1, 2]);
+      const c = a * r1 * r2;
+      const tpX = makeFrac(r1 + r2, 2);
+      const tpY = makeFrac(-a * Math.pow(r2 - r1, 2), 4);
+      const eq = `y = ${a === 1 ? '' : a === -1 ? '-' : a}(x ${r1 > 0 ? '- ' + r1 : '+ ' + Math.abs(r1)})(x ${r2 > 0 ? '- ' + r2 : '+ ' + Math.abs(r2)})`;
+      const sortedRoots = [Math.min(r1, r2), Math.max(r1, r2)];
+
+      // Ask for only 1 feature at a time!
+      const targetFeature = randChoice(['x_ints', 'y_int', 'tp']);
+      let prompt = '', correct = '', distractors = [], steps = [];
+
+      if (targetFeature === 'x_ints') {
+        prompt = `Given the quadratic $${eq}$, find the exact coordinates of its $x$-intercepts.`;
+        correct = `(${sortedRoots[0]}, 0) \\text{ and } (${sortedRoots[1]}, 0)`;
+        distractors = [
+          `(${-sortedRoots[0]}, 0) \\text{ and } (${-sortedRoots[1]}, 0)`,
+          `(0, ${sortedRoots[0]}) \\text{ and } (0, ${sortedRoots[1]})`,
+          `(${sortedRoots[0] - 1}, 0) \\text{ and } (${sortedRoots[1] + 1}, 0)`
+        ];
+        steps = [
+          `\\text{Equation: } ${eq}`,
+          `\\text{To find } x\\text{-intercepts, set } y = 0:`,
+          `\\quad a(x - ${r1})(x - ${r2}) = 0 \\implies x = ${sortedRoots[0]} \\text{ or } x = ${sortedRoots[1]}`,
+          `\\text{Exact coordinates: } (${sortedRoots[0]}, 0) \\text{ and } (${sortedRoots[1]}, 0)`
+        ];
+      } else if (targetFeature === 'y_int') {
+        prompt = `Given the quadratic $${eq}$, find the exact coordinates of its $y$-intercept.`;
+        correct = `(0, ${c})`;
+        distractors = [
+          `(${c}, 0)`,
+          `(0, ${-c})`,
+          `(0, ${c > 0 ? c + 2 : c - 2})`
+        ];
+        steps = [
+          `\\text{Equation: } ${eq}`,
+          `\\text{To find } y\\text{-intercept, set } x = 0:`,
+          `\\quad y = a(0 - ${r1})(0 - ${r2}) = ${c}`,
+          `\\text{Exact coordinates: } (0, ${c})`
+        ];
+      } else {
+        prompt = `Given the quadratic $${eq}$, find the exact coordinates of its turning point.`;
+        correct = fmtPoint(tpX, tpY);
+        distractors = [
+          fmtPoint(makeFrac(-tpX.num, tpX.den), tpY),
+          fmtPoint(tpX, makeFrac(-tpY.num, tpY.den)),
+          fmtPoint(tpY, tpX)
+        ];
+        steps = [
+          `\\text{Equation: } ${eq}`,
+          `\\text{Axis of symmetry: } x = \\frac{${r1} + ${r2}}{2} = ${fmtFrac(tpX)}`,
+          `\\text{Substitute to find } y = ${fmtFrac(tpY)}:`,
+          `\\text{Exact Turning Point: } ${fmtPoint(tpX, tpY)}`
+        ];
+      }
+
+      const { options, correctIndex } = createOptions(correct, distractors);
+      return {
+        categoryId: 7, title: 'Features of Quadratics', diff, prompt, options, correctIndex, steps
+      };
+    }
+
+    function genQ8(diff) {
+      const h = randInt(0, 2), k = randInt(-4, -1);
+      const b = -2 * h, c = h * h + k;
+      const xMin = h - 2, xMax = h + 3;
+      const targetY = k + 1;
+      const validSols = [h - 1, h + 1].filter(s => s >= xMin && s < xMax);
+      const table = [];
+      for (let x = xMin; x <= xMax; x++) table.push({ x, y: x * x + b * x + c });
+      const prompt = `Given $y = x^2 ${b >= 0 ? '+' : ''}${b}x ${c >= 0 ? '+' : ''}${c}$ for $${xMin} \\le x < ${xMax}$, find the exact $x$-coordinates where the line $y = ${targetY}$ intersects the parabola.`;
+      const correct = validSols.length === 0 ? '\\text{No points of intersection}' : (validSols.length === 1 ? `x = ${validSols[0]}` : `x = ${validSols.join(', ')}`);
+      const { options, correctIndex } = createOptions(correct, [
+        `x = ${validSols.map(s => -s).join(', ')}`,
+        `x = ${h - 1}, ${h + 1}`,
+        validSols.length > 0 ? `x = ${validSols[0]}` : `x = ${h}`,
+        '\\text{No points of intersection}'
+      ]);
+      return {
+        categoryId: 8, title: 'Restricted Domain, Tables & Horizontal Intersections', diff, prompt, options, correctIndex,
+        tableData: table,
+        steps: [`Endpoints: Closed at x = ${xMin}, Open at x = ${xMax}`, `Solve x^2 ${b >= 0 ? '+' : ''}${b}x + ${c} = ${targetY} \\implies x = ${validSols.join(', ')}`],
+        graph: { type: 'parabola_restricted', parabolaA: 1, parabolaB: b, parabolaC: c, xMinDomain: xMin, xMaxDomain: xMax, horizontalY: targetY, points: [{ x: xMin, y: table[0].y, label: `(${xMin}, ${table[0].y}) [closed]`, isOpen: false }, { x: xMax, y: table[table.length-1].y, label: `(${xMax}, ${table[table.length-1].y}) [open]`, isOpen: true }] }
+      };
+    }
+
+    function genQ9(diff) {
+      const r1 = randInt(-4, 0), r2 = randInt(1, 4);
+      const a = diff === 'standard' ? 1 : randChoice([-1, 1, 2]);
+      const b = -a * (r1 + r2), c = a * r1 * r2;
+      const tpX = makeFrac(r1 + r2, 2), tpY = makeFrac(-a * Math.pow(r2 - r1, 2), 4);
+      const eq = a === 1
+        ? `y = (x ${r1 > 0 ? '- ' + r1 : '+ ' + Math.abs(r1)})(x ${r2 > 0 ? '- ' + r2 : '+ ' + Math.abs(r2)})`
+        : a === -1
+        ? `y = -(x ${r1 > 0 ? '- ' + r1 : '+ ' + Math.abs(r1)})(x ${r2 > 0 ? '- ' + r2 : '+ ' + Math.abs(r2)})`
+        : `y = ${a}(x ${r1 > 0 ? '- ' + r1 : '+ ' + Math.abs(r1)})(x ${r2 > 0 ? '- ' + r2 : '+ ' + Math.abs(r2)})`;
+      const prompt = `Given the parabola $${eq}$, identify its key features and select the correct sketch:`;
+      const correctGraph = {
+        type: 'parabola_features', parabolaA: a, parabolaB: b, parabolaC: c,
+        points: [{ x: r1, y: 0, label: `(${r1}, 0)` }, { x: r2, y: 0, label: `(${r2}, 0)` }, { x: 0, y: c, label: `(0, ${c})` }, { x: tpX.num / tpX.den, y: tpY.num / tpY.den, label: 'TP' }]
+      };
+      const gChoices = [
+        { graph: correctGraph, isCorrect: true },
+        { graph: { type: 'parabola_features', parabolaA: -a, parabolaB: -b, parabolaC: -c, points: [{ x: r1, y: 0, label: `(${r1}, 0)` }, { x: r2, y: 0, label: `(${r2}, 0)` }, { x: 0, y: -c, label: `(0, ${-c})` }] }, isCorrect: false },
+        { graph: { type: 'parabola_features', parabolaA: a, parabolaB: -b, parabolaC: c, points: [{ x: -r1, y: 0, label: `(${-r1}, 0)` }, { x: -r2, y: 0, label: `(${-r2}, 0)` }, { x: 0, y: c, label: `(0, ${c})` }] }, isCorrect: false },
+        { graph: { type: 'parabola_features', parabolaA: a, parabolaB: b, parabolaC: -c, points: [{ x: r1, y: 0, label: `(${r1}, 0)` }, { x: r2, y: 0, label: `(${r2}, 0)` }, { x: 0, y: -c, label: `(0, ${-c})` }] }, isCorrect: false }
+      ];
+      const sh = shuffle(gChoices);
+      return {
+        categoryId: 9, title: 'Sketching Parabolas from Features', diff, prompt,
+        graphOptions: sh.map(c => c.graph), options: ['Graph A', 'Graph B', 'Graph C', 'Graph D'],
+        correctIndex: sh.findIndex(c => c.isCorrect),
+        steps: [
+          `x\\text{-intercepts: } (${r1}, 0) \\text{ and } (${r2}, 0)`,
+          `y\\text{-intercept: } (0, ${c})`,
+          `\\text{Axis of symmetry: } x = ${fmtFrac(tpX)}`,
+          `\\text{Turning Point: } ${fmtPoint(tpX, tpY)}`
+        ],
+        graph: correctGraph
+      };
+    }
+
+    function genQ10(diff) {
+      const h = randInt(-3, 3), k = randInt(-4, 4);
+      const a = makeFrac(randChoice([-2, -1, 1, 2]));
+      const dx = randChoice([1, 2]);
+      const x1 = h + dx, y1 = a.num * dx * dx + k;
+      const hTerm = h === 0 ? 'x^2' : `(x ${h > 0 ? '- ' + h : '+ ' + Math.abs(h)})^2`;
+      const kTerm = k === 0 ? '' : k > 0 ? `+ ${k}` : `- ${Math.abs(k)}`;
+      const aStr = a.num === 1 ? '' : a.num === -1 ? '-' : `${a.num}`;
+      const correct = `y = ${aStr}${hTerm} ${kTerm}`.trim();
+      const prompt = `A parabola has turning point $(${h}, ${k})$ and passes through $P(${x1}, ${y1})$. Find its equation in turning point form.`;
+      const { options, correctIndex } = createOptions(correct, [
+        `y = ${aStr}(x ${h >= 0 ? '+ ' + h : '- ' + Math.abs(h)})^2 ${kTerm}`.trim(),
+        `y = ${-a.num}${hTerm} ${kTerm}`.trim()
+      ]);
+      return {
+        categoryId: 10, title: 'Parabola Equations (Turning Point Form)', diff, prompt, options, correctIndex,
+        steps: [`y = a(x - h)^2 + k \\implies ${y1} = a(${x1} - (${h}))^2 + ${k} \\implies a = ${a.num}`, `Equation: ${correct}`]
+      };
+    }
+
+    function genQ11(diff) {
+      const r1 = randInt(-4, 0), r2 = randInt(1, 4);
+      const a = randChoice([-2, -1, 1, 2]);
+      const x1 = 0, y1 = a * (x1 - r1) * (x1 - r2);
+      const aStr = a === 1 ? '' : a === -1 ? '-' : `${a}`;
+      const f1 = `(x ${r1 > 0 ? '- ' + r1 : '+ ' + Math.abs(r1)})`, f2 = `(x ${r2 > 0 ? '- ' + r2 : '+ ' + Math.abs(r2)})`;
+      const correct = `y = ${aStr}${f1}${f2}`;
+      const prompt = `A parabola has $x$-intercepts at $(${r1}, 0)$ and $(${r2}, 0)$ and passes through $P(${x1}, ${y1})$. Find its equation in factorised form.`;
+      const { options, correctIndex } = createOptions(correct, [
+        `y = ${aStr}(x ${r1 >= 0 ? '+ ' + r1 : '- ' + Math.abs(r1)})(x ${r2 >= 0 ? '+ ' + r2 : '- ' + Math.abs(r2)})`,
+        `y = ${-a}${f1}${f2}`
+      ]);
+      return {
+        categoryId: 11, title: 'Parabola Equations (Factorised Form)', diff, prompt, options, correctIndex,
+        steps: [`y = a(x - ${r1})(x - ${r2}) \\implies ${y1} = a(${x1 - r1})(${x1 - r2}) \\implies a = ${a}`, `Equation: ${correct}`]
+      };
+    }
+
+    function genQ12(diff) {
+      const px = randInt(-5, 5, true), py = randInt(-5, 5, true);
+      const trans = randChoice(['reflect_x', 'reflect_y', 'translate_right', 'dilate_y']);
+      let desc = '', correct = '';
+      if (trans === 'reflect_x') { desc = 'reflected in the $x$-axis'; correct = fmtPoint(px, -py); }
+      else if (trans === 'reflect_y') { desc = 'reflected in the $y$-axis'; correct = fmtPoint(-px, py); }
+      else if (trans === 'translate_right') { const s = randInt(2, 4); desc = `translated ${s} units right`; correct = fmtPoint(px + s, py); }
+      else { const k = 2; desc = `dilated by factor ${k} from the $x$-axis`; correct = fmtPoint(px, py * k); }
+      const prompt = `The point $P(${px}, ${py})$ is ${desc}. State the exact coordinates of $P'$.`;
+      const { options, correctIndex } = createOptions(correct, [fmtPoint(-px, -py), fmtPoint(py, px), fmtPoint(px, -py)]);
+      return {
+        categoryId: 12, title: 'Point Transformations', diff, prompt, options, correctIndex,
+        steps: [`Transformation: ${desc} \\implies P'${correct}`]
+      };
+    }
+
+    function genQ13(diff) {
+      const trans = randChoice(['translate_up', 'translate_right', 'reflect_x', 'dilate_x', 'dilate_y']);
+      let desc = '', correct = '';
+      if (trans === 'translate_up') { const k = randInt(2, 5); desc = `translated ${k} units up`; correct = `y = x^2 + ${k}`; }
+      else if (trans === 'translate_right') { const h = randInt(2, 5); desc = `translated ${h} units right`; correct = `y = (x - ${h})^2`; }
+      else if (trans === 'reflect_x') { desc = 'reflected in the $x$-axis'; correct = 'y = -x^2'; }
+      else if (trans === 'dilate_x') { const k = randInt(2, 4); desc = `dilated by factor ${k} from the $x$-axis`; correct = `y = ${k}x^2`; }
+      else { const k = 2; desc = `dilated by factor ${k} from the $y$-axis`; correct = `y = \\frac{x^2}{${k * k}}`; }
+      const prompt = `The parabola $y = x^2$ is ${desc}. State its new equation in simplest form.`;
+      const { options, correctIndex } = createOptions(correct, ['y = -x^2', 'y = (x + 2)^2', 'y = 2x^2']);
+      return {
+        categoryId: 13, title: 'Equation Transformations', diff, prompt, options, correctIndex,
+        steps: [`Base: y = x^2 \\implies ${desc} \\implies ${correct}`]
+      };
+    }
+
+    const GENERATORS = [genQ1, genQ2, genQ3, genQ4, genQ5, genQ6, genQ7, genQ8, genQ9, genQ10, genQ11, genQ12, genQ13];
+    const CATEGORIES = [
+      "Sketching Linear Graphs", "Midpoint, Distance, & Lines", "Line Eq from Gradient & Point",
+      "Perpendicular Line Equations", "Parallel, Perpendicular, or Neither", "Point of Intersection",
+      "Features of Quadratics", "Restricted Domains & Tables", "Sketching Parabolas from Features",
+      "Parabola Eq (Turning Point)", "Parabola Eq (Factorised)", "Point Transformations", "Equation Transformations"
+    ];
+
+    // Quiz State
+    let quizMode = 'mc';
+    let difficulty = 'standard';
+    let roundQuestions = [];
+    let currentIdx = 0;
+    let roundAnswers = [];
+    let totalSolved = 0, totalCorrect = 0;
+    let topicStats = {};
+
+    function generateRound() {
+      const all13 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+      const extras = shuffle(all13).slice(0, 2);
+      const catIds = shuffle([...all13, ...extras]);
+      return catIds.map(id => {
+        const d = difficulty === 'mixed' ? (Math.random() < 0.5 ? 'standard' : 'challenging') : difficulty;
+        return GENERATORS[id - 1](d);
+      });
+    }
+
+    function renderLineKatex(line) {
+      if (!line) return '';
+      if (line.includes('$')) {
+        const parts = line.split('$');
+        let out = '';
+        for (let i = 0; i < parts.length; i++) {
+          if (i % 2 === 1) {
+            try { out += katex.renderToString(parts[i], { throwOnError: false }); }
+            catch(e) { out += parts[i]; }
+          } else {
+            out += parts[i];
+          }
+        }
+        return out;
+      }
+      // If line has plain English words at start followed by math in parens, e.g. "Parallel (m_1 = 4, m_2 = 4)"
+      const wordMathMatch = line.match(/^([A-Za-z\s]+)\s*\((.*)\)$/);
+      if (wordMathMatch && (/[\\^_{}]/.test(wordMathMatch[2]) || /^[a-z]\s*=/i.test(wordMathMatch[2].trim()))) {
+        const [, wordPart, mathPart] = wordMathMatch;
+        try {
+          return `${wordPart} (${katex.renderToString(mathPart, { throwOnError: false })})`;
+        } catch(e) {
+          return line;
+        }
+      }
+      // If line contains LaTeX commands or syntax
+      if (/[\\^_{}]/.test(line)) {
+        try { return katex.renderToString(line, { throwOnError: false }); }
+        catch(e) { return line; }
+      }
+      // Pure mathematical expression or coordinate
+      const stripped = line.replace(/[0-9xyMd=+\-*/(),.\s]/g, '');
+      const isMathExpr = /^[xyMd]\s*=|^\(|^-?\d/.test(line.trim());
+      if (isMathExpr && stripped.length === 0) {
+        try { return katex.renderToString(line, { throwOnError: false }); }
+        catch(e) { return line; }
+      }
+      return line;
+    }
+
+    function renderKatexStr(str) {
+      if (!str) return '';
+      const lines = str.split(/\\newline|\n/);
+      if (lines.length > 1) {
+        return lines.map(line => {
+          const trimmed = line.trim();
+          if (!trimmed) return '';
+          const isEq = /^\(\d+\)/.test(trimmed) || /^\(?[a-z]\)/i.test(trimmed) || /^L_\d:/.test(trimmed);
+          const rendered = renderLineKatex(trimmed);
+          return isEq 
+            ? `<div class="my-1.5"><span class="inline-flex items-center px-3 py-1 font-mono text-base bg-slate-100 rounded-xl border border-slate-200 shadow-xs">${rendered}</span></div>` 
+            : `<div>${rendered}</div>`;
+        }).join('');
+      }
+      return renderLineKatex(str);
+    }
+
+    function renderSmallGraphCard(data, label, isSelected, isCorrect, isError) {
+      let maxCoord = 5;
+      if (data.points) {
+        data.points.forEach(p => {
+          if (Math.abs(p.x) > maxCoord) maxCoord = Math.ceil(Math.abs(p.x));
+          if (Math.abs(p.y) > maxCoord) maxCoord = Math.ceil(Math.abs(p.y));
+        });
+      }
+      if (data.verticalX !== undefined && Math.abs(data.verticalX) > maxCoord) maxCoord = Math.ceil(Math.abs(data.verticalX));
+      if (data.lineIntercept !== undefined && Math.abs(data.lineIntercept) > maxCoord) maxCoord = Math.ceil(Math.abs(data.lineIntercept));
+      const range = maxCoord <= 5 ? 5 : maxCoord <= 7 ? 7 : 10;
+      const unitPx = 40 / range;
+      const toX = x => 50 + x * unitPx;
+      const toY = y => 50 - y * unitPx;
+
+      const ticks = [];
+      const step = range <= 5 ? 1 : 2;
+      for (let t = -range + 1; t < range; t += step) {
+        if (t !== 0) ticks.push(t);
+      }
+
+      let linePath = '';
+      if (data.type === 'linear') {
+        if (data.isVertical) {
+          const vx = toX(data.verticalX);
+          linePath = `M ${vx} 6 L ${vx} 94`;
+        } else {
+          const x1 = -range - 1, y1 = data.lineSlope * x1 + data.lineIntercept;
+          const x2 = range + 1, y2 = data.lineSlope * x2 + data.lineIntercept;
+          linePath = `M ${toX(x1)} ${toY(y1)} L ${toX(x2)} ${toY(y2)}`;
+        }
+      } else if (data.type === 'parabola_features') {
+        const a = data.parabolaA || 1, b = data.parabolaB || 0, c = data.parabolaC || 0;
+        const pts = [];
+        for (let x = -range - 1; x <= range + 1; x += 0.2) {
+          const y = a * x * x + b * x + c;
+          if (Math.abs(y) <= range * 1.5) pts.push(`${toX(x).toFixed(1)},${toY(y).toFixed(1)}`);
+        }
+        if (pts.length > 1) linePath = `M ${pts.join(' L ')}`;
+      }
+
+      let ptsSvg = '';
+      if (data.points) {
+        ptsSvg = data.points.map(p => {
+          const px = toX(p.x), py = toY(p.y);
+          if (px < 4 || px > 96 || py < 4 || py > 96) return '';
+          const lblY = p.y >= 0 ? py - 4 : py + 7;
+          const anch = p.x > 1 ? 'end' : p.x < -1 ? 'start' : 'middle';
+          const lblX = p.x > 1 ? px - 3 : p.x < -1 ? px + 3 : px;
+          const cleanLbl = (p.label || '').replace(/\\left|\\right/g, '').replace(/\\,/g, '');
+          return `
+            <circle cx="${px}" cy="${py}" r="3.2" fill="#fff" opacity="0.8"/>
+            <circle cx="${px}" cy="${py}" r="2" fill="#4f46e5"/>
+            ${cleanLbl ? `<text x="${lblX}" y="${lblY}" font-size="5" font-weight="bold" text-anchor="${anch}" fill="#0f172a">${cleanLbl}</text>` : ''}
+          `;
+        }).join('');
+      }
+
+      const borderClass = isSelected && isCorrect
+        ? 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-500/30'
+        : isSelected && isError
+        ? 'border-rose-500 bg-rose-50 ring-4 ring-rose-500/30'
+        : isCorrect
+        ? 'border-emerald-500 ring-2 ring-emerald-500/40 bg-emerald-50/20'
+        : 'border-slate-200 hover:border-indigo-400 bg-white';
+
+      return `
+        <div class="graph-card relative aspect-square rounded-2xl border-2 ${borderClass} transition-all shadow-sm select-none p-1.5 cursor-pointer">
+          <div class="absolute top-2 left-2 z-10 flex items-center gap-1">
+            <span class="w-6 h-6 rounded-lg font-black text-xs flex items-center justify-center bg-slate-100 text-slate-700 border border-slate-300 shadow-sm">${label}</span>
+            <span class="card-status-icon font-black text-xs"></span>
+          </div>
+          <svg viewBox="0 0 100 100" class="w-full h-full overflow-hidden">
+            ${ticks.map(val => `<line x1="${toX(val)}" y1="4" x2="${toX(val)}" y2="96" stroke="#e2e8f0" stroke-width="0.25"/><line x1="4" y1="${toY(val)}" x2="96" y2="${toY(val)}" stroke="#e2e8f0" stroke-width="0.25"/>`).join('')}
+            <line x1="4" y1="50" x2="94" y2="50" stroke="#334155" stroke-width="1.1"/>
+            <line x1="50" y1="6" x2="50" y2="96" stroke="#334155" stroke-width="1.1"/>
+            <path d="M 97 50 L 93 48.2 L 93 51.8 Z" fill="#334155"/>
+            <path d="M 50 3 L 48.2 7 L 51.8 7 Z" fill="#334155"/>
+            <text x="94" y="57" font-size="7" font-style="italic" fill="#334155">x</text>
+            <text x="54" y="8" font-size="7" font-style="italic" fill="#334155">y</text>
+            ${ticks.map(val => `
+              <line x1="${toX(val)}" y1="48.8" x2="${toX(val)}" y2="51.2" stroke="#475569" stroke-width="0.6"/>
+              <text x="${toX(val)}" y="57" font-size="5" text-anchor="middle" fill="#64748b">${val}</text>
+              <line x1="48.8" y1="${toY(val)}" x2="51.2" y2="${toY(val)}" stroke="#475569" stroke-width="0.6"/>
+              <text x="47" y="${toY(val) + 1.5}" font-size="5" text-anchor="end" fill="#64748b">${val}</text>
+            `).join('')}
+            <text x="47" y="56" font-size="5" text-anchor="end" fill="#64748b">0</text>
+            ${linePath ? `<path d="${linePath}" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round"/>` : ''}
+            ${ptsSvg}
+          </svg>
+        </div>
+      `;
+    }
+
+    function renderSvgGraph(data) {
+      if (!data) return '';
+      const w = 440, h = 340, pad = 36;
+      let minX = -6, maxX = 6, minY = -6, maxY = 6;
+      if (data.points && data.points.length > 0) {
+        const xs = data.points.map(p => p.x);
+        const ys = data.points.map(p => p.y);
+        minX = Math.min(...xs, -5) - 1.5;
+        maxX = Math.max(...xs, 5) + 1.5;
+        minY = Math.min(...ys, -5) - 1.5;
+        maxY = Math.max(...ys, 5) + 1.5;
+      }
+      const toX = x => pad + ((x - minX) / (maxX - minX)) * (w - 2 * pad);
+      const toY = y => h - pad - ((y - minY) / (maxY - minY)) * (h - 2 * pad);
+      const ox = toX(0), oy = toY(0);
+
+      let curvePath = '';
+      if (data.type === 'linear') {
+        if (data.isVertical) {
+          const vx = toX(data.verticalX);
+          curvePath = `M ${vx} ${toY(minY)} L ${vx} ${toY(maxY)}`;
+        } else {
+          curvePath = `M ${toX(minX)} ${toY(data.lineSlope * minX + data.lineIntercept)} L ${toX(maxX)} ${toY(data.lineSlope * maxX + data.lineIntercept)}`;
+        }
+      } else {
+        const a = data.parabolaA || 1, b = data.parabolaB || 0, c = data.parabolaC || 0;
+        const sx = data.xMinDomain !== undefined ? data.xMinDomain : minX;
+        const ex = data.xMaxDomain !== undefined ? data.xMaxDomain : maxX;
+        const pts = [];
+        for (let i = 0; i <= 60; i++) {
+          const x = sx + (i * (ex - sx)) / 60;
+          pts.push(`${i === 0 ? 'M' : 'L'} ${toX(x).toFixed(1)} ${toY(a * x * x + b * x + c).toFixed(1)}`);
+        }
+        curvePath = pts.join(' ');
+      }
+
+      let ptsHtml = '';
+      if (data.points) {
+        ptsHtml = data.points.map(p => {
+          const px = toX(p.x), py = toY(p.y);
+          const circle = p.isOpen ? `<circle cx="${px}" cy="${py}" r="4.5" fill="#fff" stroke="#ef4444" stroke-width="2.2"/>` : `<circle cx="${px}" cy="${py}" r="4.5" fill="#4f46e5" stroke="#fff" stroke-width="1.5"/>`;
+          return `${circle}<text x="${px + 6}" y="${py - 8}" font-size="10" font-weight="bold" fill="#1e293b">${p.label}</text>`;
+        }).join('');
+      }
+
+      const horizLine = data.horizontalY !== undefined ? `<line x1="${toX(minX)}" y1="${toY(data.horizontalY)}" x2="${toX(maxX)}" y2="${toY(data.horizontalY)}" stroke="#f59e0b" stroke-width="1.8" stroke-dasharray="4 4"/>` : '';
+
+      return `
+        <div class="flex flex-col items-center p-3 bg-white rounded-2xl border border-slate-200 shadow-sm my-3">
+          <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" class="w-full max-w-[460px] h-auto select-none">
+            <line x1="${pad}" y1="${oy}" x2="${w - pad}" y2="${oy}" stroke="#64748b" stroke-width="1.5"/>
+            <line x1="${ox}" y1="${h - pad}" x2="${ox}" y2="${pad}" stroke="#64748b" stroke-width="1.5"/>
+            <text x="${w - pad + 5}" y="${oy + 4}" font-size="11" font-weight="bold" fill="#475569">x</text>
+            <text x="${ox - 4}" y="${pad - 10}" font-size="11" font-weight="bold" fill="#475569">y</text>
+            ${horizLine}
+            <path d="${curvePath}" fill="none" stroke="#4f46e5" stroke-width="2.5" stroke-linecap="round"/>
+            ${ptsHtml}
+          </svg>
+          <div class="text-[11px] font-semibold text-slate-400 mt-1">Cartesian Plane with exact labeled coordinates</div>
+        </div>
+      `;
+    }
+
+    function renderQuestion() {
+      const q = roundQuestions[currentIdx];
+      document.getElementById('badgeCategoryNum').innerText = `#${q.categoryId}`;
+      document.getElementById('badgeCategoryTitle').innerText = q.title;
+      document.getElementById('badgeDifficulty').innerText = q.diff;
+      document.getElementById('promptText').innerHTML = renderKatexStr(q.prompt);
+
+      const btnTop = document.getElementById('btnNextQuestionTop');
+      if (btnTop) btnTop.classList.add('hidden');
+
+      // Table Data
+      const tbl = document.getElementById('tableContainer');
+      if (q.tableData) {
+        tbl.classList.remove('hidden');
+        tbl.innerHTML = `
+          <table class="min-w-[280px] mx-auto border-collapse border border-slate-300 rounded-xl text-center text-sm">
+            <thead>
+              <tr class="bg-slate-100 font-bold">
+                <th class="border border-slate-300 px-3 py-1.5">x</th>
+                ${q.tableData.map(d => `<th class="border border-slate-300 px-3 py-1.5">${d.x}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="border border-slate-300 px-3 py-1.5 font-bold bg-slate-50">y</td>
+                ${q.tableData.map(d => `<td class="border border-slate-300 px-3 py-1.5 font-mono" id="cell-y-${d.x}">?</td>`).join('')}
+              </tr>
+            </tbody>
+          </table>
+        `;
+      } else {
+        tbl.classList.add('hidden');
+      }
+
+      // Hide worked solution
+      document.getElementById('solutionContainer').classList.add('hidden');
+      document.getElementById('solutionSteps').innerHTML = '';
+      document.getElementById('solutionGraph').innerHTML = '';
+
+      if (quizMode === 'mc') {
+        document.getElementById('mcContainer').classList.remove('hidden');
+        document.getElementById('selfCheckContainer').classList.add('hidden');
+        const grid = document.getElementById('optionsGrid');
+        grid.innerHTML = '';
+
+        if (q.graphOptions && q.graphOptions.length === 4) {
+          grid.className = "grid grid-cols-2 sm:grid-cols-4 gap-3";
+          q.graphOptions.forEach((gOpt, idx) => {
+            const cardWrapper = document.createElement('div');
+            cardWrapper.innerHTML = renderSmallGraphCard(gOpt, String.fromCharCode(65 + idx), false, false, false);
+            const cardEl = cardWrapper.firstElementChild;
+            cardEl.onclick = () => selectMcOption(idx);
+            grid.appendChild(cardEl);
+          });
+        } else {
+          grid.className = "grid grid-cols-1 gap-3";
+          q.options.forEach((opt, idx) => {
+            const btn = document.createElement('button');
+            btn.className = "w-full text-left p-4 rounded-2xl border-2 border-slate-200 bg-slate-50 hover:bg-indigo-50 transition flex items-center justify-between text-sm sm:text-base";
+            btn.onclick = () => selectMcOption(idx);
+            btn.innerHTML = `
+              <div class="flex items-center gap-3">
+                <span class="w-7 h-7 rounded-lg bg-slate-200 text-slate-700 font-black text-xs flex items-center justify-center shrink-0">${String.fromCharCode(65 + idx)}</span>
+                <span>${renderKatexStr(opt)}</span>
+              </div>
+              <span id="optIcon-${idx}" class="font-black text-lg"></span>
+            `;
+            grid.appendChild(btn);
+          });
+        }
+      } else {
+        document.getElementById('mcContainer').classList.add('hidden');
+        document.getElementById('selfCheckContainer').classList.remove('hidden');
+        document.getElementById('selfCheckInitial').classList.remove('hidden');
+        document.getElementById('selfCheckGrade').classList.add('hidden');
+      }
+
+      updatePills();
+    }
+
+    function selectMcOption(idx) {
+      const q = roundQuestions[currentIdx];
+      const isCorrect = idx === q.correctIndex;
+      recordAnswer(isCorrect);
+
+      if (q.graphOptions && q.graphOptions.length === 4) {
+        const cards = document.getElementById('optionsGrid').querySelectorAll('.graph-card');
+        cards.forEach((card, i) => {
+          card.onclick = null;
+          card.classList.remove('cursor-pointer', 'hover:border-indigo-400');
+          const icon = card.querySelector('.card-status-icon');
+          if (i === q.correctIndex) {
+            card.className = "graph-card relative aspect-square rounded-2xl border-2 border-emerald-500 bg-emerald-50 ring-4 ring-emerald-500/30 transition-all shadow-md select-none p-1.5";
+            if (icon) {
+              icon.innerText = "✓";
+              icon.className = "card-status-icon w-5 h-5 rounded-full bg-emerald-500 text-white text-[10px] font-black flex items-center justify-center";
+            }
+          } else if (i === idx) {
+            card.className = "graph-card relative aspect-square rounded-2xl border-2 border-rose-500 bg-rose-50 ring-4 ring-rose-500/30 transition-all shadow-md select-none p-1.5";
+            if (icon) {
+              icon.innerText = "✗";
+              icon.className = "card-status-icon w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center";
+            }
+          } else {
+            card.classList.add('opacity-40');
+          }
+        });
+      } else {
+        const buttons = document.getElementById('optionsGrid').querySelectorAll('button');
+        buttons.forEach((btn, i) => {
+          btn.disabled = true;
+          const icon = btn.querySelector(`#optIcon-${i}`);
+          if (i === q.correctIndex) {
+            btn.className = "w-full text-left p-4 rounded-2xl border-2 border-emerald-500 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500/20 flex items-center justify-between";
+            if (icon) icon.innerText = "✓";
+          } else if (i === idx) {
+            btn.className = "w-full text-left p-4 rounded-2xl border-2 border-rose-500 bg-rose-50 text-rose-800 ring-2 ring-rose-500/20 flex items-center justify-between";
+            if (icon) icon.innerText = "✗";
+          } else {
+            btn.className = "w-full text-left p-4 rounded-2xl border-2 border-slate-200 opacity-40 flex items-center justify-between";
+          }
+        });
+      }
+
+      showSolution();
+    }
+
+    function revealSelfCheckSolution() {
+      document.getElementById('selfCheckInitial').classList.add('hidden');
+      document.getElementById('selfCheckGrade').classList.remove('hidden');
+      showSolution();
+    }
+
+    function submitSelfGrade(gotIt) {
+      recordAnswer(gotIt);
+      document.getElementById('selfCheckGrade').classList.add('hidden');
+    }
+
+    function showSolution() {
+      const q = roundQuestions[currentIdx];
+      if (q.tableData) {
+        q.tableData.forEach(d => {
+          const c = document.getElementById(`cell-y-${d.x}`);
+          if (c) c.innerText = d.y;
+        });
+      }
+      const stepsDiv = document.getElementById('solutionSteps');
+      stepsDiv.innerHTML = q.steps.map(s => `<div class="py-1">${renderKatexStr(s.includes('$') ? s : `$${s}$`)}</div>`).join('');
+      document.getElementById('solutionGraph').innerHTML = renderSvgGraph(q.graph);
+      document.getElementById('solutionContainer').classList.remove('hidden');
+
+      const nextLabel = currentIdx + 1 < roundQuestions.length ? 'Next Question →' : 'View Section Scorecard 🏆';
+      const btnTop = document.getElementById('btnNextQuestionTop');
+      if (btnTop) {
+        btnTop.innerText = nextLabel;
+        btnTop.classList.remove('hidden');
+      }
+      const btnBot = document.getElementById('btnNextQuestion');
+      if (btnBot) {
+        btnBot.innerText = nextLabel;
+      }
+    }
+
+    function recordAnswer(isCorrect) {
+      roundAnswers.push(isCorrect);
+      totalSolved++;
+      if (isCorrect) totalCorrect++;
+      const catId = roundQuestions[currentIdx].categoryId;
+      if (!topicStats[catId]) topicStats[catId] = { total: 0, correct: 0 };
+      topicStats[catId].total++;
+      if (isCorrect) topicStats[catId].correct++;
+      updatePills();
+    }
+
+    function handleNextQuestion() {
+      if (currentIdx + 1 < roundQuestions.length) {
+        currentIdx++;
+        renderQuestion();
+      } else {
+        showScorecard();
+      }
+    }
+
+    function updatePills() {
+      document.getElementById('pillRoundQ').innerText = `Question ${currentIdx + 1}/${roundQuestions.length}`;
+      const rCorr = roundAnswers.filter(Boolean).length;
+      document.getElementById('pillRoundScore').innerText = `Round: ${rCorr}/${roundAnswers.length}`;
+      const acc = totalSolved > 0 ? Math.round((totalCorrect / totalSolved) * 100) : 100;
+      document.getElementById('pillTotalAcc').innerText = `Total: ${acc}% (${totalCorrect}/${totalSolved})`;
+      document.getElementById('roundProgressBar').style.width = `${((currentIdx + 1) / roundQuestions.length) * 100}%`;
+    }
+
+    function showScorecard() {
+      document.getElementById('questionContainer').classList.add('hidden');
+      document.getElementById('scorecardContainer').classList.remove('hidden');
+      const rCorr = roundAnswers.filter(Boolean).length;
+      document.getElementById('scorecardSubtext').innerHTML = `Round Score: <strong class="text-indigo-600 text-lg">${rCorr} / 15</strong> (${Math.round((rCorr / 15) * 100)}%)`;
+      document.getElementById('statTotalSolved').innerText = totalSolved;
+      document.getElementById('statTotalCorrect').innerText = totalCorrect;
+      const acc = totalSolved > 0 ? Math.round((totalCorrect / totalSolved) * 100) : 100;
+      document.getElementById('statAccuracy').innerText = `${acc}%`;
+
+      const grid = document.getElementById('topicBreakdownGrid');
+      grid.innerHTML = CATEGORIES.map((cat, idx) => {
+        const id = idx + 1;
+        const s = topicStats[id];
+        const has = s && s.total > 0;
+        const pct = has ? Math.round((s.correct / s.total) * 100) : 0;
+        return `
+          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+            <span class="font-bold text-slate-700 truncate pr-2">${id}. ${cat}</span>
+            <span class="font-black ${has && pct >= 75 ? 'text-emerald-600' : 'text-amber-500'}">${has ? `${s.correct}/${s.total} (${pct}%)` : '<span class="text-slate-400 font-normal">Unseen</span>'}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function startNextSection() {
+      document.getElementById('scorecardContainer').classList.add('hidden');
+      document.getElementById('questionContainer').classList.remove('hidden');
+      roundQuestions = generateRound();
+      currentIdx = 0;
+      roundAnswers = [];
+      renderQuestion();
+    }
+
+    function setMode(m) {
+      quizMode = m;
+      document.getElementById('btnModeMC').className = m === 'mc' ? "px-3 py-1.5 rounded-xl bg-indigo-600 text-white shadow-sm transition" : "px-3 py-1.5 rounded-xl text-slate-600 hover:text-indigo-600 transition";
+      document.getElementById('btnModeSelf').className = m === 'self_check' ? "px-3 py-1.5 rounded-xl bg-indigo-600 text-white shadow-sm transition" : "px-3 py-1.5 rounded-xl text-slate-600 hover:text-indigo-600 transition";
+      renderQuestion();
+    }
+
+    function setDifficulty(d) {
+      difficulty = d;
+      ['Standard', 'Challenging', 'Mixed'].forEach(name => {
+        const key = name.toLowerCase();
+        const el = document.getElementById(`diff${name}`);
+        el.className = key === d ? "px-3 py-1 rounded-xl bg-slate-900 text-white transition" : "px-3 py-1 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition";
+      });
+      startNextSection();
+    }
+
+    // Keydown listener for quick progression
+    window.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight') && !document.getElementById('solutionContainer').classList.contains('hidden')) {
+        handleNextQuestion();
+      }
+    });
+
+    // Init first round
+    window.onload = () => {
+      roundQuestions = generateRound();
+      renderQuestion();
+    };
+  </script>
+</body>
+</html>

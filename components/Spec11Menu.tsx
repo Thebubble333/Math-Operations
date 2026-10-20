@@ -26,6 +26,27 @@ const Spec11Menu: React.FC<Spec11MenuProps> = ({ startNewGame }) => {
         </div>
 
         <div className="space-y-12">
+          {/* Algebra Section */}
+          <section>
+            <div className="flex items-center gap-4 mb-6">
+              <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1" />
+              <h2 className="text-xl font-bold whitespace-nowrap text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2">Algebra</h2>
+              <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1" />
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button
+                onClick={() => navigate('/11spec/partial-fractions')}
+                className="group relative h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-800 border-b-4 border-slate-200 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:border-indigo-300 dark:hover:border-indigo-800 rounded-3xl shadow-lg transition-all duration-150 hover:translate-y-1 hover:border-b-0 active:scale-95 z-0 hover:z-10"
+              >
+                <div className="w-auto min-w-[3rem] px-3 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center mb-3 shadow-md transform group-hover:scale-90 transition-all duration-200">
+                  <span className="text-base font-bold font-serif">P/Q</span>
+                </div>
+                <span className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">Partial Fraction Decompositions</span>
+              </button>
+            </div>
+          </section>
+
           {/* Trigonometry Section */}
           <section>
             <div className="flex items-center gap-4 mb-6">
