@@ -29,6 +29,9 @@ export enum GameMode {
   YEAR12_RANGE = 'year12_range',
   METHODS_SAMPLE_PROPORTIONS = 'methods_sample_proportions',
   METHODS_MARGIN_STEPS = 'methods_margin_steps',
+  METHODS_NORMAL_SYMMETRY = 'methods_normal_symmetry',
+  METHODS_TRIG_EQUATIONS = 'methods_trig_equations',
+  METHODS_PROBABILITY = 'methods_probability',
   YEAR9_BOTH_SIDES = 'year9_both_sides',
   CUSTOM = 'custom',
   NONE = 'none'
@@ -52,7 +55,7 @@ export interface CurrentStats {
   timeLimit?: number; // in seconds
 }
 
-export type GraphType = 'linear' | 'quadratic' | 'cubic' | 'hyperbola' | 'truncus' | 'sqrt' | 'exponential';
+export type GraphType = 'linear' | 'quadratic' | 'cubic' | 'hyperbola' | 'truncus' | 'sqrt' | 'exponential' | 'sin' | 'cos' | 'tan';
 
 export interface GraphParams {
   type: GraphType;
@@ -113,6 +116,17 @@ export interface StepItem {
   resultText: string;
 }
 
+export interface NormalDiagramConfig {
+  meanLabel?: string;
+  leftZ?: number;
+  leftLabel?: string;
+  leftAreaLabel?: string;
+  rightZ?: number;
+  rightLabel?: string;
+  rightAreaLabel?: string;
+  shadeRegion?: 'between' | 'left' | 'right' | 'both_tails' | 'none';
+}
+
 export interface MathProblem {
   question: string;
   answer: number | string;
@@ -122,6 +136,7 @@ export interface MathProblem {
   steps?: StepItem[];
   stepGiven?: { z: number | string; p: string; n: number };
   marginDetails?: MarginDetails;
+  normalDiagram?: NormalDiagramConfig;
   angle?: number; // For trig unit circle visualization (in radians)
   mode?: GameMode;
 }

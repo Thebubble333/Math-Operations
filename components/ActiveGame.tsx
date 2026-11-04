@@ -607,7 +607,13 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
               ].includes(mode);
 
               const isDomainRangeMode = mode === GameMode.YEAR12_MAXIMAL_DOMAIN || mode === GameMode.YEAR12_RANGE;
-              const isSampleProportionsMode = mode === GameMode.METHODS_SAMPLE_PROPORTIONS || mode === GameMode.METHODS_MARGIN_STEPS;
+              const isSampleProportionsMode = [
+                GameMode.METHODS_SAMPLE_PROPORTIONS,
+                GameMode.METHODS_MARGIN_STEPS,
+                GameMode.METHODS_NORMAL_SYMMETRY,
+                GameMode.METHODS_TRIG_EQUATIONS,
+                GameMode.METHODS_PROBABILITY
+              ].includes(mode);
 
               if (isSampleProportionsMode) {
                 return null;
@@ -715,7 +721,13 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
               showingAnswer={showingAnswer}
               correctAnswer={problem.answer.toString()}
             />
-          ) : (mode === GameMode.METHODS_SAMPLE_PROPORTIONS || mode === GameMode.METHODS_MARGIN_STEPS) && problem ? (
+          ) : ([
+            GameMode.METHODS_SAMPLE_PROPORTIONS,
+            GameMode.METHODS_MARGIN_STEPS,
+            GameMode.METHODS_NORMAL_SYMMETRY,
+            GameMode.METHODS_TRIG_EQUATIONS,
+            GameMode.METHODS_PROBABILITY
+          ].includes(mode)) && problem ? (
             <SampleProportionsGame 
               problem={problem}
               onAnswer={handleInputChange}

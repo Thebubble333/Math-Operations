@@ -3,6 +3,9 @@ import { GameMode, MathProblem, GraphType, GraphParams } from '../types';
 import { generateCalculusProblem } from './calculusGame';
 import { generateDomainRangeProblem } from './domainRangeGame';
 import { generateSampleProportionsProblem } from './sampleProportionsGame';
+import { generateNormalSymmetryProblem } from './normalSymmetryGame';
+import { generateTrigEquationsProblem } from './trigEquationsGame';
+import { generateBinomialProbabilityProblem } from './binomialProbabilityGame';
 
 let recentGraphHistory: GraphType[] = [];
 let lastAnswerIndex = -1;
@@ -1153,6 +1156,12 @@ export const generateProblem = (mode: GameMode, options?: { forceQuadrant1?: boo
     problem = generateDomainRangeProblem(mode);
   } else if (mode === GameMode.METHODS_SAMPLE_PROPORTIONS || mode === GameMode.METHODS_MARGIN_STEPS) {
     problem = generateSampleProportionsProblem(mode);
+  } else if (mode === GameMode.METHODS_NORMAL_SYMMETRY) {
+    problem = generateNormalSymmetryProblem();
+  } else if (mode === GameMode.METHODS_TRIG_EQUATIONS) {
+    problem = generateTrigEquationsProblem();
+  } else if (mode === GameMode.METHODS_PROBABILITY) {
+    problem = generateBinomialProbabilityProblem();
   } else if (mode === GameMode.INVERSE_TRIG_EXACT_VALUES) {
     problem = generateInverseTrigProblem();
   } else if (mode === GameMode.TRIG_EXACT_VALUES) {

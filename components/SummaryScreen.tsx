@@ -52,6 +52,9 @@ const SummaryScreen: React.FC<SummaryScreenProps> = ({
       case GameMode.YEAR12_RANGE: return 'Function Range';
       case GameMode.METHODS_SAMPLE_PROPORTIONS: return 'Sample Proportions';
       case GameMode.METHODS_MARGIN_STEPS: return 'Simplify Margin';
+      case GameMode.METHODS_NORMAL_SYMMETRY: return 'Normal Symmetry';
+      case GameMode.METHODS_TRIG_EQUATIONS: return 'Trig Equations';
+      case GameMode.METHODS_PROBABILITY: return 'Binomial Probability';
       case GameMode.CUSTOM: return 'Custom Game';
       default: return 'Unknown Mode';
     }

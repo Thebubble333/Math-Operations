@@ -246,6 +246,42 @@ export const GAME_MODES: GameModeConfig[] = [
     darkActiveBg: 'dark:bg-purple-900/30',
     darkActiveText: 'dark:text-purple-300'
   },
+  { 
+    id: GameMode.METHODS_TRIG_EQUATIONS, 
+    label: 'Trig Eqns', 
+    category: GameCategory.METHODS_12, 
+    icon: 'sin=k', 
+    color: 'bg-indigo-500',
+    activeBorder: 'border-indigo-500',
+    activeText: 'text-indigo-700',
+    activeBg: 'bg-indigo-50',
+    darkActiveBg: 'dark:bg-indigo-900/30',
+    darkActiveText: 'dark:text-indigo-300'
+  },
+  { 
+    id: GameMode.METHODS_NORMAL_SYMMETRY, 
+    label: 'Normal Sym', 
+    category: GameCategory.METHODS_12, 
+    icon: 'N(μ,σ²)', 
+    color: 'bg-sky-600',
+    activeBorder: 'border-sky-600',
+    activeText: 'text-sky-700',
+    activeBg: 'bg-sky-50',
+    darkActiveBg: 'dark:bg-sky-900/30',
+    darkActiveText: 'dark:text-sky-300'
+  },
+  { 
+    id: GameMode.METHODS_PROBABILITY, 
+    label: 'Binomial Prob', 
+    category: GameCategory.METHODS_12, 
+    icon: 'Bi(n,p)', 
+    color: 'bg-rose-500',
+    activeBorder: 'border-rose-500',
+    activeText: 'text-rose-700',
+    activeBg: 'bg-rose-50',
+    darkActiveBg: 'dark:bg-rose-900/30',
+    darkActiveText: 'dark:text-rose-300'
+  },
 
   // 11 Specialist
   { 

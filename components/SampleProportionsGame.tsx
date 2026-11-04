@@ -483,12 +483,222 @@ const SampleProportionsGame: React.FC<SampleProportionsGameProps> = ({
   }
 
   // -------------------------------------------------------------
-  // RENDER: Multiple Choice Questions (Skills 1-5)
-  // Clean question card & responsive options
+  // RENDER: Multiple Choice Questions (Sample Prop, Normal Symmetry, Trig Equations, Binomial Prob)
+  // Clean question card, optional Normal Bell Curve diagram & responsive options
   // -------------------------------------------------------------
   const hasLongOptions = problem.options?.some(
-    (opt: string) => opt.length > 10 || opt.includes('\\sim') || opt.includes('\\text{')
+    (opt: string) =>
+      opt.length > 10 ||
+      opt.includes('\\sim') ||
+      opt.includes('\\text{') ||
+      opt.includes('\\pm') ||
+      opt.includes('\\pi')
   );
+
+  const renderNormalDiagram = () => {
+    const diag = problem.normalDiagram;
+    if (!diag) return null;
+
+    const width = 420;
+    const height = 165;
+    const baseY = 128;
+    const centerX = width / 2;
+    const scaleX = 52; // pixels per z unit
+    const peakHeight = 96;
+
+    const zToX = (z: number) => centerX + z * scaleX;
+    const zToY = (z: number) => baseY - peakHeight * Math.exp(-0.5 * z * z);
+
+    const buildCurvePoints = (zStart: number, zEnd: number, steps = 60) => {
+      const pts: { x: number; y: number }[] = [];
+      for (let i = 0; i <= steps; i++) {
+        const z = zStart + ((zEnd - zStart) * i) / steps;
+        pts.push({ x: zToX(z), y: zToY(z) });
+      }
+      return pts;
+    };
+
+    const buildShadedPath = (z1: number, z2: number) => {
+      const pts = buildCurvePoints(z1, z2, 40);
+      if (pts.length === 0) return '';
+      const d = pts.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+      return `${d} L ${zToX(z2).toFixed(1)} ${baseY} L ${zToX(z1).toFixed(1)} ${baseY} Z`;
+    };
+
+    const fullPts = buildCurvePoints(-3.4, 3.4, 90);
+    const fullCurvePath = fullPts
+      .map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
+      .join(' ');
+
+    const leftZ = diag.leftZ ?? -1.2;
+    const rightZ = diag.rightZ ?? 1.2;
+
+    return (
+      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/70 flex flex-col items-center">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          className="w-full max-w-[380px] h-auto overflow-visible select-none"
+        >
+          {/* Tail Area Shading for m / n context */}
+          {diag.leftZ !== undefined && diag.leftAreaLabel && (
+            <path
+              d={buildShadedPath(-3.3, leftZ)}
+              className="fill-rose-400/20 dark:fill-rose-400/25"
+            />
+          )}
+          {diag.rightZ !== undefined && diag.rightAreaLabel && (
+            <path
+              d={buildShadedPath(rightZ, 3.3)}
+              className="fill-amber-400/20 dark:fill-amber-400/25"
+            />
+          )}
+
+          {/* Primary Target Region Shading */}
+          {diag.shadeRegion === 'between' && diag.leftZ !== undefined && diag.rightZ !== undefined && (
+            <path
+              d={buildShadedPath(leftZ, rightZ)}
+              className="fill-indigo-500/25 dark:fill-indigo-400/30"
+            />
+          )}
+          {diag.shadeRegion === 'left' && diag.leftZ !== undefined && (
+            <path
+              d={buildShadedPath(-3.3, leftZ)}
+              className="fill-indigo-500/30 dark:fill-indigo-400/35"
+            />
+          )}
+          {diag.shadeRegion === 'right' && diag.rightZ !== undefined && (
+            <path
+              d={buildShadedPath(rightZ, 3.3)}
+              className="fill-indigo-500/30 dark:fill-indigo-400/35"
+            />
+          )}
+          {diag.shadeRegion === 'both_tails' && diag.leftZ !== undefined && diag.rightZ !== undefined && (
+            <>
+              <path
+                d={buildShadedPath(-3.3, leftZ)}
+                className="fill-indigo-500/30 dark:fill-indigo-400/35"
+              />
+              <path
+                d={buildShadedPath(rightZ, 3.3)}
+                className="fill-indigo-500/30 dark:fill-indigo-400/35"
+              />
+            </>
+          )}
+
+          {/* Center Mean Dashed Line */}
+          {diag.meanLabel && (
+            <>
+              <line
+                x1={centerX}
+                y1={zToY(0)}
+                x2={centerX}
+                y2={baseY}
+                strokeDasharray="4 3"
+                className="stroke-slate-400 dark:stroke-slate-500"
+                strokeWidth="1.5"
+              />
+              <text
+                x={centerX}
+                y={baseY + 20}
+                textAnchor="middle"
+                className="fill-slate-500 dark:fill-slate-400 text-[12px] font-bold italic"
+              >
+                {diag.meanLabel === '\\mu' ? 'μ' : diag.meanLabel}
+              </text>
+            </>
+          )}
+
+          {/* Left Boundary Line & Label */}
+          {diag.leftZ !== undefined && (
+            <>
+              <line
+                x1={zToX(leftZ)}
+                y1={zToY(leftZ)}
+                x2={zToX(leftZ)}
+                y2={baseY}
+                className="stroke-indigo-500 dark:stroke-indigo-400"
+                strokeWidth="2"
+              />
+              {diag.leftLabel && (
+                <text
+                  x={zToX(leftZ)}
+                  y={baseY + 20}
+                  textAnchor="middle"
+                  className="fill-indigo-600 dark:fill-indigo-300 text-[13px] font-black italic"
+                >
+                  {diag.leftLabel.replace('\\mu-c\\sigma', 'μ−cσ').replace('_', '')}
+                </text>
+              )}
+              {diag.leftAreaLabel && (
+                <text
+                  x={zToX(leftZ - 0.55)}
+                  y={baseY - 14}
+                  textAnchor="middle"
+                  className="fill-rose-600 dark:fill-rose-300 text-[13px] font-black italic"
+                >
+                  {diag.leftAreaLabel}
+                </text>
+              )}
+            </>
+          )}
+
+          {/* Right Boundary Line & Label */}
+          {diag.rightZ !== undefined && (
+            <>
+              <line
+                x1={zToX(rightZ)}
+                y1={zToY(rightZ)}
+                x2={zToX(rightZ)}
+                y2={baseY}
+                className="stroke-indigo-500 dark:stroke-indigo-400"
+                strokeWidth="2"
+              />
+              {diag.rightLabel && (
+                <text
+                  x={zToX(rightZ)}
+                  y={baseY + 20}
+                  textAnchor="middle"
+                  className="fill-indigo-600 dark:fill-indigo-300 text-[13px] font-black italic"
+                >
+                  {diag.rightLabel.replace('\\mu+c\\sigma', 'μ+cσ').replace('_', '')}
+                </text>
+              )}
+              {diag.rightAreaLabel && (
+                <text
+                  x={zToX(rightZ + 0.55)}
+                  y={baseY - 14}
+                  textAnchor="middle"
+                  className="fill-amber-600 dark:fill-amber-300 text-[13px] font-black italic"
+                >
+                  {diag.rightAreaLabel}
+                </text>
+              )}
+            </>
+          )}
+
+          {/* Bell Curve Path */}
+          <path
+            d={fullCurvePath}
+            fill="none"
+            className="stroke-indigo-600 dark:stroke-indigo-400"
+            strokeWidth="2.8"
+            strokeLinecap="round"
+          />
+
+          {/* Horizontal Axis */}
+          <line
+            x1={20}
+            y1={baseY}
+            x2={width - 20}
+            y2={baseY}
+            className="stroke-slate-400 dark:stroke-slate-500"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+        </svg>
+      </div>
+    );
+  };
 
   return (
     <div className="w-full max-w-4xl mx-auto px-2 sm:px-4 py-2 space-y-6">
@@ -496,6 +706,7 @@ const SampleProportionsGame: React.FC<SampleProportionsGameProps> = ({
         <div className="text-lg sm:text-2xl md:text-3xl font-bold !leading-relaxed text-slate-800 dark:text-slate-100 max-w-full">
           <MathText content={problem.question} />
         </div>
+        {renderNormalDiagram()}
       </div>
 
       {problem.options && (
@@ -531,3 +742,4 @@ const SampleProportionsGame: React.FC<SampleProportionsGameProps> = ({
 };
 
 export default SampleProportionsGame;
+

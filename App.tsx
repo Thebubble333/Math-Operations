@@ -168,6 +168,9 @@ const App: React.FC = () => {
           GameMode.YEAR12_RANGE,
           GameMode.METHODS_SAMPLE_PROPORTIONS,
           GameMode.METHODS_MARGIN_STEPS,
+          GameMode.METHODS_NORMAL_SYMMETRY,
+          GameMode.METHODS_TRIG_EQUATIONS,
+          GameMode.METHODS_PROBABILITY,
           GameMode.TRIG_EXACT_VALUES,
           GameMode.INVERSE_TRIG_EXACT_VALUES
         ].includes(selectedMode);
@@ -224,6 +227,9 @@ const App: React.FC = () => {
       GameMode.YEAR12_RANGE,
       GameMode.METHODS_SAMPLE_PROPORTIONS,
       GameMode.METHODS_MARGIN_STEPS,
+      GameMode.METHODS_NORMAL_SYMMETRY,
+      GameMode.METHODS_TRIG_EQUATIONS,
+      GameMode.METHODS_PROBABILITY,
       GameMode.TRIG_EXACT_VALUES,
       GameMode.INVERSE_TRIG_EXACT_VALUES
     ].includes(problemMode);
@@ -764,6 +770,9 @@ const App: React.FC = () => {
       GameMode.YEAR12_RANGE,
       GameMode.METHODS_SAMPLE_PROPORTIONS,
       GameMode.METHODS_MARGIN_STEPS,
+      GameMode.METHODS_NORMAL_SYMMETRY,
+      GameMode.METHODS_TRIG_EQUATIONS,
+      GameMode.METHODS_PROBABILITY,
       GameMode.TRIG_EXACT_VALUES,
       GameMode.INVERSE_TRIG_EXACT_VALUES,
       GameMode.SIMPLIFY_SURDS,
@@ -1184,7 +1193,10 @@ const App: React.FC = () => {
         GameMode.YEAR12_MAXIMAL_DOMAIN,
         GameMode.YEAR12_RANGE,
         GameMode.METHODS_SAMPLE_PROPORTIONS,
-        GameMode.METHODS_MARGIN_STEPS
+        GameMode.METHODS_MARGIN_STEPS,
+        GameMode.METHODS_NORMAL_SYMMETRY,
+        GameMode.METHODS_TRIG_EQUATIONS,
+        GameMode.METHODS_PROBABILITY
       ].includes(currentProblemMode);
       
       const delay = isSlowDelayMode ? 1000 : 250;
@@ -1201,6 +1213,9 @@ const App: React.FC = () => {
       GameMode.YEAR12_RANGE,
       GameMode.METHODS_SAMPLE_PROPORTIONS,
       GameMode.METHODS_MARGIN_STEPS,
+      GameMode.METHODS_NORMAL_SYMMETRY,
+      GameMode.METHODS_TRIG_EQUATIONS,
+      GameMode.METHODS_PROBABILITY,
       GameMode.TRIG_EXACT_VALUES,
       GameMode.INVERSE_TRIG_EXACT_VALUES
     ].includes(currentProblemMode)) {
