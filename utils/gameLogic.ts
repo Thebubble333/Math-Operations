@@ -424,24 +424,65 @@ const generateSigFigsProblem = (combo: number): MathProblem => {
   let question = '';
   let answerObj: any = {};
 
-  const roundToDp = (numStr: string, dp: number) => {
-    const num = parseFloat(numStr);
-    const rounded = Number(Math.round(Number(num + 'e' + dp)) + 'e' + -dp);
-    return rounded.toFixed(dp);
+  const shiftDecimal = (aStr: string, n: number): string => {
+    const [intPart, fracPart = ''] = aStr.split('.');
+    const digits = intPart + fracPart;
+    const newDecPos = intPart.length + n;
+
+    if (newDecPos >= digits.length) {
+      return digits + '0'.repeat(newDecPos - digits.length);
+    } else if (newDecPos > 0) {
+      const left = digits.slice(0, newDecPos);
+      const right = digits.slice(newDecPos).replace(/0+$/, '');
+      return right.length > 0 ? `${left}.${right}` : left;
+    } else {
+      const right = ('0'.repeat(-newDecPos) + digits).replace(/0+$/, '');
+      return right.length > 0 ? `0.${right}` : '0';
+    }
   };
 
-  const roundToSf = (numStr: string, sf: number) => {
-    const num = parseFloat(numStr);
-    if (num === 0) return '0';
-    const magnitude = Math.floor(Math.log10(Math.abs(num)));
-    const dp = sf - 1 - magnitude;
-    const rounded = Number(Math.round(Number(num + 'e' + dp)) + 'e' + -dp);
-    
-    if (dp > 0) {
-      return rounded.toFixed(dp);
+  const roundToDp = (numStr: string, dp: number): string => {
+    const [wholePart, fracPart = ''] = numStr.split('.');
+    const paddedFrac = fracPart.padEnd(dp + 1, '0');
+    let scaled = BigInt(wholePart + paddedFrac.slice(0, dp));
+    const nextDigit = parseInt(paddedFrac[dp], 10);
+    if (nextDigit >= 5) {
+      scaled += 1n;
+    }
+    const scaledStr = scaled.toString().padStart(dp + 1, '0');
+    if (dp === 0) return scaledStr;
+    return `${scaledStr.slice(0, scaledStr.length - dp)}.${scaledStr.slice(scaledStr.length - dp)}`;
+  };
+
+  const roundToSf = (numStr: string, sf: number): string => {
+    const [intPart, fracPart = ''] = numStr.split('.');
+    const allDigits = intPart + fracPart;
+    const decPos = intPart.length;
+    const firstNonZero = allDigits.search(/[1-9]/);
+    if (firstNonZero === -1) return '0';
+
+    const neededLen = firstNonZero + sf + 1;
+    const paddedDigits = allDigits.padEnd(neededLen, '0');
+    let sigVal = BigInt(paddedDigits.slice(firstNonZero, firstNonZero + sf));
+    const nextDigit = parseInt(paddedDigits[firstNonZero + sf], 10);
+    if (nextDigit >= 5) {
+      sigVal += 1n;
+    }
+
+    let sigStr = sigVal.toString();
+    let firstDigitPos = firstNonZero;
+    if (sigStr.length > sf) {
+      sigStr = sigStr.slice(0, sf);
+      firstDigitPos -= 1;
+    }
+
+    const newDecPos = decPos - firstDigitPos;
+    if (newDecPos >= sigStr.length) {
+      return sigStr + '0'.repeat(newDecPos - sigStr.length);
+    } else if (newDecPos > 0) {
+      return `${sigStr.slice(0, newDecPos)}.${sigStr.slice(newDecPos)}`;
     } else {
-      // For large numbers, toFixed(0) prevents scientific notation and ensures trailing zeros are kept
-      return rounded.toFixed(0);
+      return `0.${'0'.repeat(-newDecPos)}${sigStr}`;
     }
   };
 
@@ -450,7 +491,10 @@ const generateSigFigsProblem = (combo: number): MathProblem => {
     const dp = Math.floor(Math.random() * 3) + 1; // 1 to 3
     const extraDp = dp + Math.floor(Math.random() * 2) + 1; // dp + 1 or dp + 2
     let fracStr = '';
-    for (let i=0; i<extraDp; i++) fracStr += Math.floor(Math.random() * 10).toString();
+    for (let i = 0; i < extraDp; i++) {
+      const digit = i === extraDp - 1 ? Math.floor(Math.random() * 9) + 1 : Math.floor(Math.random() * 10);
+      fracStr += digit.toString();
+    }
     const numStr = `${whole}.${fracStr}`;
     
     const ansStr = roundToDp(numStr, dp);
@@ -465,14 +509,14 @@ const generateSigFigsProblem = (combo: number): MathProblem => {
     if (isDecimal) {
       const zeros = Math.floor(Math.random() * 3) + 1;
       let digits = '';
-      for(let i=0; i<sf + 2; i++) {
-        digits += (i===0 ? Math.floor(Math.random()*9)+1 : Math.floor(Math.random()*10)).toString();
+      for (let i = 0; i < sf + 2; i++) {
+        digits += (i === 0 || i === sf + 1 ? Math.floor(Math.random() * 9) + 1 : Math.floor(Math.random() * 10)).toString();
       }
       numStr = `0.${'0'.repeat(zeros)}${digits}`;
     } else {
       let digits = '';
-      for(let i=0; i<sf + 2; i++) {
-        digits += (i===0 ? Math.floor(Math.random()*9)+1 : Math.floor(Math.random()*10)).toString();
+      for (let i = 0; i < sf + 2; i++) {
+        digits += (i === 0 ? Math.floor(Math.random() * 9) + 1 : Math.floor(Math.random() * 10)).toString();
       }
       const extraZeros = Math.floor(Math.random() * 3);
       numStr = digits + '0'.repeat(extraZeros);
@@ -491,11 +535,16 @@ const generateSigFigsProblem = (combo: number): MathProblem => {
     
     if (isDecimal) {
       const leadingZeros = Math.floor(Math.random() * 4); // 0 to 3
-      const sigDigits = Math.floor(Math.random() * 4) + 1; // 1 to 4
+      let sigDigits = Math.floor(Math.random() * 4) + 1; // 1 to 4
       const trailingZeros = Math.floor(Math.random() * 3); // 0 to 2
+      if (leadingZeros === 0 && sigDigits === 1 && trailingZeros === 0) {
+        sigDigits = 2;
+      }
       
-      let digits = (Math.floor(Math.random()*9)+1).toString();
-      for(let i=1; i<sigDigits; i++) digits += Math.floor(Math.random()*10).toString();
+      let digits = (Math.floor(Math.random() * 9) + 1).toString();
+      for (let i = 1; i < sigDigits; i++) {
+        digits += (i === sigDigits - 1 && trailingZeros === 0 ? Math.floor(Math.random() * 9) + 1 : Math.floor(Math.random() * 10)).toString();
+      }
       
       if (leadingZeros > 0) {
         numStr = `0.${'0'.repeat(leadingZeros - 1)}${digits}${'0'.repeat(trailingZeros)}`;
@@ -508,9 +557,9 @@ const generateSigFigsProblem = (combo: number): MathProblem => {
       sfCount = sigDigits + trailingZeros;
     } else {
       const sigDigits = Math.floor(Math.random() * 4) + 2; // 2 to 5
-      let digits = (Math.floor(Math.random()*9)+1).toString();
-      for(let i=1; i<sigDigits-1; i++) digits += Math.floor(Math.random()*10).toString();
-      digits += (Math.floor(Math.random()*9)+1).toString(); // Ensure last digit is non-zero
+      let digits = (Math.floor(Math.random() * 9) + 1).toString();
+      for (let i = 1; i < sigDigits - 1; i++) digits += Math.floor(Math.random() * 10).toString();
+      digits += (Math.floor(Math.random() * 9) + 1).toString(); // Ensure last digit is non-zero
       
       const trailingZeros = Math.floor(Math.random() * 3);
       numStr = digits + '0'.repeat(trailingZeros);
@@ -534,22 +583,7 @@ const generateSigFigsProblem = (combo: number): MathProblem => {
     const n = Math.floor(Math.random() * 9) - 4; // -4 to 4
     
     question = `\\text{Decimal form of } ${aStr} \\times 10^{${n}}`;
-    const val = parseFloat(aStr) * Math.pow(10, n);
-    
-    let ansStr = '';
-    if (n >= 0) {
-      ansStr = val.toString();
-      // Avoid scientific notation from JS
-      if (ansStr.includes('e')) {
-        ansStr = val.toFixed(0);
-      }
-    } else {
-      ansStr = val.toFixed(Math.abs(n) + (aFrac > 0 ? aStr.split('.')[1].length : 0));
-      // Remove trailing zeros after decimal point
-      if (ansStr.includes('.')) {
-        ansStr = ansStr.replace(/0+$/, '').replace(/\.$/, '');
-      }
-    }
+    const ansStr = shiftDecimal(aStr, n);
     
     answerObj = { type: 'normal', value: ansStr };
   } else if (type === 'to_sci') {
@@ -565,19 +599,7 @@ const generateSigFigsProblem = (combo: number): MathProblem => {
       }
     }
     
-    const val = parseFloat(aStr) * Math.pow(10, n);
-    let numStr = '';
-    if (n >= 0) {
-      numStr = val.toString();
-      if (numStr.includes('e')) {
-        numStr = val.toFixed(0);
-      }
-    } else {
-      numStr = val.toFixed(Math.abs(n) + (aFrac > 0 ? aStr.split('.')[1].length : 0));
-      if (numStr.includes('.')) {
-        numStr = numStr.replace(/0+$/, '').replace(/\.$/, '');
-      }
-    }
+    const numStr = shiftDecimal(aStr, n);
     
     question = `\\text{Sci notation of } ${numStr}`;
     answerObj = { type: 'sci', a: aStr, n: n.toString() };
