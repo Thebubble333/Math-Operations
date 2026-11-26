@@ -66,6 +66,8 @@ const SLIP_LABELS: Record<string, string> = {
   'wrong-test': 'Choosing the wrong test',
   'letters-order': 'Statement letters in the wrong order',
   reason: 'Choosing the wrong reason',
+  asa: 'Using a side BETWEEN the two angles (ASA is not one of our tests)',
+  ssa: 'Using an angle that is not between the two sides',
   format: 'Typing a side or angle in the wrong format',
 };
 
@@ -261,16 +263,15 @@ const PairsInput: React.FC<{ q: CBQuestion; spec: any; report: Report; focusTarg
       const sig = `${r.left}=${r.right}|${r.reason}|${testDone}`;
       if (!force && lastSeen.current[i] === sig) return;
       lastSeen.current[i] = sig;
-      const res = CB.checkPair(q, r.left, r.right, spec.rows[i].kind);
-      let reasonOk: boolean | undefined;
-      if (res.status === 'correct' && spec.askReasons && r.reason) {
-        const want = (q.answer.pairs as any[]).find(p => CB.checkPair(q, p.left, p.right, p.kind).key === res.key);
-        reasonOk = want ? want.reason === r.reason : undefined;
-        if (reasonOk === false) report.wrong('reason');
-      }
-      if (res.status !== 'correct') report.wrong(res.code || 'not-matching');
-      setStatus(s => { const n = s.slice(); n[i] = { status: res.status, message: res.message, reasonOk }; return n; });
+      // the engine judges the whole proof: each row against everything that is known, and the three rows
+      // together by POSITION (e.g. a side between two angles is ASA, which is not one of our tests)
       const all = CB.checkPairs(q, { pairs: list.map(x => ({ left: x.left, right: x.right, reason: spec.askReasons ? x.reason : undefined })) });
+      const res = all.rows[i] || {};
+      const reasonOk: boolean | undefined = res.reasonCorrect;
+      if (reasonOk === false) report.wrong('reason');
+      if (res.status !== 'correct') report.wrong(res.code || 'not-matching');
+      else if (list.every(x => x.left && x.right) && !all.correct && all.classification) report.wrong(all.classification === 'ASA' ? 'asa' : all.classification === 'SSA' ? 'ssa' : 'wrong-test');
+      setStatus(st => { const n = st.slice(); n[i] = { status: res.status, message: res.message, reasonOk }; return n; });
       const reasonsFilled = !spec.askReasons || list.every(x => x.reason);
       if (all.correct && reasonsFilled && testDone && !done) { setDone(true); report.solved(); if (!quietSuccess) setMsg('good', q.explanation); }
       else if (!all.correct && all.messages.length && list.every(x => x.left && x.right)) setMsg('bad', all.messages.join(' '));

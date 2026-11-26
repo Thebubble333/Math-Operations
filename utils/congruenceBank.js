@@ -155,6 +155,50 @@ const CongruenceBank = (function (global) {
   // A "fact" is one row of a congruence proof. kind: S (side), A (angle), R (right angle), H (hypotenuse)
   function fact(kind, el, reason, note) { return { kind: kind, el: el, reason: reason || 'given', note: note || '' }; }
 
+  // ---------------------------------------------------------------------
+  // Positional classification of three facts about ONE triangle (elements named with that triangle's letters).
+  // Our course has four tests. Position matters:
+  //   SAS  the angle is BETWEEN the two sides (at the vertex the sides share)
+  //   AAS  the side is OPPOSITE one of the two angles (NOT between them)
+  //   RHS  a right angle, the hypotenuse (opposite it) and one other side
+  // Anything else is not a test: ASA (side between the angles), SSA (angle not between the sides), AAA.
+  // ---------------------------------------------------------------------
+  const VALID_TESTS = ['SSS', 'SAS', 'AAS', 'RHS'];
+  function classifyFacts(fs) {
+    if (fs.length !== 3 || new Set(fs.map(f => elKey(f.el))).size !== 3) return 'INVALID';
+    const S = fs.filter(f => f.el.t === 'side'), A = fs.filter(f => f.el.t === 'angle');
+    if (S.length === 3) return 'SSS';
+    if (A.length === 3) return 'AAA';
+    if (S.length === 2) {
+      const v = A[0].el.v, shared = S[0].el.p.find(x => S[1].el.p.includes(x));
+      if (shared === v) return 'SAS';
+      if (A[0].kind === 'R') {
+        const legs = S.filter(x => x.el.p.includes(v)), hyp = S.filter(x => !x.el.p.includes(v));
+        if (legs.length === 1 && hyp.length === 1) return 'RHS';
+      }
+      return 'SSA';
+    }
+    const p = S[0].el.p, v1 = A[0].el.v, v2 = A[1].el.v;
+    if (v1 === v2) return 'INVALID';
+    return p.includes(v1) && p.includes(v2) ? 'ASA' : 'AAS';
+  }
+  function combos3(arr) {
+    const out = [];
+    for (let i = 0; i < arr.length; i++) for (let j = i + 1; j < arr.length; j++) for (let k = j + 1; k < arr.length; k++) out.push([arr[i], arr[j], arr[k]]);
+    return out;
+  }
+  // Which of our four tests can be proved from a pool of known facts?
+  function analysePool(pool) {
+    const triples = combos3(pool).map(t => ({ facts: t, test: classifyFacts(t) })).filter(x => VALID_TESTS.includes(x.test));
+    return { validTests: [...new Set(triples.map(x => x.test))], triples: triples };
+  }
+  const NOT_A_TEST = {
+    ASA: 'The side is BETWEEN the two angles. That is ASA, which is not one of our tests. For AAS the side must be opposite one of the equal angles.',
+    SSA: 'The angle is NOT between the two sides, so this is not SAS (and without a right angle and hypotenuse it is not RHS).',
+    AAA: 'Three pairs of angles only show the triangles are the same shape, not the same size. You need a pair of sides.',
+    INVALID: 'You need three different pairs.'
+  };
+
   // =====================================================================
   // 6. Figures and marks
   // =====================================================================
@@ -187,8 +231,9 @@ const CongruenceBank = (function (global) {
     }
     if (test === 'AAS') {
       const pair = rng.shuffle(idx), u = pair[0], w = pair[1], x = pair[2], arcs = rng.shuffle([1, 2]);
-      // side opposite u (joins w and x) is NOT between the two marked angles; ASA option puts it between
-      const sideEnds = opts.asa ? [u, w] : [w, x];
+      // AAS: the marked side joins w and x, so it is OPPOSITE the angle at u and NOT between the two marked angles
+      // (a side between the two angles would be ASA, which is not one of our tests)
+      const sideEnds = [w, x];
       return { sides: [[sideEnds[0], sideEnds[1], 1]], angles: [[u, arcs[0]], [w, arcs[1]]], right: null,
         factsOrder: [{ kind: 'A', a: 0 }, { kind: 'A', a: 1 }, { kind: 'S', s: 0 }] };
     }
@@ -206,6 +251,15 @@ const CongruenceBank = (function (global) {
       return { sides: [], angles: [[0, a[0]], [1, a[1]], [2, a[2]]], right: null, factsOrder: [] };
     }
     throw new Error('Unknown test ' + test);
+  }
+
+  // Work out which tests the known facts actually prove (used by every checker)
+  function finalize(base) {
+    const a = analysePool(base.pool);
+    base.validTests = a.validTests;
+    base.validTriples = a.triples;
+    if (base.test !== 'NONE') base.canonicalTest = classifyFacts(base.facts);
+    return base;
   }
 
   function makePair(rng, o) {
@@ -241,12 +295,18 @@ const CongruenceBank = (function (global) {
     L2.forEach((l, i) => { points[l] = q2[i]; });
     const mapping = {}; L1.forEach((l, i) => { mapping[l] = L2[i]; });
 
-    const sel = chooseTestElements(rng, test, rightIndex, { asa: !!o.asa });
+    const sel = chooseTestElements(rng, test, rightIndex, {});
     const style = o.style === 'mixed' ? rng.pick(['ticks', 'values']) : o.style;
     const marks = [];
     // numeric values
     const realSides = triSides(pts), realAngles = triAngles(pts);
-    const k = rng.int(9, 16) / Math.max(...realSides);
+    // choose a scale whose rounded side lengths are all different (equal labels would wrongly suggest equal sides)
+    let k = rng.int(9, 16) / Math.max(...realSides);
+    for (let tries = 0; tries < 40; tries++) {
+      const r = realSides.map(x => Math.round(x * k));
+      if (new Set(r).size === 3) break;
+      k = rng.int(9, 20) / Math.max(...realSides);
+    }
     const sideVal = (i, j) => Math.round(dist(pts[i], pts[j]) * k);
     const angleVal = i => Math.round(realAngles[i]);
     const unitTxt = o.units === false ? '' : ' cm';
@@ -272,16 +332,21 @@ const CongruenceBank = (function (global) {
       if (f.kind === 'A') { const i = sel.angles[f.a][0], o2 = [0, 1, 2].filter(j => j !== i); return fact('A', ang(L1[o2[0]], L1[i], L1[o2[1]]), 'given'); }
       const r = sel.right, o2 = [0, 1, 2].filter(j => j !== r); return fact('R', ang(L1[o2[0]], L1[r], L1[o2[1]]), 'right-given');
     });
+    // pool = every pair of equal parts the student is allowed to use (here: everything that is marked)
+    const pool = [];
+    sel.sides.forEach(sd => pool.push(fact(sd[3] === 'H' ? 'H' : 'S', side(L1[sd[0]], L1[sd[1]]), 'given')));
+    sel.angles.forEach(an => { const o2 = [0, 1, 2].filter(j => j !== an[0]); pool.push(fact('A', ang(L1[o2[0]], L1[an[0]], L1[o2[1]]), 'given')); });
+    if (sel.right !== null) { const o2 = [0, 1, 2].filter(j => j !== sel.right); pool.push(fact('R', ang(L1[o2[0]], L1[sel.right], L1[o2[1]]), 'right-given')); }
     const figure = {
       W: W, H: H, points: points,
       segments: [[L1[0], L1[1]], [L1[1], L1[2]], [L1[2], L1[0]], [L2[0], L2[1]], [L2[1], L2[2]], [L2[2], L2[0]]],
       polys: [{ v: L1, role: 't1' }, { v: L2, role: 't2' }], marks: marks, fills: false
     };
-    return {
+    return finalize({
       kind: 'pair', config: 'separate', test: (test === 'SSA' || test === 'AAA') ? 'NONE' : test, rawTest: test,
-      figure: figure, tri1: L1, tri2: L2, mapping: mapping, facts: facts, style: style,
+      figure: figure, tri1: L1, tri2: L2, mapping: mapping, facts: facts, pool: pool, style: style, rightVertex: sel.right !== null ? L1[sel.right] : null,
       transform: { reflect: reflect, rotate: Math.round(turn) }, fixed: [], swaps: [], sel: sel, ambiguousVertices: [], lines: []
-    };
+    });
   }
 
   // =====================================================================
@@ -352,8 +417,6 @@ const CongruenceBank = (function (global) {
       tests: {
         SSS: { facts: d => [['S', side(d.d1, d.o1), 'given'], ['S', side(d.o1, d.d2), 'given'], ['S', side(d.d1, d.d2), 'common-side']],
           marks: d => [{ k: 'tick', a: d.d1, b: d.o1, n: 1 }, { k: 'tick', a: d.d2, b: d.o2, n: 1 }, { k: 'tick', a: d.o1, b: d.d2, n: 2 }, { k: 'tick', a: d.o2, b: d.d1, n: 2 }] },
-        AAS: { facts: d => [['A', ang(d.o1, d.d1, d.d2), 'alternate', side(d.d1, d.o1)], ['A', ang(d.o1, d.d2, d.d1), 'alternate', side(d.o1, d.d2)], ['S', side(d.d1, d.d2), 'common-side']],
-          marks: d => [{ k: 'para', a: d.d1, b: d.o1, n: 1 }, { k: 'para', a: d.o2, b: d.d2, n: 1 }, { k: 'para', a: d.o1, b: d.d2, n: 2 }, { k: 'para', a: d.d1, b: d.o2, n: 2 }] },
         SAS: { facts: d => [['S', side(d.d1, d.o1), 'given'], ['A', ang(d.o1, d.d1, d.d2), 'alternate', side(d.d1, d.o1)], ['S', side(d.d1, d.d2), 'common-side']],
           marks: d => [{ k: 'tick', a: d.d1, b: d.o1, n: 1 }, { k: 'tick', a: d.d2, b: d.o2, n: 1 }, { k: 'para', a: d.d1, b: d.o1, n: 1 }, { k: 'para', a: d.o2, b: d.d2, n: 1 }] }
       }
@@ -376,9 +439,7 @@ const CongruenceBank = (function (global) {
       segments: [['P1', 'P2'], ['P2', 'P3'], ['P3', 'P4'], ['P4', 'P1']],
       tests: {
         RHS: { facts: d => [['R', ang(d.d1, d.o1, d.d2), 'right-given'], ['H', side(d.d1, d.d2), 'common-side'], ['S', side(d.d1, d.o1), 'given']],
-          marks: d => [{ k: 'right', v: d.o1, a: d.d1, b: d.d2 }, { k: 'right', v: d.o2, a: d.d1, b: d.d2 }, { k: 'tick', a: d.d1, b: d.o1, n: 1 }, { k: 'tick', a: d.d2, b: d.o2, n: 1 }] },
-        SAS: { facts: d => [['S', side(d.d1, d.o1), 'given'], ['R', ang(d.d1, d.o1, d.d2), 'right-given'], ['S', side(d.o1, d.d2), 'given']],
-          marks: d => [{ k: 'right', v: d.o1, a: d.d1, b: d.d2 }, { k: 'right', v: d.o2, a: d.d1, b: d.d2 }, { k: 'tick', a: d.d1, b: d.o1, n: 1 }, { k: 'tick', a: d.d2, b: d.o2, n: 1 }, { k: 'tick', a: d.o1, b: d.d2, n: 2 }, { k: 'tick', a: d.o2, b: d.d1, n: 2 }] }
+          marks: d => [{ k: 'right', v: d.o1, a: d.d1, b: d.d2 }, { k: 'right', v: d.o2, a: d.d1, b: d.d2 }, { k: 'tick', a: d.d1, b: d.o1, n: 1 }, { k: 'tick', a: d.d2, b: d.o2, n: 1 }] }
       }
     },
     bowtie: {
@@ -401,10 +462,9 @@ const CongruenceBank = (function (global) {
       tests: {
         SAS: { facts: [['S', side('X', 'E'), 'given'], ['A', ang('X', 'E', 'Y'), 'vert-opp'], ['S', side('E', 'Y'), 'given']],
           marks: [{ k: 'tick', a: 'X', b: 'E', n: 1 }, { k: 'tick', a: 'Xp', b: 'E', n: 1 }, { k: 'tick', a: 'Y', b: 'E', n: 2 }, { k: 'tick', a: 'Yp', b: 'E', n: 2 }] },
-        AAS: { facts: [['A', ang('Y', 'X', 'E'), 'alternate', side('X', 'Y')], ['A', ang('X', 'E', 'Y'), 'vert-opp'], ['S', side('X', 'E'), 'given']],
-          marks: [{ k: 'para', a: 'X', b: 'Y', n: 1 }, { k: 'para', a: 'Yp', b: 'Xp', n: 1 }, { k: 'tick', a: 'X', b: 'E', n: 1 }, { k: 'tick', a: 'Xp', b: 'E', n: 1 }] },
-        SSS: { facts: [['S', side('X', 'E'), 'given'], ['S', side('E', 'Y'), 'given'], ['S', side('X', 'Y'), 'given']],
-          marks: [{ k: 'tick', a: 'X', b: 'E', n: 1 }, { k: 'tick', a: 'Xp', b: 'E', n: 1 }, { k: 'tick', a: 'Y', b: 'E', n: 2 }, { k: 'tick', a: 'Yp', b: 'E', n: 2 }, { k: 'tick', a: 'X', b: 'Y', n: 3 }, { k: 'tick', a: 'Xp', b: 'Yp', n: 3 }] }
+        AAS: { facts: [['A', ang('X', 'Y', 'E'), 'alternate', side('X', 'Y')], ['A', ang('X', 'E', 'Y'), 'vert-opp'], ['S', side('X', 'E'), 'given']],
+          extra: [['A', ang('Y', 'X', 'E'), 'alternate', side('X', 'Y')]],
+          marks: [{ k: 'para', a: 'X', b: 'Y', n: 1 }, { k: 'para', a: 'Yp', b: 'Xp', n: 1 }, { k: 'tick', a: 'X', b: 'E', n: 1 }, { k: 'tick', a: 'Xp', b: 'E', n: 1 }] }
       }
     },
     windmill: {
@@ -538,6 +598,20 @@ const CongruenceBank = (function (global) {
       if (f[3]) note = f[3].p.map(LL).join('') + ' ∥ ' + mapEl(side(LL(f[3].p[0]), LL(f[3].p[1])), mapping).p.join('');
       return fact(f[0], el, f[2], note);
     });
+    const extraFacts = (spec.extra ? (typeof spec.extra === 'function' ? spec.extra(d) : spec.extra) : []).map(f => {
+      const el = f[1].t === 'side' ? side(LL(f[1].p[0]), LL(f[1].p[1])) : ang(LL(f[1].a), LL(f[1].v), LL(f[1].c));
+      let note = '';
+      if (f[3]) note = f[3].p.map(LL).join('') + ' \u2225 ' + mapEl(side(LL(f[3].p[0]), LL(f[3].p[1])), mapping).p.join('');
+      return fact(f[0], el, f[2], note);
+    });
+    const pool = [];
+    const addPool = f => { if (!pool.some(g => elKey(g.el) === elKey(f.el))) pool.push(f); };
+    facts.forEach(addPool); extraFacts.forEach(addPool);
+    // any side the two triangles share is always known (common side)
+    [[0, 1], [1, 2], [2, 0]].forEach(([i, j]) => {
+      const e = side(tri1[i], tri1[j]);
+      if (elKey(mapEl(e, mapping)) === elKey(e)) addPool(fact('S', e, 'common-side'));
+    });
     const fixed = tri1.filter(l => mapping[l] === l);
     const swaps = [];
     tri1.forEach(l => { const m = mapping[l]; if (m !== l && mapping[m] === l && l < m) swaps.push([l, m]); });
@@ -546,12 +620,12 @@ const CongruenceBank = (function (global) {
     segs.forEach(s => { s.forEach(r => { degree[LL(r)] = (degree[LL(r)] || 0) + 1; }); });
     const ambiguous = Object.keys(degree).filter(k => degree[k] > 2);
     const lines = (cfg.lines || []).map(ln => ln.map(LL));
-    return {
+    return finalize({
       kind: 'shared', config: name, configLabel: cfg.label, transformText: cfg.transform, test: test, rawTest: test,
       figure: { W: W, H: H, points: points, segments: segs.map(s => s.map(LL)),
         polys: [{ v: tri1, role: 't1' }, { v: tri2, role: 't2' }], marks: marks, fills: true },
-      tri1: tri1, tri2: tri2, mapping: mapping, facts: facts, fixed: fixed, swaps: swaps, ambiguousVertices: ambiguous, lines: lines
-    };
+      tri1: tri1, tri2: tri2, mapping: mapping, facts: facts, pool: pool, fixed: fixed, swaps: swaps, ambiguousVertices: ambiguous, lines: lines
+    });
   }
 
   // =====================================================================
@@ -699,7 +773,7 @@ const CongruenceBank = (function (global) {
   // 11. Question builders
   // =====================================================================
   const TESTS = ['SSS', 'SAS', 'AAS', 'RHS'];
-  const TEST_NAMES = { SSS: 'side, side, side', SAS: 'side, included angle, side', AAS: 'two angles and a matching side', RHS: 'right angle, hypotenuse, side', NONE: 'not enough information' };
+  const TEST_NAMES = { SSS: 'side, side, side', SAS: 'side, included angle, side', AAS: 'two angles and a side opposite one of them', RHS: 'right angle, hypotenuse, side', NONE: 'not enough information' };
   const triName = arr => TRI + arr.join('');
 
   function factRow(f, mapping) {
@@ -707,7 +781,7 @@ const CongruenceBank = (function (global) {
     const kindLabel = { S: 'Side', A: 'Angle', R: 'Right angle', H: 'Hypotenuse' }[f.kind];
     let reasonText = REASONS[f.reason];
     if (f.reason === 'alternate' && f.note) reasonText = 'Alternate angles, ' + f.note;
-    return { kind: f.kind, kindLabel: kindLabel, left: elStr(f.el), right: elStr(r), leftEl: f.el, rightEl: r,
+    return { kind: f.kind, kindLabel: kindLabel, left: elStr(f.el), right: elStr(r), leftEl: f.el, rightEl: r, note: f.note || '',
       reason: f.reason, reasonText: reasonText, letter: f.kind === 'R' ? 'A' : f.kind === 'H' ? 'H' : f.kind };
   }
 
@@ -725,6 +799,8 @@ const CongruenceBank = (function (global) {
       tri1: base.tri1, tri2: base.tri2, mapping: base.mapping, statement: `${triName(base.tri1)} ${EQUIV} ${triName(base.tri2)}`,
       figure: base.figure, svg: renderSVG(base.figure, o.svgStyle),
       facts: base.facts.map(f => factRow(f, base.mapping)),
+      pool: base.pool.map(f => factRow(f, base.mapping)),
+      validTests: base.test === 'NONE' ? ['NONE'] : base.validTests,
       meta: { rawTest: base.rawTest, fixed: base.fixed, swaps: base.swaps, transform: base.transform || base.transformText, style: base.style, ambiguousVertices: base.ambiguousVertices, lines: base.lines || [] }
     }, extra);
     q.hints = q.hints || base.tri1.map(l => vertexHint(base, l));
@@ -843,7 +919,7 @@ const CongruenceBank = (function (global) {
           ? 'Is there enough information to say these triangles are congruent? If so, which test?'
           : `These triangles are congruent. Which test proves it?`,
         input: { kind: 'test', options: options.map(t => ({ value: t, label: t === 'NONE' ? 'Not enough information' : t })) },
-        answer: { test: base.test },
+        answer: { test: base.test, tests: base.test === 'NONE' ? ['NONE'] : base.validTests },
         explanation: testExplanation(base)
       });
     },
@@ -858,28 +934,47 @@ const CongruenceBank = (function (global) {
         input: { kind: 'pairs', askTest: o.askTest !== false, options: TESTS.map(t => ({ value: t, label: t })),
           rows: rows.map(r => ({ kind: r.kind, kindLabel: r.kindLabel, left: prefillLeft ? r.left : null })),
           askReasons: askReasons, reasonOptions: REASON_OPTIONS, orderFree: true },
-        answer: { test: base.test, pairs: rows },
-        explanation: rows.map(r => `${r.left} = ${r.right} (${r.reasonText})`).join('; ') + `. So ${triName(base.tri1)} ${EQUIV} ${triName(base.tri2)} (${base.test}).`
+        answer: { test: base.test, tests: base.validTests, pairs: rows },
+        explanation: rows.map(r => `${r.left} = ${r.right} (${r.reasonText})`).join('; ') + `. So ${triName(base.tri1)} ${EQUIV} ${triName(base.tri2)} (${base.test}).` + positionNote(base) + alternativesNote(base)
       });
     },
     'missing-fact'(rng, o) {
       const test = o.test || rng.pick(TESTS);
       const base = makePair(rng, { test: test, difficulty: o.difficulty, style: o.style || 'ticks' });
       // hide one of the three facts (never the right angle for RHS, so the triangles still look right-angled)
-      const candidates = base.facts.map((f, i) => i).filter(i => base.facts[i].kind !== 'R');
-      const hideIdx = rng.pick(candidates), hidden = base.facts[hideIdx];
+      const candidatesIdx = base.facts.map((f, i) => i).filter(i => base.facts[i].kind !== 'R');
+      const hideIdx = rng.pick(candidatesIdx), hidden = base.facts[hideIdx];
       const hiddenRow = factRow(hidden, base.mapping);
       const keyOf = m => m.k === 'tick' || m.k === 'sideval' ? 'S:' + [m.a, m.b].sort().join('') : (m.k === 'arc' || m.k === 'angval') ? 'A:' + m.v + ':' + [m.a, m.b].sort().join('') : '';
       const hideKeys = [elKey(hidden.el), elKey(mapEl(hidden.el, base.mapping))];
       base.figure.marks = base.figure.marks.filter(m => !hideKeys.includes(keyOf(m)));
+      const shown = base.facts.filter((f, i) => i !== hideIdx);
+      base.pool = shown.slice();                    // only the two marked pairs are known now
+      // Try every side and angle of the triangle as the third pair, and classify each by position.
+      const t1 = base.tri1;
+      const all = [[0, 1], [1, 2], [2, 0]].map(([i, j]) => fact('S', side(t1[i], t1[j])))
+        .concat([0, 1, 2].map(i => { const o2 = t1.filter((_, j) => j !== i); return fact(t1[i] === base.rightVertex ? 'R' : 'A', ang(o2[0], t1[i], o2[1])); }));
+      const shownKeys = shown.map(f => elKey(f.el));
+      const candidates = all.filter(f => !shownKeys.includes(elKey(f.el))).map(f => ({ key: elKey(f.el), fact: f, test: classifyFacts(shown.concat([f])) }));
+      const accept = candidates.filter(c => c.test === test);
+      const acceptRows = accept.map(c => factRow(c.fact, base.mapping));
       const what = hidden.kind === 'A' ? 'pair of angles' : 'pair of sides';
+      const many = acceptRows.length > 1;
+      const why = test === 'AAS' && hidden.kind !== 'A' ? 'AAS needs a pair of sides OPPOSITE one of the equal angles (not between them).'
+        : test === 'AAS' ? 'AAS needs the equal side to be OPPOSITE one of the two equal angles, so check where the side is.'
+          : test === 'RHS' && hidden.kind === 'S' ? 'With the right angle and the hypotenuse, either of the other sides completes RHS.'
+            : test === 'RHS' ? 'RHS needs the hypotenuse: the side opposite the right angle.'
+              : test === 'SAS' && hidden.kind === 'A' ? 'SAS needs the angle BETWEEN the two marked sides.'
+                : test === 'SAS' ? 'SAS needs the other side that meets the marked angle, so the angle is between the two sides.'
+                  : 'SSS needs all three pairs of sides.';
       return common('missing-fact', 'test', rng, o, base, {
         title: 'What else do you need?',
-        prompt: `Two pairs are already marked equal. Which other ${what} must be equal to prove these triangles congruent by ${test}? The congruent triangle is ${triName(base.tri2)}.`,
+        prompt: `Two pairs are already marked equal. Name ${many ? 'a' : 'the'} ${what} that would complete the proof that these triangles are congruent by ${test}. The congruent triangle is ${triName(base.tri2)}.`,
         input: { kind: 'fact', expect: hidden.kind === 'A' ? 'angle' : 'side' },
-        answer: { pair: hiddenRow },
-        hints: [hidden.kind === 'A' ? `${test} needs the angle between the two marked sides.` : `List what ${test} needs, then see which piece is not marked yet.`],
-        explanation: `${hiddenRow.left} = ${hiddenRow.right}. ${TEST_NAMES[test]}.`
+        answer: { pair: hiddenRow, accept: acceptRows, acceptKeys: accept.map(c => c.key), shownKeys: shownKeys,
+          candidates: candidates.map(c => ({ key: c.key, test: c.test })) },
+        hints: [why],
+        explanation: `${many ? 'Either of these works: ' : ''}${acceptRows.map(r => `${r.left} = ${r.right}`).join(many ? ', or ' : '')}. ${why}`
       });
     },
     'full-proof'(rng, o) {
@@ -893,13 +988,23 @@ const CongruenceBank = (function (global) {
           { kind: 'pairs', askTest: false, rows: rows.map(r => ({ kind: r.kind, kindLabel: r.kindLabel, left: null })), askReasons: true, reasonOptions: REASON_OPTIONS, orderFree: true },
           { kind: 'test', options: TESTS.map(t => ({ value: t, label: t })) }
         ] },
-        answer: { mapping: base.mapping, pairs: rows, test: base.test },
+        answer: { mapping: base.mapping, pairs: rows, test: base.test, tests: base.validTests },
         explanation: base.tri1.map(l => `${l} ${MAPSTO} ${base.mapping[l]}`).join(', ') + '. ' +
-          rows.map(r => `${r.left} = ${r.right} (${r.reasonText})`).join('; ') + `. ${'∴'} ${triName(base.tri1)} ${EQUIV} ${triName(base.tri2)} (${base.test}).`
+          rows.map(r => `${r.left} = ${r.right} (${r.reasonText})`).join('; ') + `. ${'∴'} ${triName(base.tri1)} ${EQUIV} ${triName(base.tri2)} (${base.test}).` + positionNote(base) + alternativesNote(base)
       });
     }
   };
 
+  function positionNote(base) {
+    if (base.test !== 'AAS') return '';
+    const sd = base.facts.find(f => f.el.t === 'side'), angs = base.facts.filter(f => f.el.t === 'angle');
+    const opp = angs.find(a => !sd.el.p.includes(a.el.v));
+    return opp ? ` The side ${elStr(sd.el)} is opposite ${elStr(opp.el)}, so the side is not between the two angles.` : '';
+  }
+  function alternativesNote(base) {
+    const n = (base.validTriples || []).filter(t => t.test === base.test).length;
+    return n > 1 ? ` (Other correct choices of three pairs are accepted too, as long as they fit ${base.test}.)` : '';
+  }
   function testExplanation(base) {
     if (base.test === 'NONE') {
       return base.rawTest === 'AAA'
@@ -907,7 +1012,7 @@ const CongruenceBank = (function (global) {
         : 'Two sides and an angle are marked, but the angle is NOT between the two sides. That is not one of the tests.';
     }
     const rows = base.facts.map(f => factRow(f, base.mapping));
-    return `${TEST_NAMES[base.test]}: ` + rows.map(r => `${r.left} = ${r.right}`).join(', ') + '.';
+    return `${base.test} (${TEST_NAMES[base.test]}): ` + rows.map(r => `${r.left} = ${r.right}`).join(', ') + '.' + positionNote(base);
   }
 
   const ERROR_EXPLAIN = {
@@ -987,8 +1092,8 @@ const CongruenceBank = (function (global) {
     SAS: { SSS: 'Only two pairs of sides are equal. The equal angle sits between those two sides, so it is SAS.',
            AAS: 'Only one pair of angles is equal, and it sits between the two equal sides. That is SAS.',
            RHS: 'The angle sits between the two equal sides, and neither side is the hypotenuse. That is SAS.' },
-    AAS: { SSS: 'Only one pair of sides is equal, but two pairs of angles are equal. That is AAS.',
-           SAS: 'Two pairs of angles are equal, plus one pair of sides. That is AAS.',
+    AAS: { SSS: 'Only one pair of sides is equal, but two pairs of angles are equal, and the side is opposite one of them. That is AAS.',
+           SAS: 'Two pairs of angles are equal, plus a pair of sides opposite one of those angles. That is AAS.',
            RHS: 'There is no right angle with a hypotenuse here. Two angles and a side: AAS.' },
     RHS: { SSS: 'Only two pairs of sides are equal, but there is a right angle. Right angle, hypotenuse, side: RHS.',
            SAS: 'The right angle is NOT between the two equal sides, because one of them is the hypotenuse. That is RHS.',
@@ -1000,12 +1105,14 @@ const CongruenceBank = (function (global) {
   };
   function checkTest(q, choice) {
     const want = q.answer.test, got = String(choice || '').toUpperCase();
-    if (got === want) return { correct: true, message: q.explanation };
+    const ok = (q.validTests && q.validTests.length ? q.validTests : [want]);
+    if (ok.includes(got)) return { correct: true, message: q.explanation };
     let msg = (TEST_FEEDBACK[want] && TEST_FEEDBACK[want][got]) || 'Not quite. Count the equal sides and angles again.';
     if (want === 'SAS' && got === 'RHS' && q.facts.some(f => f.kind === 'R')) msg = 'There is a right angle, but it sits between the two equal sides and the hypotenuse is not one of them. That is SAS.';
     if (want === 'NONE' && got === 'AAS' && q.meta && q.meta.rawTest === 'AAA') msg = 'Only angles are equal. Triangles with the same angles can be different sizes, so there is not enough information.';
     if (got === 'NONE' && want !== 'NONE') msg = `There is enough information. ${q.explanation}`;
-    if (got === 'ASA' || got === 'SSA' || got === 'ASS') msg = `${got} is not one of our tests. Use SSS, SAS, AAS or RHS.`;
+    if (got === 'ASA') msg = 'ASA is not one of our tests. For AAS, the equal side must be opposite one of the equal angles.';
+    if (got === 'SSA' || got === 'ASS') msg = `${got} is not a test: the angle must be between the two sides (SAS).`;
     return { correct: false, message: msg };
   }
 
@@ -1074,7 +1181,7 @@ const CongruenceBank = (function (global) {
       return { status: 'wrong', code: 'not-matching', matchedRight: elStr(image),
         message: `${elStr(a)} matches ${elStr(image)}, not ${elStr(b)}. Use the vertex mapping: ${letters.map(l => `${l} ${MAPSTO} ${m[l]}`).join(', ')}.` };
     }
-    const keys = (q.answer.pairs || q.facts).map(p => elKey(p.leftEl));
+    const keys = (q.pool || q.answer.pairs || q.facts).map(p => elKey(p.leftEl));
     const k = elKey(a);
     if (!keys.includes(k)) {
       return { status: 'unused', code: 'true-but-not-marked', key: k,
@@ -1083,45 +1190,73 @@ const CongruenceBank = (function (global) {
     return { status: 'correct', key: k, left: elStr(a), right: elStr(b) };
   }
 
+  // A right angle can be justified as "Given" or "Given right angles"; everything else needs its own reason
+  function reasonMatches(pf, reason) {
+    if (reason === pf.reason) return true;
+    if (pf.kind === 'R' || pf.reason === 'right-given') return reason === 'given' || reason === 'right-given';
+    return false;
+  }
+
+  // Whole proof: three rows (any order). Correct when every row is a known pair, the three together
+  // prove one of our tests BY POSITION, that test is the one chosen (if a test was chosen), and reasons fit.
   function checkPairs(q, resp) {
     const out = { rows: [], messages: [] };
-    let testOk = true;
-    if (resp.test !== undefined) { const t = checkTest(q, resp.test); testOk = t.correct; out.test = t; }
-    const seen = new Set();
-    const wantRows = q.answer.pairs;
+    let chosen = null, testOk = true;
+    if (resp.test !== undefined && resp.test !== null && resp.test !== '') {
+      const t = checkTest(q, resp.test); testOk = t.correct; out.test = t; chosen = String(resp.test).toUpperCase();
+    }
+    const pool = q.pool || q.answer.pairs;
+    const used = new Map();
     (resp.pairs || []).forEach((row, i) => {
-      const kind = q.input.rows ? (q.input.rows[i] || {}).kind : (q.input.steps ? q.input.steps[1].rows[i].kind : null);
+      const kind = q.input.rows ? (q.input.rows[i] || {}).kind : (q.input.steps ? (q.input.steps[1].rows[i] || {}).kind : null);
       const r = checkPair(q, row.left, row.right, kind);
       if (r.status === 'correct') {
-        if (seen.has(r.key)) { r.status = 'duplicate'; r.message = 'You already used this pair.'; }
-        seen.add(r.key);
-        const want = wantRows.find(w => elKey(w.leftEl) === r.key);
-        if (want && row.reason !== undefined && row.reason !== null && row.reason !== '') {
-          r.reasonCorrect = row.reason === want.reason;
-          if (!r.reasonCorrect) r.reasonMessage = `Reason: ${want.reasonText}.`;
+        if (used.has(r.key)) { r.status = 'duplicate'; r.message = 'You already used this pair.'; }
+        else {
+          const pf = pool.find(x => elKey(x.leftEl) === r.key);
+          used.set(r.key, pf);
+          if (row.reason !== undefined && row.reason !== null && row.reason !== '') {
+            r.reasonCorrect = reasonMatches(pf, row.reason);
+            if (!r.reasonCorrect) r.reasonMessage = `Reason: ${pf.reasonText}.`;
+          }
         }
       }
       out.rows.push(r);
     });
-    const allFound = wantRows.every(w => seen.has(elKey(w.leftEl)));
-    const reasonsOk = out.rows.every(r => r.reasonCorrect !== false);
-    out.correct = testOk && allFound && reasonsOk;
-    out.score = out.rows.filter(r => r.status === 'correct').length;
-    out.max = wantRows.length;
-    if (!allFound) {
-      const missing = wantRows.filter(w => !seen.has(elKey(w.leftEl)));
-      if (missing.length) out.messages.push(`Still needed: a ${missing.map(m => m.kindLabel.toLowerCase()).join(' and a ')}.`);
+    const facts = [...used.values()];
+    const valid = (q.validTests || []).filter(t => t !== 'NONE');
+    let cls = null;
+    if (facts.length === 3) {
+      cls = classifyFacts(facts.map(f => ({ kind: f.kind, el: f.leftEl })));
+      out.classification = cls;
+      if (!VALID_TESTS.includes(cls)) out.messages.push(NOT_A_TEST[cls] || NOT_A_TEST.INVALID);
+      else if (chosen && cls !== chosen) out.messages.push(`These three pairs prove it by ${cls}, not ${chosen}.`);
+    } else {
+      const need = { SSS: 'three pairs of sides', SAS: 'two pairs of sides and the angle between them', AAS: 'two pairs of angles and a pair of sides opposite one of them', RHS: 'the right angle, the hypotenuse and one other side' };
+      const t = chosen && need[chosen] ? chosen : (valid.length === 1 ? valid[0] : null);
+      out.messages.push(t ? `${t} needs ${need[t]}.` : 'You need three different pairs.');
     }
+    const reasonsOk = out.rows.every(r => r.reasonCorrect !== false);
+    const allRowsOk = out.rows.length >= 3 && out.rows.every(r => r.status === 'correct');
+    const tripleOk = cls !== null && valid.includes(cls) && (!chosen || cls === chosen);
+    out.correct = testOk && allRowsOk && tripleOk && reasonsOk;
+    out.score = out.rows.filter(r => r.status === 'correct').length;
+    out.max = 3;
     return out;
   }
 
+  // "What else do you need?": any pair that, with the two marked pairs, proves the named test BY POSITION
   function checkFact(q, resp) {
     const r = checkPair(q, resp.left, resp.right, q.answer.pair.kind);
-    if (r.status === 'correct' || r.status === 'unused') {
-      const ok = r.key === elKey(q.answer.pair.leftEl);
-      return { correct: ok, row: r, message: ok ? q.explanation : `That pair is equal, but it is not the one ${q.test} needs. ${q.hints[0]}` };
-    }
-    return { correct: false, row: r, message: r.message };
+    if (r.status !== 'correct' && r.status !== 'unused') return { correct: false, row: r, message: r.message };
+    if (q.answer.acceptKeys.includes(r.key)) return { correct: true, row: r, message: q.explanation };
+    if (q.answer.shownKeys.includes(r.key)) return { correct: false, row: r, message: 'That pair is already marked. Which piece is not marked yet?' };
+    const cand = q.answer.candidates.find(c => c.key === r.key);
+    const cls = cand ? cand.test : 'INVALID';
+    let msg;
+    if (VALID_TESTS.includes(cls)) msg = `With that pair the test would be ${cls}, not ${q.test}. ${q.hints[0]}`;
+    else msg = NOT_A_TEST[cls] ? NOT_A_TEST[cls] : 'That pair does not complete the test. ' + q.hints[0];
+    return { correct: false, row: r, message: msg };
   }
 
   function check(q, resp) {
@@ -1186,6 +1321,7 @@ const CongruenceBank = (function (global) {
     renderSVG: renderSVG,
     check: check, checkMapping: checkMapping, checkMappingRow: checkMappingRow, checkLetters: checkLetters,
     checkTest: checkTest, checkPair: checkPair, checkPairs: checkPairs, checkFact: checkFact,
+    classifyFacts: classifyFacts, VALID_TESTS: VALID_TESTS,
     // lower-level building blocks, for custom question types
     _internal: { makeRng: makeRng, makePair: makePair, makeShared: makeShared, genScalene: genScalene, genRight: genRight, goodTriangle: goodTriangle, VERTEX_RECTS: VERTEX_RECTS }
   };

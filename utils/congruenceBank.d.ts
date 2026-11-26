@@ -5,7 +5,7 @@ export interface CBQuestion {
   title: string; prompt: string; svg: string; figure: any; showFigure?: boolean;
   tri1: string[]; tri2: string[]; mapping: Record<string, string>; statement: string; test: string;
   configLabel: string; facts: any[]; hints: string[]; explanation: string;
-  input: any; answer: any; meta: any; proposedIsCorrect?: boolean; proposedError?: string;
+  input: any; answer: any; meta: any; pool: any[]; validTests: string[]; proposedIsCorrect?: boolean; proposedError?: string;
 }
 export interface CongruenceBankAPI {
   version: string;
@@ -24,6 +24,8 @@ export interface CongruenceBankAPI {
   checkPair(q: CBQuestion, left: string, right: string, kind?: string): { status: string; code?: string; message?: string; key?: string };
   checkPairs(q: CBQuestion, resp: any): any;
   checkFact(q: CBQuestion, resp: any): any;
+  classifyFacts(facts: any[]): string;
+  VALID_TESTS: string[];
 }
 declare const CongruenceBank: CongruenceBankAPI;
 export default CongruenceBank;
