@@ -21,6 +21,7 @@ import Year9Menu from './components/Year9Menu';
 import PronumeralsBothSides from './components/PronumeralsBothSides';
 import PartialFractionsGame from './components/PartialFractionsGame';
 import Alt5Practice from './components/Alt5Practice';
+import ReviewerExport from './components/ReviewerExport';
 
 const TARGET_PROBLEMS = 20;
 
@@ -1322,6 +1323,7 @@ const App: React.FC = () => {
           <Route path="/8seal/alt5-practice" element={<Alt5Practice />} />
           <Route path="/alt-5-practice" element={<Alt5Practice />} />
           <Route path="/alt5-practice" element={<Alt5Practice />} />
+          <Route path="/export" element={<ReviewerExport />} />
         </Routes>
       )}
 

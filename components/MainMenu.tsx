@@ -185,6 +185,13 @@ const MainMenu: React.FC<MainMenuProps> = ({
             {darkMode ? '🌙' : '☀️'}
           </button>
           <button 
+            onClick={() => navigate('/export')}
+            className="p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-md hover:shadow-lg transition-all active:scale-90 text-sm font-bold text-slate-700 dark:text-slate-200 px-5"
+            title="Reviewer Question Bank Export (PDF / HTML / JSON)"
+          >
+            📄 Reviewer Export
+          </button>
+          <button 
             onClick={() => setShowSettings(!showSettings)}
             className="p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-md hover:shadow-lg transition-all active:scale-90"
             title="Settings"
@@ -199,6 +206,15 @@ const MainMenu: React.FC<MainMenuProps> = ({
           <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] p-10 shadow-2xl border border-slate-200 dark:border-slate-800">
             <h2 className="text-3xl font-black mb-8 text-slate-800 dark:text-slate-100 italic">SETTINGS</h2>
             <div className="space-y-4">
+              <button 
+                onClick={() => {
+                  closeSettings();
+                  navigate('/export');
+                }}
+                className="w-full py-5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl transition-all uppercase tracking-tighter flex items-center justify-center gap-2 shadow-lg"
+              >
+                <span>📄</span> QUESTION BANK EXPORT (PDF)
+              </button>
               <button 
                 onClick={exportStandalone}
                 className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl transition-all uppercase tracking-tighter flex items-center justify-center gap-2 shadow-lg"
