@@ -18,55 +18,36 @@ interface ModeDef {
 }
 
 export const CONGRUENCE_MODES: Record<string, ModeDef> = {
+  tests: {
+    title: 'Congruence Tests',
+    blurb: 'SSS, SAS, AAS or RHS? Read the markings, then choose the test.',
+    levels: {
+      1: [{ type: 'choose-test' }],
+      2: [{ type: 'choose-test' }, { type: 'choose-test' }, { type: 'missing-fact' }],
+      3: [{ type: 'choose-test', opts: { includeNotEnough: true } }, { type: 'choose-test', opts: { includeNotEnough: true } }, { type: 'missing-fact' }],
+    },
+  },
   mappings: {
     title: 'Vertex Mappings',
     blurb: 'Match each corner of one triangle to the matching corner of the other.',
     levels: {
       1: [{ type: 'map-from-statement' }, { type: 'map-pair' }, { type: 'statement-from-map' }],
       2: [{ type: 'map-pair' }, { type: 'map-pair' }, { type: 'statement-from-diagram' }, { type: 'map-fix', opts: { shared: false } }],
-      3: [{ type: 'map-shared' }, { type: 'map-fix' }, { type: 'statement-from-diagram' }, { type: 'map-from-statement' }],
-    },
-  },
-  shared: {
-    title: 'Shared Corners & Sides',
-    blurb: 'Kites, parallelograms, bowties and overlapping triangles. Does the shared corner stay put or swap?',
-    fixedLevel: 3,
-    levels: { 1: [], 2: [], 3: [{ type: 'map-shared' }, { type: 'map-shared' }, { type: 'map-fix', opts: { shared: true } }] },
-  },
-  tests: {
-    title: 'Choose the Test',
-    blurb: 'SSS, SAS, AAS or RHS? Read the markings carefully.',
-    levels: {
-      1: [{ type: 'choose-test' }],
-      2: [{ type: 'choose-test' }],
-      3: [{ type: 'choose-test', opts: { includeNotEnough: true } }],
-    },
-  },
-  pairs: {
-    title: 'Matching Pairs',
-    blurb: 'Pick the test, then write the three pairs of equal sides and angles.',
-    levels: {
-      1: [{ type: 'write-pairs' }],
-      2: [{ type: 'write-pairs' }, { type: 'write-pairs' }, { type: 'missing-fact' }],
-      3: [{ type: 'write-pairs' }, { type: 'missing-fact' }],
+      3: [{ type: 'map-shared' }, { type: 'map-shared' }, { type: 'map-fix', opts: { shared: true } }, { type: 'statement-from-diagram' }],
     },
   },
   proofs: {
-    title: 'Full Proofs',
-    blurb: 'Mapping, three pairs with reasons, then the test.',
-    fixedLevel: 3,
-    levels: { 1: [], 2: [], 3: [{ type: 'full-proof' }, { type: 'full-proof' }, { type: 'write-pairs' }] },
-  },
-  mixed: {
-    title: 'Mixed Practice',
-    blurb: 'A bit of everything.',
+    title: 'Proofs',
+    blurb: 'Write the three matching pairs and the test. Shared-side diagrams also need the mapping and reasons.',
     levels: {
-      1: [{ type: 'map-pair' }, { type: 'map-from-statement' }, { type: 'choose-test' }, { type: 'write-pairs' }, { type: 'statement-from-map' }],
-      2: [{ type: 'map-pair' }, { type: 'statement-from-diagram' }, { type: 'choose-test' }, { type: 'write-pairs' }, { type: 'missing-fact' }, { type: 'map-fix', opts: { shared: false } }],
-      3: [{ type: 'map-shared' }, { type: 'map-fix' }, { type: 'choose-test', opts: { includeNotEnough: true } }, { type: 'write-pairs' }, { type: 'full-proof' }],
+      1: [{ type: 'write-pairs' }],
+      2: [{ type: 'write-pairs' }],
+      3: [{ type: 'full-proof' }, { type: 'full-proof' }, { type: 'write-pairs' }],
     },
   },
 };
+// old links from the first version of this page still work
+const MODE_ALIASES: Record<string, string> = { shared: 'mappings', pairs: 'proofs', mixed: 'tests' };
 
 const LEVEL_NAMES: Record<Level, string> = { 1: 'Warm-up', 2: 'Core', 3: 'Shared sides' };
 const ROUND_LENGTH = 10;
@@ -89,7 +70,7 @@ const SLIP_LABELS: Record<string, string> = {
 };
 
 function pickQuestion(modeKey: string, level: Level, seed?: number): CBQuestion {
-  const mode = CONGRUENCE_MODES[modeKey] || CONGRUENCE_MODES.mixed;
+  const mode = CONGRUENCE_MODES[modeKey] || CONGRUENCE_MODES.mappings;
   const lv = mode.fixedLevel || level;
   const list = mode.levels[lv];
   const item = list[Math.floor(Math.random() * list.length)];
@@ -393,7 +374,8 @@ const StepsInput: React.FC<{ q: CBQuestion; spec: any; report: Report; focusTarg
 const CongruencePracticeInner: React.FC = () => {
   const navigate = useNavigate();
   const { mode: modeParam } = useParams();
-  const modeKey = modeParam && CONGRUENCE_MODES[modeParam] ? modeParam : 'mixed';
+  const aliased = modeParam ? MODE_ALIASES[modeParam] || modeParam : 'mappings';
+  const modeKey = CONGRUENCE_MODES[aliased] ? aliased : 'mappings';
   const mode = CONGRUENCE_MODES[modeKey];
 
   const [level, setLevel] = useState<Level>(mode.fixedLevel || 2);
@@ -563,7 +545,7 @@ const CongruencePracticeInner: React.FC = () => {
 // Remount when the mode in the URL changes, so each mode starts a fresh round
 const CongruencePractice: React.FC = () => {
   const { mode } = useParams();
-  return <CongruencePracticeInner key={mode || 'mixed'} />;
+  return <CongruencePracticeInner key={mode || 'mappings'} />;
 };
 
 export default CongruencePractice;

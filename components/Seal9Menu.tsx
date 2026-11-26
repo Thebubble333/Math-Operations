@@ -6,12 +6,9 @@ const Seal9Menu: React.FC = () => {
   const navigate = useNavigate();
 
   const congruence = [
-    { label: 'Vertex Mappings', icon: 'A↦X', color: 'bg-indigo-500', route: '/9seal/congruence/mappings' },
-    { label: 'Shared Corners', icon: '⋈', color: 'bg-violet-500', route: '/9seal/congruence/shared' },
-    { label: 'Choose the Test', icon: 'SAS', color: 'bg-sky-500', route: '/9seal/congruence/tests' },
-    { label: 'Matching Pairs', icon: 'AB=XY', color: 'bg-teal-500', route: '/9seal/congruence/pairs' },
-    { label: 'Full Proofs', icon: '≡', color: 'bg-fuchsia-500', route: '/9seal/congruence/proofs' },
-    { label: 'Mixed', icon: '🎲', color: 'bg-amber-500', route: '/9seal/congruence/mixed' },
+    { label: 'Congruence Tests', icon: 'SAS', color: 'bg-sky-500', route: '/9seal/congruence/tests', blurb: 'Choose SSS, SAS, AAS or RHS' },
+    { label: 'Vertex Mappings', icon: 'A↦X', color: 'bg-indigo-500', route: '/9seal/congruence/mappings', blurb: 'Match the corners' },
+    { label: 'Proofs', icon: '≡', color: 'bg-fuchsia-500', route: '/9seal/congruence/proofs', blurb: 'Pairs, reasons and the test' },
   ];
 
   return (
@@ -31,17 +28,18 @@ const Seal9Menu: React.FC = () => {
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300 font-bold border border-violet-200 dark:border-violet-800">TOPIC 1</span>
             </h2>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {congruence.map(btn => (
               <button
                 key={btn.label}
                 onClick={() => navigate(btn.route)}
-                className="group relative h-32 flex flex-col items-center justify-center bg-white dark:bg-slate-800 border-b-4 border-slate-200 dark:border-slate-700 hover:bg-violet-50 dark:hover:bg-violet-950/30 hover:border-violet-300 dark:hover:border-violet-800 rounded-3xl shadow-lg transition-all duration-150 hover:translate-y-1 hover:border-b-0 active:scale-95 z-0 hover:z-10"
+                className="group relative h-40 flex flex-col items-center justify-center bg-white dark:bg-slate-800 border-b-4 border-slate-200 dark:border-slate-700 hover:bg-violet-50 dark:hover:bg-violet-950/30 hover:border-violet-300 dark:hover:border-violet-800 rounded-3xl shadow-lg transition-all duration-150 hover:translate-y-1 hover:border-b-0 active:scale-95 z-0 hover:z-10"
               >
                 <div className={`w-auto min-w-[3rem] px-3 h-12 rounded-2xl ${btn.color} text-white flex items-center justify-center mb-3 shadow-md transform group-hover:scale-90 transition-all duration-200`}>
                   <span className="text-xl font-bold font-serif italic">{btn.icon}</span>
                 </div>
                 <span className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight text-center px-1">{btn.label}</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500 mt-1 text-center px-2">{btn.blurb}</span>
               </button>
             ))}
           </div>
