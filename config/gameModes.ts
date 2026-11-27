@@ -295,21 +295,11 @@ export const GAME_MODES: GameModeConfig[] = [
     activeBg: 'bg-emerald-50',
     darkActiveBg: 'dark:bg-emerald-900/30',
     darkActiveText: 'dark:text-emerald-300'
-  },
-  
-  // Year 9
-  {
-    id: GameMode.YEAR9_BOTH_SIDES,
-    label: 'Pronumerals Both Sides',
-    category: GameCategory.YEAR_9,
-    icon: 'ax+b=cx+d',
-    color: 'bg-indigo-600',
-    activeBorder: 'border-indigo-600',
-    activeText: 'text-indigo-700',
-    activeBg: 'bg-indigo-50',
-    darkActiveBg: 'dark:bg-indigo-900/30',
-    darkActiveText: 'dark:text-indigo-300'
   }
+
+  // Year 9 "Pronumerals on Both Sides" is its own page (/pronumerals-both-sides).
+  // It has no question generator in utils/gameLogic.ts, so it is not listed
+  // here: listing it made Custom Game show a "?" question.
 ];
 
 export const getModesByCategory = (category: GameCategory): GameModeConfig[] => {

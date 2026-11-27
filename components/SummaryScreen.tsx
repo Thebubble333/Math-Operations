@@ -45,6 +45,9 @@ const SummaryScreen: React.FC<SummaryScreenProps> = ({
       case GameMode.YEAR8_MULT_DIV_ALGEBRA: return 'Mult/Div Algebra';
       case GameMode.YEAR8_EXPANDING: return 'Expanding';
       case GameMode.YEAR8_FACTORISING: return 'Factorising';
+      case GameMode.SEAL8_FACTORISE_DOTS: return 'Difference of Squares';
+      case GameMode.SEAL8_FACTORISE_MONIC: return 'Monic Quadratics';
+      case GameMode.SEAL8_COMPLETING_SQUARE: return 'Completing the Square';
       case GameMode.METHODS_DERIVATIVES: return 'Derivatives';
       case GameMode.METHODS_ANTIDERIVATIVES: return 'Antidiff';
       case GameMode.METHODS_MIXED_CALCULUS: return 'Mixed Calculus';

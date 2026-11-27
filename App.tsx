@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import 'katex/dist/katex.min.css';
 import { GameMode, GameStats, CurrentStats, MathProblem, GraphConfig, GameType, FeedbackToken } from './types';
 import { generateProblem } from './utils/gameLogic';
@@ -104,6 +104,18 @@ const App: React.FC = () => {
       document.body.classList.remove('dark');
     }
   }, [darkMode]);
+
+  // Browser Back button: a game has no address of its own, so add a history
+  // entry when a game starts. Pressing Back then leaves the game and shows
+  // the menu it was started from.
+  const inGame = mode !== GameMode.NONE;
+  useEffect(() => {
+    if (!inGame) return;
+    window.history.pushState(window.history.state, '', window.location.href);
+    const onPop = () => setMode(GameMode.NONE);
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [inGame]);
 
   // QPM Update Timer & Game Timer
   useEffect(() => {
@@ -1105,7 +1117,22 @@ const App: React.FC = () => {
     if (currentProblemMode === GameMode.YEAR8_MULT_DIV_ALGEBRA) {
       const ans = JSON.parse(problem.answer.toString());
       if (ans.isDiv) {
-        if (cleanVal === ans.str) {
+        // Put the pronumerals of the numerator in one fixed order, so that
+        // 2n^3m^5 and 2m^5n^3 are treated as the same answer.
+        const canonDiv = (s: string): string => {
+          const slash = s.indexOf('/');
+          const top = slash === -1 ? s : s.substring(0, slash);
+          const rest = slash === -1 ? '' : s.substring(slash);
+          const m = top.match(/^(\d*)(.*)$/);
+          if (!m) return s;
+          const parts = m[2].match(/[a-z](?:\^\d+)?/g) || [];
+          if (parts.join('') !== m[2]) return s; // not finished, or not a plain term
+          return m[1] + [...parts].sort().join('') + rest;
+        };
+        const typedCanon = canonDiv(cleanVal);
+        const answerCanon = canonDiv(ans.str);
+
+        if (typedCanon === answerCanon) {
           setIsSuccess(true);
           setTimeout(() => {
             handleCorrect();
@@ -1113,9 +1140,9 @@ const App: React.FC = () => {
           }, 250);
         } else {
           // Check for '1' prefix error (e.g. 1x^4/5 instead of x^4/5)
-          // If ans.str does not start with digits (or starts with a letter), 
+          // If ans.str does not start with digits (or starts with a letter),
           // and cleanVal starts with 1 + that letter
-          const hasUnnecessaryOne = cleanVal.startsWith('1') && cleanVal.substring(1) === ans.str;
+          const hasUnnecessaryOne = cleanVal.startsWith('1') && canonDiv(cleanVal.substring(1)) === answerCanon;
           if (hasUnnecessaryOne && !ans.str.startsWith('1')) {
              setLastPartialFeedback([{ text: cleanVal, color: 'text-amber-500 text-shadow-sm' }]);
              setLastIncorrectFeedback(null);
@@ -1330,6 +1357,8 @@ const App: React.FC = () => {
           <Route path="/alt-5-practice" element={<Alt5Practice />} />
           <Route path="/alt5-practice" element={<Alt5Practice />} />
           <Route path="/export" element={<ReviewerExport />} />
+          {/* Unknown address: go to the main menu instead of a blank page */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       )}
 
