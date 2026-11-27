@@ -5,6 +5,7 @@ import { generatePolygon } from '../utils/polygonBank';
 import { generateAngles } from '../utils/angleBank';
 import { generateDijkstra } from '../utils/dijkstraBank';
 import { generateSimTests, generateSimFind } from '../utils/similarBank';
+import { generateChords, generateCircles } from '../utils/circleBank';
 import { generateDegrees, generateWalks } from '../utils/networkBank';
 
 export type Level = 1 | 2 | 3;
@@ -194,6 +195,96 @@ export const SEAL9_TOPICS: Record<string, TopicDef> = {
       'part-side': 'Using DB instead of the whole side AB',
       'whole-not-part': 'Giving AB instead of DB',
       sf: 'Finding the scale factor', times: 'Multiplying by the scale factor', divide: 'Dividing by the scale factor', subtract: 'Taking AD away from AB',
+    },
+  },
+  chords: {
+    title: 'Chords and Pythagoras', blurb: 'Halve the chord, then Pythagoras', icon: '½AB', color: 'bg-rose-500',
+    noun: 'Problem', countSteps: false,
+    generate: (level, seed) => generateChords(level, seed),
+    levels: {
+      1: {
+        name: 'Halve it', summary: 'OM ⟂ AB cuts the chord and the angle at the centre in half.', roundLength: 20,
+        skills: [
+          { title: 'Chord theorem 3', text: 'The perpendicular from the centre to a chord bisects the chord: if OM ⟂ AB then AM = MB.' },
+          { title: 'The angle too', text: 'It also halves the angle at the centre: ∠AOM = ∠BOM = ½∠AOB.' },
+          { title: 'Both ways', text: 'Halve to find AM or ∠AOM. Double to find AB or ∠AOB.' },
+        ],
+      },
+      2: {
+        name: 'Find d', summary: 'Halve the chord, then use Pythagoras to find the distance from the centre.', roundLength: 10,
+        skills: [
+          { title: 'AM first', text: 'M is the midpoint of AB, so AM = AB ÷ 2.' },
+          { title: 'Pythagoras', text: 'In △OAM the radius OA is the longest side, so d² = r² − AM². Subtract the squares, then take the square root.' },
+          { title: 'Friendly numbers', text: 'The sides are triples like 3, 4, 5 and 5, 12, 13, so every answer is a whole number.' },
+        ],
+      },
+      3: {
+        name: 'Find the chord', summary: 'From r and d, find AM and then the whole chord. Sometimes find r.', roundLength: 10,
+        skills: [
+          { title: 'Find AM', text: 'AM² = r² − d². Take the square root.' },
+          { title: 'Then the chord', text: 'AB = 2 × AM. Do not stop at AM.' },
+          { title: 'Find r', text: 'r is the longest side, so add the squares: r² = AM² + d².' },
+        ],
+      },
+    },
+    slipLabels: {
+      'not-halved': 'Forgetting to halve the chord',
+      'angle-not-halved': 'Forgetting that OM halves ∠AOB',
+      'not-doubled': 'Forgetting that AB is twice AM',
+      'angle-not-doubled': 'Forgetting that ∠AOB is twice ∠AOM',
+      'minus-lengths': 'Subtracting the lengths, not the squares',
+      'added-lengths': 'Adding the lengths, not the squares',
+      'no-root': 'Forgetting the square root',
+      'stopped-am': 'Stopping at AM instead of the whole chord',
+      'chord-half': 'Halving and doubling', pythagoras: 'Pythagoras in △OAM',
+    },
+  },
+  circles: {
+    title: 'Circle Theorems', blurb: 'Centre, semicircle, same arc, cyclic, tangents', icon: '∠O', color: 'bg-pink-500',
+    noun: 'Problem', countSteps: false,
+    generate: (level, seed) => generateCircles(level, seed),
+    levels: {
+      1: {
+        name: 'Theorems 1 and 2', summary: 'The angle at the centre is twice the angle at the circumference. The angle in a semicircle is 90°.', roundLength: 20,
+        skills: [
+          { title: 'Theorem 1', text: 'The angle at the centre is twice the angle at the circumference on the same arc. Double or halve.' },
+          { title: 'Reflex angles', text: 'Check both angles stand on the same arc. The angle at the centre can be reflex (more than 180°).' },
+          { title: 'Theorem 2', text: 'An angle in a semicircle (standing on a diameter) is 90°.' },
+        ],
+      },
+      2: {
+        name: 'Theorems 3 and 4, and tangents', summary: 'Angles on the same arc, cyclic quadrilaterals and tangents.', roundLength: 20,
+        skills: [
+          { title: 'Theorem 3', text: 'Angles at the circumference on the same arc are equal.' },
+          { title: 'Theorem 4', text: 'Opposite angles of a cyclic quadrilateral add to 180°.' },
+          { title: 'Tangents', text: 'A tangent is at 90° to the radius. Two tangents from the same point are equal in length.' },
+        ],
+      },
+      3: {
+        name: 'Two steps and algebra', summary: 'Two facts one after the other, and angles written with x.', roundLength: 10,
+        skills: [
+          { title: 'Radii', text: 'OA = OB, so triangle OAB is isosceles. Find ∠AOB first, then use theorem 1.' },
+          { title: 'Semicircle and angle sum', text: 'Type the 90° first, then take both angles away from 180°.' },
+          { title: 'Algebra', text: 'Type what the expression is worth (for example 3x = 102), then solve for x.' },
+        ],
+      },
+    },
+    slipLabels: {
+      'halved': 'Halving when the angle at the centre is twice',
+      'doubled': 'Doubling when the angle at the circumference is half',
+      'not-reflex': 'Missing the reflex angle at the centre',
+      'semi-180': 'Using 180° for the angle in a semicircle',
+      'semi-forgot-90': 'Forgetting the 90° in the semicircle',
+      'same-arc-supp': 'Adding to 180° instead of equal (same arc)',
+      'same-arc-double': 'Doubling an angle on the same arc',
+      'cyclic-equal': 'Opposite angles taken as equal',
+      'cyclic-360': 'Opposite angles taken to add to 360°',
+      'cyclic-adjacent': 'Using the angle next to it, not opposite',
+      'tan-no-right': 'Missing the right angle at the tangent',
+      'tan-quad': 'Missing the two right angles at the tangents',
+      'iso-one-base': 'Taking away only one base angle',
+      centre: 'Angle at the centre', semi: 'Angle in a semicircle', 'same-arc': 'Angles on the same arc', cyclic: 'Cyclic quadrilaterals',
+      tangent: 'Tangents', isosceles: 'Isosceles triangle from radii', step: 'The second step', solve: 'Solving for x',
     },
   },
   dijkstra: {

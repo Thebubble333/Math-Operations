@@ -1,4 +1,4 @@
-/* Types every answer on the 9 SEAL typed-parts pages (Polygon Angles, Angle Chase, Similar Triangles, Dijkstra, Networks) key by key.
+/* Types every answer on the 9 SEAL typed-parts pages (Polygon Angles, Angle Chase, Similar Triangles, Circles, Dijkstra, Networks) key by key.
  * Run with: npm run test:seal9 */
 import { press, choose, createTyping, keypadKeys, reachableSlips, showPath, spellings, exactNumber, TPQuestion, TypingState, Part, ChoicePart, RoutePart, NumberPart } from '../utils/typedParts';
 import { generateDegrees, generateWalks, LAYOUTS, layoutProblems as netLayoutProblems, findRoutes, Graph } from '../utils/networkBank';
@@ -7,6 +7,7 @@ import { generateDijkstra, routeLength, layoutProblems, Edge } from '../utils/di
 import { SEAL9_TOPICS } from '../components/seal9Topics';
 import { TEST_LEVEL_ITEMS, TEST_KINDS, FIND_LEVEL_ITEMS, FIND_KINDS, TestKind, FindKind, Tri as SimTri, SFig, layoutProblems as simLayoutProblems } from '../utils/similarBank';
 import { ANGLE_LEVEL_ITEMS, ANGLE_TYPES, arcRadius, layoutProblems as anglesLayoutProblems, Fig as AngleFig, Seg as AngleSeg } from '../utils/angleBank';
+import { CHORD_LEVEL_ITEMS, CHORD_TYPES, CIRCLE_LEVEL_ITEMS, CIRCLE_TYPES, CArc, CFig, layoutProblems as circLayoutProblems, arcRadius as circArcRadius } from '../utils/circleBank';
 
 let checks = 0, failures = 0;
 const fail = (msg: string) => { failures++; if (failures <= 25) console.log('FAIL', msg); };
@@ -764,6 +765,202 @@ for (const t of FIND_KINDS) ok([1, 2, 3].some(l => FIND_LEVEL_ITEMS[l as 1 | 2 |
   for (const k of 'aa') s = press(s, q, k).state;
   ok(!s.solved && s.buf === 'aa', 'simtests: "aa" filled in an option before AAS could be finished');
 }
+
+// ---------------------------------------------------------------- circles
+// Every drawing is measured: points sit on the circle (or outside it, for tangents), every
+// marked angle measures what its label says, and every answer is worked out again from the
+// drawn points by name (∠AOB, AM, d, r, PB) or from the labels with x put in.
+const evalExpr = (t: string, x: number) => {
+  const s = t.replace(/[()°\s]/g, '').replace(/−/g, '-').replace(/cm$/, '');
+  if (/^\d+$/.test(s)) return Number(s);
+  const m = s.match(/^(\d*)x([+-]\d+)?$/);
+  return m ? (m[1] ? Number(m[1]) : 1) * x + (m[2] ? Number(m[2]) : 0) : NaN;
+};
+const arcSize = (c: CArc) => { const s = angleAt(c.at, c.p1, c.p2); return c.reflex ? 360 - s : s; };
+/** Every label clear of the circle (read from the drawing). */
+function svgClearOfCircle(svg: string, tag: string) {
+  const num = (s: string, k: string) => Number(s.match(new RegExp(`${k}="(-?[\\d.]+)"`))![1]);
+  const c = svg.match(/<circle ([^>]*r="110"[^>]*)>/);
+  ok(!!c, `${tag}: no circle drawn`);
+  if (!c) return;
+  const cx = num(c[1], 'cx'), cy = num(c[1], 'cy');
+  for (const m of svg.matchAll(/<text ([^>]*)>([^<]*)<\/text>/g)) {
+    const x = num(m[1], 'x'), y = num(m[1], 'y'), size = num(m[1], 'font-size');
+    const w = m[2].replace('°', '').length * size * 0.5 + (m[2].includes('°') ? 4 : 0), h = size * 0.8;
+    for (let a = 0; a < 360; a += 0.5) {
+      const px = cx + 110 * Math.cos(a * Math.PI / 180), py = cy + 110 * Math.sin(a * Math.PI / 180);
+      if (Math.abs(px - x) < w / 2 && Math.abs(py - y) < h / 2) { fail(`${tag}: label ${m[2]} is drawn over the circle`); break; }
+    }
+  }
+}
+const NC = Number(process.env.NC || 300);
+const circCount: Record<string, number> = {};
+const ON_CIRCLE = new Set(['A', 'B', 'C', 'D']);
+for (const [key, items, types] of [['chords', CHORD_LEVEL_ITEMS, CHORD_TYPES], ['circles', CIRCLE_LEVEL_ITEMS, CIRCLE_TYPES]] as const) {
+  const topic = SEAL9_TOPICS[key];
+  for (const level of [1, 2, 3] as const) {
+    let oneParts = true;
+    for (let seed = 1; seed <= NC; seed++) {
+      const q = topic.generate(level, seed * 17 + level);
+      const type: string = q.meta.type, f: CFig = q.meta.fig, ans: Record<string, number> = q.meta.answers;
+      const tag = `${key} L${level} ${type} seed ${seed}`;
+      circCount[`${key} L${level} ${type}`] = (circCount[`${key} L${level} ${type}`] || 0) + 1;
+      ok((items[level] as readonly string[]).includes(type), `${tag}: type not in this level`);
+      if (q.parts.length > 1) oneParts = false;
+      checkQuestion(q, tag);
+      const lp = circLayoutProblems(f);
+      ok(lp.length === 0, `${tag}: ${lp[0]}`);
+
+      // the points
+      const P: Record<string, Pt> = {};
+      for (const p of f.points) { ok(!P[p.name], `${tag}: two points named ${p.name}`); P[p.name] = p.at; }
+      ok(P.O ? len(sub(P.O, f.O)) < 1e-9 : ["same-arc", "cyclic", "alg-cyclic"].includes(type), `${tag}: O is not the centre`);
+      const tangentEnds = type === 'tan-tri' ? ['B'] : [];
+      for (const [n, at] of Object.entries(P)) {
+        const r = len(sub(at, f.O));
+        if (ON_CIRCLE.has(n) && !tangentEnds.includes(n)) ok(Math.abs(r - f.R) < 1e-6, `${tag}: ${n} is not on the circle`);
+        if (n === 'P' || n === 'T' || tangentEnds.includes(n)) ok(r > f.R + 20, `${tag}: ${n} is not well outside the circle`);
+      }
+      // every line runs through a point or well clear of it
+      for (const [n, at] of Object.entries(P)) for (const sg of f.segs) { const g = distToSeg(at, sg); ok(g < 1e-6 || g >= 12, `${tag}: a line passes ${g.toFixed(1)}px from ${n}`); }
+      const seg = (a: string, b: string) => f.segs.some(s => (len(sub(s.a, P[a])) < 1e-6 || distToSeg(P[a], s) < 1e-6) && (len(sub(s.b, P[b])) < 1e-6 || distToSeg(P[b], s) < 1e-6));
+      const dot = (o: Pt, p: Pt, r: Pt) => { const u = sub(p, o), v = sub(r, o); return (u[0] * v[0] + u[1] * v[1]) / (len(u) * len(v)); };
+      if (key === 'chords') {
+        ok(len(sub(P.M, [(P.A[0] + P.B[0]) / 2, (P.A[1] + P.B[1]) / 2])) < 1e-6, `${tag}: M is not the midpoint of AB`);
+        ok(Math.abs(dot(P.M, P.O, P.A)) < 1e-9, `${tag}: OM is not perpendicular to AB`);
+        ok(f.rights.length === 1 && len(sub(f.rights[0].at, P.M)) < 1e-9, `${tag}: no right-angle mark at M`);
+        ok(seg('A', 'B') && seg('O', 'M'), `${tag}: chord or OM not drawn`);
+      }
+      if (type === 'tan-tri' || type === 'alg-tanangle') {
+        const T = P.T || P.B;
+        ok(Math.abs(dot(P.A, P.O, T)) < 1e-9, `${tag}: the tangent is not at 90° to the radius`);
+        ok(seg('O', 'A') && seg('A', type === 'tan-tri' ? 'B' : 'T'), `${tag}: tangent or radius not drawn`);
+      }
+      if (['tan-quad', 'tan-len', 'alg-tanlen'].includes(type)) {
+        ok(Math.abs(dot(P.A, P.O, P.P)) < 1e-9 && Math.abs(dot(P.B, P.O, P.P)) < 1e-9, `${tag}: PA or PB is not a tangent`);
+        ok(seg('P', 'A') && seg('P', 'B'), `${tag}: tangents not drawn`);
+      }
+      if (['semi', 'alg-semi'].includes(type)) ok(distToSeg(f.O, { a: P.A, b: P.B }) < 1e-6 && seg('A', 'B'), `${tag}: AB is not a drawn diameter`);
+      if (type === 'semi-sum') ok(distToSeg(f.O, { a: P.A, b: P.C }) < 1e-6 && seg('A', 'C'), `${tag}: AC is not a drawn diameter`);
+      if (['cyclic', 'alg-cyclic'].includes(type)) ok(seg('A', 'B') && seg('B', 'C') && seg('C', 'D') && seg('D', 'A'), `${tag}: quadrilateral not drawn`);
+      if (['centre', 'circ', 'reflex', 'alg-centre', 'iso-centre'].includes(type)) ok(seg('O', 'A') && seg('O', 'B') && seg('C', 'A') && seg('C', 'B'), `${tag}: radii or chords not drawn`);
+
+      // a length scale from any labelled length or a length in the question
+      const known: { a: Pt; b: Pt; v: number; name: string }[] = [];
+      const x = ans.x ?? NaN;
+      for (const s of f.sides) {
+        const v = s.unknown ? ans[s.text] : evalExpr(s.text, x);
+        ok(Number.isFinite(v) && v > 0, `${tag}: side label ${s.text} has no value`);
+        known.push({ a: s.a, b: s.b, v, name: s.text });
+        ok(q.svg!.includes(`>${s.text}</text>`), `${tag}: label ${s.text} not drawn`);
+      }
+      for (const m of q.prompt.matchAll(/\b([A-Z])([A-Z]) = (\d+) cm/g)) known.push({ a: P[m[1]], b: P[m[2]], v: Number(m[3]), name: m[1] + m[2] });
+      proportional(known, tag);
+      const unit = known.length ? dst(known[0].a, known[0].b) / known[0].v : NaN;
+      // angles in the question, e.g. ∠AOB = 110°
+      for (const m of q.prompt.matchAll(/∠([A-Z])([A-Z])([A-Z]) = (\d+)°/g)) {
+        const size = angleAt(P[m[2]], P[m[1]], P[m[3]]);
+        ok(Math.abs(size - Number(m[4])) < 1e-6, `${tag}: ∠${m[1]}${m[2]}${m[3]} is drawn ${size.toFixed(2)}°, the question says ${m[4]}°`);
+      }
+
+      // every marked angle measures what its label says, between two drawn lines, with no line inside it
+      for (const c of f.arcs) {
+        const size = arcSize(c);
+        const want = c.unknown ? ans[c.text.replace('°', '')] : evalExpr(c.text, x);
+        ok(Number.isFinite(want) && Math.abs(size - want) < 1e-6, `${tag}: angle labelled ${c.text} measures ${size.toFixed(2)}° (should be ${want}°)`);
+        ok(q.svg!.includes(`>${c.text}</text>`), `${tag}: label ${c.text} not drawn`);
+        ok(!!c.reflex === size > 180, `${tag}: ${c.text} reflex flag does not match its size`);
+        for (const p of [c.p1, c.p2]) {
+          const u = sub(p, c.at), k = (circArcRadius(size) + 10) / len(u);
+          const far: Pt = [c.at[0] + u[0] * k, c.at[1] + u[1] * k];
+          ok(f.segs.some(s => distToSeg(c.at, s) < 1e-6 && distToSeg(far, s) < 1e-6), `${tag}: an arm of ${c.text} is not a drawn line`);
+        }
+        const short = angleAt(c.at, c.p1, c.p2);
+        for (const s of f.segs) {
+          if (distToSeg(c.at, s) > 1e-6) continue;
+          for (const end of [s.a, s.b]) {
+            if (len(sub(end, c.at)) < 1) continue;
+            const a1 = angleAt(c.at, c.p1, end), a2 = angleAt(c.at, end, c.p2);
+            const inShort = a1 > 1 && a2 > 1 && Math.abs(a1 + a2 - short) < 1e-6;
+            const onArm = a1 < 1 || a2 < 1;
+            ok(c.reflex ? inShort || onArm : !inShort, `${tag}: a line runs through the angle ${c.text}`);
+          }
+        }
+      }
+      f.arcs.forEach((c, i) => f.arcs.forEach((d, j) => { if (j > i) ok(len(sub(c.at, d.at)) > 1, `${tag}: two angles marked at one point`); }));
+
+      // each answer, worked out again
+      q.parts.forEach((p, pi) => {
+        const a = Number(p.answer), name = p.label.replace(' =', '');
+        ok(/^\d+$/.test(p.answer) && a > 0, `${tag}: answer ${p.answer} is not a positive whole number`);
+        ok(!!topic.slipLabels[p.code || ''], `${tag}: no "Things to watch" name for ${p.code}`);
+        for (const sl of p.slips || []) ok(!!topic.slipLabels[sl.code] && sl.value !== p.answer && !!sl.message, `${tag}: slip ${sl.code} unnamed or equal to the answer`);
+        let m: RegExpMatchArray | null;
+        if ((m = name.match(/^∠([A-Z])([A-Z])([A-Z])$/))) {
+          ok(Math.abs(angleAt(P[m[2]], P[m[1]], P[m[3]]) - a) < 1e-6, `${tag}: ${name} is drawn ${angleAt(P[m[2]], P[m[1]], P[m[3]]).toFixed(2)}°, answer ${a}`);
+          ok(p.suffix === '°', `${tag}: ${name} has no ° after it`);
+        } else if ((m = name.match(/^([A-Z])([A-Z])$/))) {
+          ok(Number.isFinite(unit) && rel(dst(P[m[1]], P[m[2]]) / unit, a) < 1e-6, `${tag}: ${name} is drawn ${(dst(P[m[1]], P[m[2]]) / unit).toFixed(2)} long, answer ${a}`);
+        } else if (name === 'd') ok(rel(dst(P.O, P.M) / unit, a) < 1e-6, `${tag}: d is drawn ${(dst(P.O, P.M) / unit).toFixed(2)}, answer ${a}`);
+        else if (name === 'r') ok(rel(dst(P.O, P.A) / unit, a) < 1e-6, `${tag}: r is drawn ${(dst(P.O, P.A) / unit).toFixed(2)}, answer ${a}`);
+        else if (/^[a-z]$/.test(name)) {
+          ok(ans[name] === a, `${tag}: ${name} = ${a} but the drawing says ${ans[name]}`);
+        } else {
+          // an expression in x: its value with x put in, and it is what the marked expressions add to
+          ok(evalExpr(name, x) === a, `${tag}: ${name} with x = ${x} is ${evalExpr(name, x)}, not ${a}`);
+          const marked = [...f.arcs.filter(c => /x/.test(c.text)).map(c => c.text)];
+          ok(marked.length > 0 && (marked.length === 1 ? evalExpr(marked[0], x) === a : marked.reduce((t, e) => t + evalExpr(e, x), 0) === a), `${tag}: ${name} = ${a} does not match the marked angles ${marked}`);
+        }
+        if (!['solve'].includes(p.code || '') && !['tan-len', 'alg-tanlen'].includes(type)) ok(reachableSlips(p).length > 0, `${tag}: ${p.label} has no named misconception`);
+        // each misconception's value is what that mistake really gives
+        const Ln = (u: string, v: string) => dst(P[u], P[v]) / unit;
+        const givenAngles = f.arcs.filter(c => !c.unknown && /^\d+°$/.test(c.text)).map(c => Number(c.text.replace('°', '')));
+        const algebra = name.length > 1 && /x/.test(name);
+        const expect: Record<string, () => number[]> = {
+          'not-halved': () => [2 * a], 'not-doubled': () => [a / 2], 'angle-not-halved': () => [2 * a], 'angle-not-doubled': () => [a / 2],
+          'no-root': () => [a * a], 'stopped-am': () => [a / 2],
+          'minus-lengths': () => [name === 'd' ? Ln('O', 'A') - Ln('A', 'M') : Ln('O', 'A') - Ln('O', 'M')], 'added-lengths': () => [Ln('A', 'M') + Ln('O', 'M')],
+          'halved': () => [algebra ? a / 2 : a / 4], 'doubled': () => [4 * a], 'not-reflex': () => [a > 180 ? 360 - a : 180 - a],
+          'semi-180': () => [180], 'semi-forgot-90': () => [a + 90], 'same-arc-supp': () => [180 - a], 'same-arc-double': () => [2 * a],
+          'cyclic-equal': () => [180 - a], 'cyclic-360': () => [algebra ? 360 : a + 180], 'cyclic-adjacent': () => givenAngles.map(g => 180 - g),
+          'tan-no-right': () => [algebra ? 180 : a + 90], 'tan-quad': () => [a + 180], 'iso-one-base': () => [(180 + a) / 2],
+        };
+        for (const sl of p.slips || []) {
+          const e = expect[sl.code];
+          ok(!!e && e().some(v => Math.abs(v - Number(sl.value)) < 1e-6), `${tag}: slip ${sl.value} (${sl.code}) on ${p.label} is not what that mistake gives`);
+          ok(!q.parts.some((o, oi) => oi > pi && o.answer === sl.value), `${tag}: slip ${sl.value} on ${p.label} is the answer to a later step`);
+        }
+      });
+      if (q.parts.some(p => p.label === 'x =') && f.sides.some(s => /x/.test(s.text))) {
+        const vals = f.sides.map(s => evalExpr(s.text, x));
+        ok(vals.every(v => v === vals[0]), `${tag}: the tangent lengths are not equal when x = ${x}`);
+      }
+      // read the drawing: labels clear of the lines, the right-angle marks, the circle and each other
+      svgLabelsClear(q.svg!, tag, f.sides.length + f.arcs.length + f.points.length, f.segs.length);
+      svgClearOfCircle(q.svg!, tag);
+      ok((q.svg!.match(/<path /g) || []).length === f.arcs.length, `${tag}: arcs drawn do not match the marked angles`);
+      // read each drawn arc: it starts on one arm, turns through the marked size, and ends on the other arm
+      const drawnArcs = [...q.svg!.matchAll(/<path d="M(-?[\d.]+),(-?[\d.]+) A([\d.]+),[\d.]+ 0 ([01]) 1 (-?[\d.]+),(-?[\d.]+)"/g)];
+      ok(drawnArcs.length === f.arcs.length, `${tag}: could not read every drawn arc`);
+      drawnArcs.forEach((m, i) => {
+        const c = f.arcs[i];
+        if (!c) return;
+        const S: Pt = [Number(m[1]), Number(m[2])], E: Pt = [Number(m[5]), Number(m[6])];
+        const hd = (p: Pt) => Math.atan2(p[1] - c.at[1], p[0] - c.at[0]) * 180 / Math.PI;
+        const sweep = (((hd(E) - hd(S)) % 360) + 360) % 360, size = arcSize(c);
+        ok(Math.abs(sweep - size) < 0.5 && (m[4] === '1') === size > 180, `${tag}: the arc for ${c.text} is drawn ${sweep.toFixed(1)}°, not ${size.toFixed(1)}°`);
+        const arms = [hd(c.p1), hd(c.p2)], near = (a: number, b: number) => Math.abs((((a - b) % 360) + 540) % 360 - 180) < 0.5;
+        ok(arms.some(a => near(a, hd(S))) && arms.some(a => near(a, hd(E))), `${tag}: the arc for ${c.text} does not run from arm to arm`);
+      });
+    }
+    ok(topic.levels[level].roundLength === (oneParts ? 20 : 10), `${key} L${level}: round of ${topic.levels[level].roundLength} for ${oneParts ? 'one-part' : 'two-part'} questions`);
+  }
+  for (const level of [1, 2, 3] as const) for (const t of new Set(items[level] as readonly string[])) {
+    ok((circCount[`${key} L${level} ${t}`] || 0) >= NC / 25, `${key} "${t}" came up ${circCount[`${key} L${level} ${t}`] || 0} times in ${NC} at level ${level}`);
+  }
+  for (const t of types as readonly string[]) ok([1, 2, 3].some(l => (items[l as 1 | 2 | 3] as readonly string[]).includes(t)), `${key} type ${t} is in no level`);
+}
+console.log(Object.entries(circCount).map(([k, v]) => `${k}: ${v}`).join(' | '));
 
 // topics hold together
 for (const [key, t] of Object.entries(SEAL9_TOPICS)) {
