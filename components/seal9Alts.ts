@@ -22,6 +22,10 @@ export const SEAL9_ALTS: Alt[] = [
         { label: 'Similarity Tests', icon: '∼', color: 'bg-violet-500', route: '/9seal/skill/simtests', blurb: 'Choose SSS, SAS, AAA or RHS' },
         { label: 'Similar Triangles: Find x', icon: '×k', color: 'bg-purple-500', route: '/9seal/skill/simfind', blurb: 'Scale factors and unknown lengths' },
       ] },
+      { title: 'Circles', buttons: [
+        { label: 'Chords and Pythagoras', icon: '½AB', color: 'bg-rose-500', route: '/9seal/skill/chords', blurb: 'Halve the chord, then Pythagoras' },
+        { label: 'Circle Theorems', icon: '∠O', color: 'bg-pink-500', route: '/9seal/skill/circles', blurb: 'Centre, semicircle, same arc, cyclic, tangents' },
+      ] },
       { title: 'Networks', buttons: [
         { label: "Degrees and Euler's Formula", icon: 'v+f', color: 'bg-cyan-500', route: '/9seal/skill/degrees', blurb: 'Degrees, edges and faces' },
         { label: 'Walks and Trails', icon: 'A–B–C', color: 'bg-emerald-500', route: '/9seal/skill/walks', blurb: 'Name walks, Eulerian trails, Hamiltonian paths' },
