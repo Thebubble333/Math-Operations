@@ -21,6 +21,8 @@ import Year9Menu from './components/Year9Menu';
 import Seal9Menu from './components/Seal9Menu';
 import CongruencePractice from './components/CongruencePractice';
 import CongruenceLevelsPage from './components/CongruenceLevelsPage';
+import TypedPartsPractice from './components/TypedPartsPractice';
+import TypedPartsLevelsPage from './components/TypedPartsLevelsPage';
 import PronumeralsBothSides from './components/PronumeralsBothSides';
 import PartialFractionsGame from './components/PartialFractionsGame';
 import Alt5Practice from './components/Alt5Practice';
@@ -1342,6 +1344,8 @@ const App: React.FC = () => {
           <Route path="/9mainstream" element={<Year9Menu startNewGame={startNewGame} />} />
           <Route path="/9seal" element={<Seal9Menu />} />
           <Route path="/9seal/congruence/:mode/levels" element={<CongruenceLevelsPage />} />
+          <Route path="/9seal/skill/:topic/levels" element={<TypedPartsLevelsPage />} />
+          <Route path="/9seal/skill/:topic/:level?" element={<TypedPartsPractice gameType={globalGameType} timeLimit={globalTimeLimit} />} />
           <Route path="/9seal/congruence/:mode/:level?" element={<CongruencePractice gameType={globalGameType} timeLimit={globalTimeLimit} />} />
           <Route path="/11spec" element={<Spec11Menu startNewGame={startNewGame} />} />
           <Route path="/12methods" element={<Methods12Menu startNewGame={startNewGame} />} />
