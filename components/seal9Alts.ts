@@ -11,6 +11,7 @@ export const SEAL9_ALTS: Alt[] = [
     sections: [
       { title: 'Angles and Polygons', buttons: [
         { label: 'Polygon Angles', icon: '540°', color: 'bg-amber-500', route: '/9seal/skill/polygons', blurb: 'Angle sums, regular polygons, missing angles' },
+        { label: 'Angle Chase', icon: 'x°', color: 'bg-orange-500', route: '/9seal/skill/angles', blurb: 'Lines, parallel lines and triangles' },
       ] },
       { title: 'Congruent Triangles', buttons: [
         { label: 'Congruence Tests', icon: 'SAS', color: 'bg-sky-500', route: '/9seal/congruence/tests', blurb: 'Choose SSS, SAS, AAS or RHS' },

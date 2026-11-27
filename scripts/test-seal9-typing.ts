@@ -1,10 +1,11 @@
-/* Types every answer on the 9 SEAL typed-parts pages (Polygon Angles, Dijkstra) key by key.
+/* Types every answer on the 9 SEAL typed-parts pages (Polygon Angles, Angle Chase, Dijkstra, Networks) key by key.
  * Run with: npm run test:seal9 */
 import { press, choose, createTyping, keypadKeys, reachableSlips, showPath, TPQuestion, TypingState, Part, ChoicePart, RoutePart } from '../utils/typedParts';
 import { generateDegrees, generateWalks, LAYOUTS, layoutProblems as netLayoutProblems, findRoutes, Graph } from '../utils/networkBank';
 import { generatePolygon, POLYGON_TYPES, measuredAngles, labelPoints } from '../utils/polygonBank';
 import { generateDijkstra, routeLength, layoutProblems, Edge } from '../utils/dijkstraBank';
 import { SEAL9_TOPICS } from '../components/seal9Topics';
+import { ANGLE_LEVEL_ITEMS, ANGLE_TYPES, arcRadius, layoutProblems as anglesLayoutProblems, Fig as AngleFig, Seg as AngleSeg } from '../utils/angleBank';
 
 let checks = 0, failures = 0;
 const fail = (msg: string) => { failures++; if (failures <= 25) console.log('FAIL', msg); };
@@ -413,6 +414,112 @@ for (const k of ['degrees read', 'degrees list', 'degrees list (no)', 'degrees e
   'walks euler circuit', 'walks euler trail', 'walks euler neither', 'walks hamilton path', 'walks hamilton cycle']) {
   ok((typeCount[k] || 0) >= NW / 20, `question type "${k}" came up ${typeCount[k] || 0} times in ${NW}`);
 }
+
+// ---------------------------------------------------------------- angle chase
+// Each diagram is measured: every arc must measure what its label says (or the typed answer),
+// and must sit between two drawn lines with no other line inside it.
+type Pt = [number, number];
+const sub = (a: Pt, b: Pt): Pt => [a[0] - b[0], a[1] - b[1]];
+const len = (v: Pt) => Math.hypot(v[0], v[1]);
+const angleAt = (o: Pt, p: Pt, r: Pt) => {
+  const a = sub(p, o), b = sub(r, o);
+  return Math.acos(Math.max(-1, Math.min(1, (a[0] * b[0] + a[1] * b[1]) / (len(a) * len(b))))) * 180 / Math.PI;
+};
+const distToSeg = (p: Pt, s: AngleSeg) => {
+  const d = sub(s.b, s.a), t = Math.max(0, Math.min(1, ((p[0] - s.a[0]) * d[0] + (p[1] - s.a[1]) * d[1]) / (d[0] ** 2 + d[1] ** 2)));
+  return len(sub(p, [s.a[0] + t * d[0], s.a[1] + t * d[1]]));
+};
+const NA = Number(process.env.NA || 400);
+const angleCount: Record<string, number> = {};
+const angleTopic = SEAL9_TOPICS.angles;
+for (const level of [1, 2, 3] as const) {
+  for (let seed = 1; seed <= NA; seed++) {
+    const q = angleTopic.generate(level, seed * 13 + level);
+    const tag = `angles L${level} ${q.meta.type} seed ${seed}`;
+    angleCount[`L${level} ${q.meta.type}`] = (angleCount[`L${level} ${q.meta.type}`] || 0) + 1;
+    ok(ANGLE_LEVEL_ITEMS[level].includes(q.meta.type), `${tag}: type not in this level`);
+    checkQuestion(q, tag);
+    const f: AngleFig = q.meta.fig, answers: Record<string, number> = q.meta.answers;
+    // the parts are the lettered angles, in the diagram, with the right answers
+    const letters = f.arcs.filter(c => c.unknown).map(c => c.text.replace('°', ''));
+    ok(letters.length === q.parts.length && q.parts.every(p => letters.includes(p.label.replace(' =', ''))), `${tag}: parts ${q.parts.map(p => p.label)} do not match the diagram ${letters}`);
+    q.parts.forEach(p => {
+      ok(p.answer === String(answers[p.label.replace(' =', '')]), `${tag}: ${p.label} ${p.answer} is not the drawn angle`);
+      ok(p.suffix === '°' && /^\d+$/.test(p.answer) && Number(p.answer) > 0 && Number(p.answer) < 180, `${tag}: answer ${p.answer} is not a whole angle under 180°`);
+      ok(!!angleTopic.slipLabels[p.code || ''], `${tag}: no "Things to watch" name for ${p.code}`);
+      for (const sl of p.slips || []) ok(!!angleTopic.slipLabels[sl.code] && sl.value !== p.answer, `${tag}: slip ${sl.code} unnamed or equal to the answer`);
+    });
+    if (level === 3) ok(q.parts.length === 2 && q.parts[0].label === 'y =' && q.parts[1].label === 'x =', `${tag}: two steps should be y then x`);
+    else ok(q.parts.length === 1, `${tag}: one step should have one part`);
+    for (const c of f.arcs) {
+      const size = angleAt(c.at, c.p1, c.p2);
+      const want = c.unknown ? answers[c.text.replace('°', '')] : Number(c.text.replace('°', ''));
+      ok(Math.abs(size - want) < 0.01, `${tag}: angle labelled ${c.text} measures ${size.toFixed(2)}° (should be ${want}°)`);
+      ok(c.unknown ? /^[a-z]°$/.test(c.text) : /^\d+°$/.test(c.text), `${tag}: odd label ${c.text}`);
+      ok(q.svg!.includes(`>${c.text}</text>`), `${tag}: label ${c.text} not drawn`);
+      // both arms are drawn lines through the corner, and reach well past the arc
+      for (const p of [c.p1, c.p2]) {
+        const u = sub(p, c.at), k = (arcRadius(size) + 10) / len(u);
+        const far: Pt = [c.at[0] + u[0] * k, c.at[1] + u[1] * k];
+        ok(f.segs.some(s => !s.dash && distToSeg(c.at, s) < 0.01 && distToSeg(far, s) < 0.01), `${tag}: an arm of ${c.text} is not a drawn line`);
+      }
+      // no other line leaves the corner inside the angle
+      for (const s of f.segs) {
+        if (distToSeg(c.at, s) > 0.01) continue;
+        for (const end of [s.a, s.b]) {
+          if (len(sub(end, c.at)) < 1) continue;
+          const a1 = angleAt(c.at, c.p1, end), a2 = angleAt(c.at, end, c.p2);
+          ok(!(a1 > 1 && a2 > 1 && Math.abs(a1 + a2 - size) < 0.01), `${tag}: a line cuts through the angle ${c.text}`);
+        }
+      }
+    }
+    // two arcs never mark the same angle
+    f.arcs.forEach((c, i) => f.arcs.forEach((d, j) => {
+      if (j <= i || len(sub(c.at, d.at)) > 0.01) return;
+      const bis = (a: typeof c): Pt => { const u = sub(a.p1, a.at), v = sub(a.p2, a.at); return [u[0] / len(u) + v[0] / len(v), u[1] / len(u) + v[1] / len(v)]; };
+      ok(angleAt([0, 0], bis(c), bis(d)) > 1, `${tag}: ${c.text} and ${d.text} mark the same angle`);
+    }));
+    // arrows only on lines that really are parallel; equal-side marks only on equal sides
+    const arrowed = f.segs.filter(s => s.arrows), ticked = f.segs.filter(s => s.ticks);
+    ok(arrowed.length !== 1, `${tag}: only one line has arrows`);
+    for (const s of arrowed) {
+      const u = sub(s.b, s.a), v = sub(arrowed[0].b, arrowed[0].a);
+      ok(Math.abs(u[0] * v[1] - u[1] * v[0]) / (len(u) * len(v)) < 1e-9 && u[0] * v[0] + u[1] * v[1] > 0, `${tag}: arrowed lines are not parallel (or point opposite ways)`);
+    }
+    ok(ticked.length !== 1, `${tag}: only one side has a mark`);
+    for (const s of ticked) ok(Math.abs(len(sub(s.b, s.a)) - len(sub(ticked[0].b, ticked[0].a))) < 0.01, `${tag}: marked sides are not equal`);
+    ok(ticked.length === 0 || ['iso', 'iso-line'].includes(q.meta.type), `${tag}: equal-side marks on a triangle that is not isosceles`);
+    const lp = anglesLayoutProblems(f);
+    ok(lp.length === 0, `${tag}: ${lp[0]}`);
+    // read the drawing itself: each label sits inside its own angle and clear of every line and other label
+    const num = (s: string, k: string) => Number(s.match(new RegExp(`${k}="(-?[\\d.]+)"`))![1]);
+    const lines = [...q.svg!.matchAll(/<line [^>]*>/g)].map(m => m[0]).filter(l => !/stroke-width="2.2"/.test(l))
+      .map(l => ({ a: [num(l, 'x1'), num(l, 'y1')] as Pt, b: [num(l, 'x2'), num(l, 'y2')] as Pt }));
+    const texts = [...q.svg!.matchAll(/<text ([^>]*)>([^<]*)<\/text>/g)].map(m => ({ x: num(m[1], 'x'), y: num(m[1], 'y'), t: m[2] }));
+    ok(texts.length === f.arcs.length && lines.length === f.segs.length, `${tag}: drawing has ${texts.length} labels and ${lines.length} lines`);
+    texts.forEach((tx, i) => {
+      const w = tx.t.length * 9, h = 16;
+      for (const l of lines) {
+        const L = len(sub(l.b, l.a));
+        for (let t = 0; t <= L; t += 0.5) {
+          const x = l.a[0] + (l.b[0] - l.a[0]) * t / L, y = l.a[1] + (l.b[1] - l.a[1]) * t / L;
+          if (Math.abs(x - tx.x) < w / 2 && Math.abs(y - tx.y) < h / 2) { fail(`${tag}: label ${tx.t} is drawn over a line`); break; }
+        }
+      }
+      texts.forEach((o, j) => { if (j > i) ok(Math.abs(tx.x - o.x) > (w + o.t.length * 9) / 2 || Math.abs(tx.y - o.y) > h, `${tag}: labels ${tx.t} and ${o.t} overlap`); });
+      const c = f.arcs[i];   // labels are drawn in the same order as the arcs
+      const size = angleAt(c.at, c.p1, c.p2), L: Pt = [tx.x, tx.y];
+      ok(Math.abs(angleAt(c.at, c.p1, L) + angleAt(c.at, L, c.p2) - size) < 0.5 && len(sub(L, c.at)) < 130, `${tag}: label ${tx.t} is not inside its own angle`);
+    });
+    // every step has its named misconception (around a point, 180° − the rest is often below 0)
+    if (q.meta.type !== 'point') q.parts.forEach(p => ok(reachableSlips(p).length > 0, `${tag}: ${p.label} has no named misconception`));
+  }
+}
+console.log(Object.entries(angleCount).map(([k, v]) => `${k}: ${v}`).join(' | '));
+for (const level of [1, 2, 3] as const) for (const t of new Set(ANGLE_LEVEL_ITEMS[level])) {
+  ok((angleCount[`L${level} ${t}`] || 0) >= NA / 20, `angle type "${t}" came up ${angleCount[`L${level} ${t}`] || 0} times in ${NA} at level ${level}`);
+}
+for (const t of ANGLE_TYPES) ok([1, 2, 3].some(l => ANGLE_LEVEL_ITEMS[l as 1 | 2 | 3].includes(t)), `angle type ${t} is in no level`);
 
 // topics hold together
 for (const [key, t] of Object.entries(SEAL9_TOPICS)) {

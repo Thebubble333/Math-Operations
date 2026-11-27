@@ -2,6 +2,7 @@
  * Plain data (no React) so the typing tests can use it too. */
 import { TPQuestion } from '../utils/typedParts';
 import { generatePolygon } from '../utils/polygonBank';
+import { generateAngles } from '../utils/angleBank';
 import { generateDijkstra } from '../utils/dijkstraBank';
 import { generateDegrees, generateWalks } from '../utils/networkBank';
 
@@ -59,6 +60,56 @@ export const SEAL9_TOPICS: Record<string, TopicDef> = {
       'skipped-step': 'Skipping the exterior angle step',
       'ext-360': 'Interior + exterior = 360° (it is 180°)',
       slip: 'Arithmetic slips',
+    },
+  },
+  angles: {
+    title: 'Angle Chase', blurb: 'Lines, parallel lines and triangles', icon: 'x°', color: 'bg-orange-500',
+    noun: 'Problem', countSteps: false,
+    generate: (level, seed) => generateAngles(level, seed),
+    levels: {
+      1: {
+        name: 'One step', summary: 'Angles on a line, around a point, vertically opposite, and on parallel lines.', roundLength: 20,
+        skills: [
+          { title: 'Lines and points', text: 'Angles on a straight line add to 180°. Angles around a point add to 360°.' },
+          { title: 'Vertically opposite', text: 'Where two lines cross, the opposite angles are equal.' },
+          { title: 'Parallel lines', text: 'Arrows mark parallel lines. Corresponding angles (F shape) and alternate angles (Z shape) are equal. Co-interior angles (C shape) add to 180°.' },
+          { title: 'How to type it', text: 'Type the number of degrees only. It is checked as soon as it is complete.' },
+        ],
+      },
+      2: {
+        name: 'Triangles', summary: 'Angle sum, the exterior angle theorem and isosceles triangles.', roundLength: 20,
+        skills: [
+          { title: 'Angle sum', text: 'The angles of a triangle add to 180°.' },
+          { title: 'Exterior angle', text: 'An exterior angle equals the sum of the two opposite interior angles. Work backwards to find a missing interior angle.' },
+          { title: 'Isosceles triangles', text: 'The marks show the two equal sides. The angles where they meet the third side (the base angles) are equal.' },
+        ],
+      },
+      3: {
+        name: 'Two steps', summary: 'Find the angle in between first (y), then x.', roundLength: 10,
+        skills: [
+          { title: 'y first', text: 'Each question has an angle y between the one you know and x. Find y, then use it to find x.' },
+          { title: 'What comes up', text: 'Parallel lines then a straight line or vertically opposite angles; a triangle then a straight line; isosceles triangles; and vertically opposite angles then a triangle.' },
+        ],
+      },
+    },
+    slipLabels: {
+      'line-360': 'Angles on a line add to 180°, not 360°',
+      'point-180': 'Angles around a point add to 360°',
+      'vo-supp': 'Vertically opposite angles are equal',
+      'adj-equal': 'Angles on a straight line add to 180°',
+      'corr-supp': 'Corresponding angles are equal',
+      'alt-supp': 'Alternate angles are equal',
+      'cointerior-equal': 'Co-interior angles add to 180° (not equal)',
+      'tri-360': 'The angles of a triangle add to 180°',
+      'ext-supp': 'Exterior angle = sum of the two opposite angles',
+      'ext-interior': 'Giving the inside angle, not the exterior angle',
+      'ext-adjacent': 'Using the angle next to the exterior angle',
+      'ext-added': 'Adding to the exterior angle instead of taking away',
+      'iso-wrong-pair': 'Choosing the wrong equal angles in an isosceles triangle',
+      'iso-not-halved': 'Forgetting to halve for the base angles',
+      'iso-one-base': 'Taking away only one base angle',
+      line: 'Angles on a line', point: 'Angles around a point', vert: 'Crossing lines', parallel: 'Parallel lines',
+      tri: 'Triangle angle sum', ext: 'Exterior angles', iso: 'Isosceles triangles', step: 'The second step',
     },
   },
   dijkstra: {
