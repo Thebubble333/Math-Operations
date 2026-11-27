@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-/* 9 SEAL section menu. Topic 1: Geometry (congruent triangles). */
+/* 9 SEAL section menu. Topic 1: Geometry and networks. */
 const Seal9Menu: React.FC = () => {
   const navigate = useNavigate();
 
@@ -9,6 +9,17 @@ const Seal9Menu: React.FC = () => {
     { label: 'Congruence Tests', icon: 'SAS', color: 'bg-sky-500', route: '/9seal/congruence/tests', blurb: 'Choose SSS, SAS, AAS or RHS' },
     { label: 'Vertex Mappings', icon: 'A↦X', color: 'bg-indigo-500', route: '/9seal/congruence/mappings', blurb: 'Match the corners' },
     { label: 'Proofs', icon: '≡', color: 'bg-fuchsia-500', route: '/9seal/congruence/proofs', blurb: 'Pairs, reasons and the test' },
+  ];
+  const angles = [
+    { label: 'Polygon Angles', icon: '540°', color: 'bg-amber-500', route: '/9seal/skill/polygons', blurb: 'Angle sums, regular polygons, missing angles' },
+  ];
+  const networks = [
+    { label: "Dijkstra's Algorithm", icon: 'A→F', color: 'bg-teal-500', route: '/9seal/skill/dijkstra', blurb: 'Shortest paths, step by step' },
+  ];
+  const sections = [
+    { title: 'Angles and Polygons', buttons: angles },
+    { title: 'Congruent Triangles', buttons: congruence },
+    { title: 'Networks', buttons: networks },
   ];
 
   return (
@@ -21,15 +32,16 @@ const Seal9Menu: React.FC = () => {
       </div>
 
       <div className="w-full max-w-4xl space-y-8">
-        <div>
+        {sections.map(sec => (
+        <div key={sec.title}>
           <div className="flex items-center justify-between mb-4 px-2">
             <h2 className="text-xl font-black text-violet-600 dark:text-violet-400 uppercase tracking-widest flex items-center gap-2">
-              <span>Congruent Triangles</span>
+              <span>{sec.title}</span>
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300 font-bold border border-violet-200 dark:border-violet-800">TOPIC 1</span>
             </h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {congruence.map(btn => (
+            {sec.buttons.map(btn => (
               <button
                 key={btn.label}
                 onClick={() => navigate(btn.route)}
@@ -44,6 +56,7 @@ const Seal9Menu: React.FC = () => {
             ))}
           </div>
         </div>
+        ))}
       </div>
 
       <div className="mt-16 text-center text-slate-400 dark:text-slate-600 w-full max-w-lg">
