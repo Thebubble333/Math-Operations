@@ -20,6 +20,7 @@ import QuadraticFormula from './components/QuadraticFormula';
 import Year9Menu from './components/Year9Menu';
 import Seal9Menu from './components/Seal9Menu';
 import CongruencePractice from './components/CongruencePractice';
+import CongruenceLevelsPage from './components/CongruenceLevelsPage';
 import PronumeralsBothSides from './components/PronumeralsBothSides';
 import PartialFractionsGame from './components/PartialFractionsGame';
 import Alt5Practice from './components/Alt5Practice';
@@ -1313,7 +1314,8 @@ const App: React.FC = () => {
           <Route path="/8seal" element={<Seal8Menu startNewGame={startNewGame} />} />
           <Route path="/9mainstream" element={<Year9Menu startNewGame={startNewGame} />} />
           <Route path="/9seal" element={<Seal9Menu />} />
-          <Route path="/9seal/congruence/:mode" element={<CongruencePractice />} />
+          <Route path="/9seal/congruence/:mode/levels" element={<CongruenceLevelsPage />} />
+          <Route path="/9seal/congruence/:mode/:level?" element={<CongruencePractice gameType={globalGameType} timeLimit={globalTimeLimit} />} />
           <Route path="/11spec" element={<Spec11Menu startNewGame={startNewGame} />} />
           <Route path="/12methods" element={<Methods12Menu startNewGame={startNewGame} />} />
           <Route path="/custom" element={<CustomGameMenu startNewGame={startNewGame} onBack={() => navigate('/')} />} />

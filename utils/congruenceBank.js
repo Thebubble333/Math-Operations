@@ -899,7 +899,7 @@ const CongruenceBank = (function (global) {
       const who = rng.pick(['Sam', 'Alex', 'Jordan', 'Riley', 'Casey', 'Taylor']);
       return common('map-fix', 'mapping', rng, o, base, {
         title: 'Check the mapping',
-        prompt: `${who} wrote this vertex mapping for ${triName(base.tri1)} and the congruent triangle. Fix any mistakes, or press “It’s correct”.`,
+        prompt: `${who} wrote this vertex mapping for ${triName(base.tri1)} and the congruent triangle. Type the correct mapping (type the same letters if it is already right).`,
         input: { kind: 'mapping', rows: t1, choices: base.tri2.slice().sort(), prefill: proposed, allowConfirm: true },
         proposed: proposed, proposedError: error, proposedIsCorrect: error === 'none',
         answer: { mapping: m },
@@ -930,7 +930,7 @@ const CongruenceBank = (function (global) {
       const askReasons = o.askReasons !== undefined ? o.askReasons : base.kind === 'shared';
       return common('write-pairs', 'test', rng, o, base, {
         title: 'Write out the matching pairs',
-        prompt: `${triName(base.tri1)} ${EQUIV} ${triName(base.tri2)}. Choose the test, then write the three pairs of equal sides or angles that prove it.`,
+        prompt: `${triName(base.tri1)} ${EQUIV} ${triName(base.tri2)}. Write three pairs of equal sides or angles that prove it, then the test.`,
         input: { kind: 'pairs', askTest: o.askTest !== false, options: TESTS.map(t => ({ value: t, label: t })),
           rows: rows.map(r => ({ kind: r.kind, kindLabel: r.kindLabel, left: prefillLeft ? r.left : null })),
           askReasons: askReasons, reasonOptions: REASON_OPTIONS, orderFree: true },
@@ -1208,7 +1208,8 @@ const CongruenceBank = (function (global) {
     const pool = q.pool || q.answer.pairs;
     const used = new Map();
     (resp.pairs || []).forEach((row, i) => {
-      const kind = q.input.rows ? (q.input.rows[i] || {}).kind : (q.input.steps ? (q.input.steps[1].rows[i] || {}).kind : null);
+      // a row may carry its own kind (null = work it out from the letters: 2 = side, 1 or 3 = angle)
+      const kind = row && 'kind' in row ? row.kind : q.input.rows ? (q.input.rows[i] || {}).kind : (q.input.steps ? (q.input.steps[1].rows[i] || {}).kind : null);
       const r = checkPair(q, row.left, row.right, kind);
       if (r.status === 'correct') {
         if (used.has(r.key)) { r.status = 'duplicate'; r.message = 'You already used this pair.'; }
@@ -1257,6 +1258,17 @@ const CongruenceBank = (function (global) {
     if (VALID_TESTS.includes(cls)) msg = `With that pair the test would be ${cls}, not ${q.test}. ${q.hints[0]}`;
     else msg = NOT_A_TEST[cls] ? NOT_A_TEST[cls] : 'That pair does not complete the test. ' + q.hints[0];
     return { correct: false, row: r, message: msg };
+  }
+
+  // Is this typed side/angle one of the known (marked or common) elements, in either triangle?
+  function poolHas(q, s) {
+    const e = parseElement(s, null);
+    if (!e) return false;
+    const pool = q.pool || q.facts;
+    const a = elInTri(q, e, 1), b = elInTri(q, e, 2);
+    if (a && a !== 'ambiguous' && pool.some(p => elKey(p.leftEl) === elKey(a))) return true;
+    if (b && b !== 'ambiguous' && pool.some(p => elKey(p.rightEl) === elKey(b))) return true;
+    return false;
   }
 
   function check(q, resp) {
@@ -1320,7 +1332,7 @@ const CongruenceBank = (function (global) {
     generate: generate, generateSet: generateSet,
     renderSVG: renderSVG,
     check: check, checkMapping: checkMapping, checkMappingRow: checkMappingRow, checkLetters: checkLetters,
-    checkTest: checkTest, checkPair: checkPair, checkPairs: checkPairs, checkFact: checkFact,
+    checkTest: checkTest, checkPair: checkPair, checkPairs: checkPairs, checkFact: checkFact, poolHas: poolHas,
     classifyFacts: classifyFacts, VALID_TESTS: VALID_TESTS,
     // lower-level building blocks, for custom question types
     _internal: { makeRng: makeRng, makePair: makePair, makeShared: makeShared, genScalene: genScalene, genRight: genRight, goodTriangle: goodTriangle, VERTEX_RECTS: VERTEX_RECTS }
