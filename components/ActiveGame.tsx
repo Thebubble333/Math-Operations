@@ -78,7 +78,7 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
 
   const [showingAnswer, setShowingAnswer] = useState(false);
   const [canGoNext, setCanGoNext] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [timeRemaining, setTimeRemaining] = useState(session.timeLimit || 0);
 
   const isAlgebraMode = mode === GameMode.EXPANDING_NEGATIVES || 
                         mode === GameMode.YEAR8_ADD_SUB_ALGEBRA || 
@@ -532,6 +532,27 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
     }
   }, [mode, surdOutside, surdInside, surdFocus, sciA, sciN, sciFocus, input, problem, isSuccess, isError]);
 
+  // Typing must work even after the student clicks somewhere else on the page.
+  // If a key is pressed while no text box has focus, put focus back on the
+  // answer box first, so the key lands there as normal.
+  // (Surds and Sig Figs have their own window listeners above.)
+  useEffect(() => {
+    if (mode === GameMode.SIMPLIFY_SURDS || mode === GameMode.SIG_FIGS_SCI_NOTATION) return;
+    const refocus = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const isTypingKey = (e.key.length === 1 && e.key !== ' ') || e.key === 'Backspace';
+      if (!isTypingKey) return;
+      const active = document.activeElement;
+      if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return;
+      const target =
+        (fracFocus === 'den' && denRef.current) ? denRef.current :
+        (numRef.current || inputRef.current);
+      if (target && !target.disabled) target.focus();
+    };
+    window.addEventListener('keydown', refocus);
+    return () => window.removeEventListener('keydown', refocus);
+  }, [mode, fracFocus, inputRef]);
+
   return (
     <div className={`min-h-screen transition-all duration-300 flex flex-col p-4 ${isCorrectFlash ? 'success-glow' : ''} bg-slate-50 dark:bg-slate-900`}>
       {/* Progress Bar */}
@@ -566,7 +587,7 @@ const ActiveGame: React.FC<ActiveGameProps> = ({
       {/* Main Game Area */}
       <div className={`flex-1 flex flex-col items-center justify-center mx-auto w-full ${mode === GameMode.METHODS_GRAPHS ? 'max-w-[98vw]' : 'max-w-4xl'}`}>
         <div className={`text-center space-y-8 w-full transition-transform duration-100 ${isShaking ? 'shake' : ''}`}>
-          <div className="relative">
+          <div className="relative mt-10 md:mt-0">
             <div className="text-[12px] absolute -top-8 left-1/2 -translate-x-1/2 font-black text-slate-300 dark:text-slate-700 uppercase tracking-[0.4em] whitespace-nowrap">
               {session.gameType === 'TIME_ATTACK' ? (
                 <span>

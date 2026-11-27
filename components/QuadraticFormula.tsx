@@ -230,10 +230,10 @@ export default function QuadraticFormula() {
 
             {/* Stage 0 & 1: Discriminant */}
             <div className="w-full max-w-lg mb-8">
-                <div className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Step 1: Discriminant (\Delta = b^2 - 4ac)</div>
+                <div className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Step 1: Discriminant <span className="normal-case">{renderKatex('(\\Delta = b^2 - 4ac)')}</span></div>
                 {stage < 2 ? (
                     <>
-                        <form onSubmit={handleStage0Submit} className="flex items-center justify-center space-x-2 text-3xl font-black">
+                        <form onSubmit={handleStage0Submit} className="flex items-center justify-center space-x-2 text-3xl font-black whitespace-nowrap">
                             <span className="text-slate-400 mr-2">Δ = </span>
                             <span className="text-slate-300">(</span>
                             <input 
