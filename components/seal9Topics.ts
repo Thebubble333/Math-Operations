@@ -4,6 +4,7 @@ import { TPQuestion } from '../utils/typedParts';
 import { generatePolygon } from '../utils/polygonBank';
 import { generateAngles } from '../utils/angleBank';
 import { generateDijkstra } from '../utils/dijkstraBank';
+import { generateSimTests, generateSimFind } from '../utils/similarBank';
 import { generateDegrees, generateWalks } from '../utils/networkBank';
 
 export type Level = 1 | 2 | 3;
@@ -110,6 +111,89 @@ export const SEAL9_TOPICS: Record<string, TopicDef> = {
       'iso-one-base': 'Taking away only one base angle',
       line: 'Angles on a line', point: 'Angles around a point', vert: 'Crossing lines', parallel: 'Parallel lines',
       tri: 'Triangle angle sum', ext: 'Exterior angles', iso: 'Isosceles triangles', step: 'The second step',
+    },
+  },
+  simtests: {
+    title: 'Similarity Tests', blurb: 'Choose SSS, SAS, AAA or RHS', icon: '∼', color: 'bg-violet-500',
+    noun: 'Problem', countSteps: false,
+    generate: (level, seed) => generateSimTests(level, seed),
+    levels: {
+      1: {
+        name: 'Sides or angles', summary: 'Three pairs of sides (SSS) or two pairs of angles (AAA).', roundLength: 20,
+        skills: [
+          { title: 'SSS', text: 'All three pairs of matching sides are in the same ratio. Match shortest with shortest, then compare the ratios.' },
+          { title: 'AAA', text: 'The matching angles are equal. Two pairs are enough, because the third pair is then equal too.' },
+          { title: 'How to answer', text: 'Type the first letters (ss for SSS, aaa for AAA), click the test, or press Tab then Enter.' },
+        ],
+      },
+      2: {
+        name: 'All four tests', summary: 'SSS, SAS, AAA and RHS, with the triangles turned and flipped.', roundLength: 20,
+        skills: [
+          { title: 'SAS', text: 'Two pairs of matching sides are in the same ratio, and the angles between them are equal.' },
+          { title: 'RHS', text: 'Both triangles are right-angled, and the hypotenuses and one other pair of sides are in the same ratio.' },
+          { title: 'SAS or RHS?', text: 'If the right angle is between the two given sides, the hypotenuse is not given: it is SAS.' },
+          { title: 'Different angles marked', text: 'Find the third angle of each triangle, then compare all three.' },
+        ],
+      },
+      3: {
+        name: 'Similar or not?', summary: 'Some pairs are not similar. Check every ratio and angle.', roundLength: 20,
+        skills: [
+          { title: 'Not similar', text: 'Choose Not similar when the ratios do not all match, the angles do not all match, or the equal angle is not between the two sides.' },
+          { title: 'Check them all', text: 'Work out every ratio. One that does not match is enough to show the triangles are not similar.' },
+        ],
+      },
+    },
+    slipLabels: {
+      'congruence-test': 'Using a congruence test (AAS or ASA)',
+      'sss-ratios': 'SSS when the ratios do not all match',
+      'sas-not-between': 'SAS when the angle is not between the sides',
+      'rhs-no-hyp': 'RHS when the hypotenuse is not given',
+      'rhs-ratios': 'RHS when the ratios do not match',
+      'aaa-third': 'Finding the third angle',
+      'shortest': 'Matching shortest with shortest',
+      'missed-test': 'Missing a test that works',
+      'not-shown': 'Choosing a test for facts that are not marked',
+      test: 'Choosing the test',
+    },
+  },
+  simfind: {
+    title: 'Similar Triangles: Find x', blurb: 'Scale factors and unknown lengths', icon: '×k', color: 'bg-purple-500',
+    noun: 'Problem', countSteps: false,
+    generate: (level, seed) => generateSimFind(level, seed),
+    levels: {
+      1: {
+        name: 'Whole scale factors', summary: 'Scale factors 2, 3 and 4. Find the scale factor, then multiply.', roundLength: 10,
+        skills: [
+          { title: 'Scale factor', text: 'Scale factor = image ÷ original. The first triangle named is the original: for △ABC ∼ △DEF, divide a side of △DEF by the matching side of △ABC.' },
+          { title: 'Find x', text: 'x is on the image, so multiply the matching side of the original by the scale factor.' },
+          { title: 'How to type it', text: 'Type the number only. It is checked as soon as it is complete.' },
+        ],
+      },
+      2: {
+        name: 'Halves', summary: 'Scale factors like 1.5, 2.5 and ½. Multiply and divide.', roundLength: 10,
+        skills: [
+          { title: 'Decimal or fraction', text: 'Type 1.5 or 3/2: both are right. Use / for a fraction.' },
+          { title: 'Divide', text: 'y is on the original, so divide the matching side of the image by the scale factor.' },
+          { title: 'Crossed triangles', text: 'AB ∥ DE gives two triangles meeting at C, so △ABC ∼ △EDC. The scale factor is ED ÷ AB.' },
+        ],
+      },
+      3: {
+        name: 'Fractions and nested triangles', summary: 'Scale factors like ⅓, ⅔, ¾ and 4/3, and one triangle inside another.', roundLength: 10,
+        skills: [
+          { title: 'Fractions', text: 'Type the fraction with /, for example 2/3. The scale factor is less than 1 when the image is smaller.' },
+          { title: 'Nested triangles', text: 'DE ∥ BC, so △ADE ∼ △ABC. Use the whole side AB = AD + DB, not DB.' },
+          { title: 'Finding a part', text: 'To find DB, find AB first, then take away AD.' },
+        ],
+      },
+    },
+    slipLabels: {
+      'sf-upside-down': 'Scale factor upside down (it is image ÷ original)',
+      'divide-not-times': 'Dividing when the length is on the image',
+      'times-not-divide': 'Multiplying when the length is on the original',
+      'added-difference': 'Adding the difference instead of scaling',
+      'part-side': 'Using DB instead of the whole side AB',
+      'whole-not-part': 'Giving AB instead of DB',
+      sf: 'Finding the scale factor', times: 'Multiplying by the scale factor', divide: 'Dividing by the scale factor', subtract: 'Taking AD away from AB',
     },
   },
   dijkstra: {

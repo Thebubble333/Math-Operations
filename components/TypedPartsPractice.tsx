@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { GameType } from '../types';
-import { TPQuestion, TypingState, Part, PressResult, createTyping, press, choose, choiceMatches, keypadKeys, showPath, showAnswer } from '../utils/typedParts';
+import { TPQuestion, TypingState, Part, PressResult, createTyping, press, choose, choiceMatches, keypadKeys, showPath, showAnswer, spellings } from '../utils/typedParts';
 import { SEAL9_TOPICS, Level } from './seal9Topics';
 
 /* ----------------------------------------------------------------------------
@@ -59,6 +59,8 @@ const ChoiceLine: React.FC<{ p: Extract<Part, { kind: 'choice' }>; done: boolean
           );
         })}
       </div>
+      {/* letters that fit no option yet (a misconception word being typed in full) */}
+      {active && t.buf && !fits.length && <span className="text-2xl font-bold tracking-wider text-slate-500 dark:text-slate-400">{t.buf.toUpperCase()}</span>}
     </div>
   );
 };
@@ -72,7 +74,7 @@ const PartLine: React.FC<{ p: Part; i: number; t: TypingState; bad: boolean; hl:
   let shown = '';
   if (done) shown = isPath ? showPath(p.answer) : p.answer;
   else if (active) shown = p.kind === 'path' ? showPath(p.start + t.buf) : p.kind === 'route' ? showPath(t.buf) : t.buf;
-  const width = `${Math.max(2.2, (isPath ? p.answer.length * 1.6 : p.answer.length) * 0.95 + 1)}rem`;
+  const width = `${Math.max(2.2, (isPath ? p.answer.length * 1.6 : p.kind === 'number' ? Math.max(...spellings(p).map(v => v.length)) : p.answer.length) * 0.95 + 1)}rem`;
   return (
     <div className="flex items-end justify-center flex-wrap gap-x-2 gap-y-1">
       <span className="text-2xl text-slate-700 dark:text-slate-200 pb-1"><Mathy text={p.label} /></span>
@@ -193,7 +195,7 @@ const TypedPartsGame: React.FC<{ topicKey: string; level: Level; gameType: GameT
           return;
         }
       }
-      if (e.key === 'Backspace' || /^[a-zA-Z0-9.]$/.test(e.key)) { e.preventDefault(); handleKey(e.key); }
+      if (e.key === 'Backspace' || /^[a-zA-Z0-9./]$/.test(e.key)) { e.preventDefault(); handleKey(e.key); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

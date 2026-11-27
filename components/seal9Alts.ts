@@ -18,6 +18,10 @@ export const SEAL9_ALTS: Alt[] = [
         { label: 'Vertex Mappings', icon: 'A↦X', color: 'bg-indigo-500', route: '/9seal/congruence/mappings', blurb: 'Match the corners' },
         { label: 'Proofs', icon: '≡', color: 'bg-fuchsia-500', route: '/9seal/congruence/proofs', blurb: 'Pairs, reasons and the test' },
       ] },
+      { title: 'Similar Triangles', buttons: [
+        { label: 'Similarity Tests', icon: '∼', color: 'bg-violet-500', route: '/9seal/skill/simtests', blurb: 'Choose SSS, SAS, AAA or RHS' },
+        { label: 'Similar Triangles: Find x', icon: '×k', color: 'bg-purple-500', route: '/9seal/skill/simfind', blurb: 'Scale factors and unknown lengths' },
+      ] },
       { title: 'Networks', buttons: [
         { label: "Degrees and Euler's Formula", icon: 'v+f', color: 'bg-cyan-500', route: '/9seal/skill/degrees', blurb: 'Degrees, edges and faces' },
         { label: 'Walks and Trails', icon: 'A–B–C', color: 'bg-emerald-500', route: '/9seal/skill/walks', blurb: 'Name walks, Eulerian trails, Hamiltonian paths' },
