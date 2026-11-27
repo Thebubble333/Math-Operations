@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { GameType } from '../types';
-import { TPQuestion, TypingState, Part, createTyping, press, keypadKeys, showPath } from '../utils/typedParts';
+import { TPQuestion, TypingState, Part, PressResult, createTyping, press, choose, choiceMatches, keypadKeys, showPath, showAnswer } from '../utils/typedParts';
 import { SEAL9_TOPICS, Level } from './seal9Topics';
 
 /* ----------------------------------------------------------------------------
@@ -22,19 +22,56 @@ const savedLevel = (topic: string): Level => {
 const saveLevel = (topic: string, l: Level) => { try { localStorage.setItem(LEVEL_KEY(topic), String(l)); } catch { /* storage blocked */ } };
 const LEVEL_UP_ACCURACY = 80, LEVEL_UP_MIN_TIMED = 10;
 
-// single letters in a label (x, n, B) are maths, so they are set in serif italic (but not the word "a")
-const Mathy: React.FC<{ text: string }> = ({ text }) => (
-  <>{text.split(/((?<![\w'’])[A-Zb-z](?![\w'’]))/).map((t, i) => (/^[A-Zb-z]$/.test(t) ? <span key={i} className="font-serif italic">{t}</span> : <React.Fragment key={i}>{t}</React.Fragment>))}</>
-);
+// single letters in a label (x, n, B) are maths, so they are set in serif italic
+// (but not the word "a", nor "A" starting a sentence)
+const Mathy: React.FC<{ text: string }> = ({ text }) => {
+  const bits = text.split(/((?<![\w'’])[A-Zb-z](?![\w'’]))/);
+  const word = (t: string, i: number) => t === 'A' && /(^|[.!?]\s+)$/.test(bits[i - 1]) && /^\s+[a-z]/.test(bits[i + 1] || '');
+  return <>{bits.map((t, i) => (/^[A-Zb-z]$/.test(t) && !word(t, i) ? <span key={i} className="font-serif italic">{t}</span> : <React.Fragment key={i}>{t}</React.Fragment>))}</>;
+};
 
-const PartLine: React.FC<{ p: Part; i: number; t: TypingState; bad: boolean }> = ({ p, i, t, bad }) => {
+/** A choice part: the options are buttons. Typed letters, Tab or the arrow keys light one up. */
+const ChoiceLine: React.FC<{ p: Extract<Part, { kind: 'choice' }>; done: boolean; active: boolean; t: TypingState; hl: number; bad: boolean; onPick: (i: number) => void }> = ({ p, done, active, t, hl, bad, onPick }) => {
+  if (done) {
+    return (
+      <div className="flex items-end justify-center gap-2">
+        <span className="text-2xl text-slate-700 dark:text-slate-200 pb-1"><Mathy text={p.label} /></span>
+        <span className="h-11 px-3 border-b-[3px] border-emerald-500 text-emerald-700 dark:text-emerald-300 text-2xl font-bold flex items-end pb-1">{showAnswer(p)}</span>
+      </div>
+    );
+  }
+  const fits = t.buf ? choiceMatches(p, t.buf) : [];
+  return (
+    <div className="flex flex-col items-center gap-2 w-full">
+      <span className="text-2xl text-slate-700 dark:text-slate-200"><Mathy text={p.label} /></span>
+      <div role="radiogroup" aria-label={p.label} className="flex flex-wrap justify-center gap-2">
+        {p.options.map((o, i) => {
+          const lit = active && (i === hl || fits.includes(i));
+          const dim = active && t.buf !== '' && !fits.includes(i);
+          return (
+            <button key={o.value} role="radio" aria-checked={i === hl} tabIndex={-1} disabled={!active}
+              onMouseDown={e => e.preventDefault()} onClick={() => onPick(i)}
+              className={`min-h-[48px] px-5 rounded-2xl text-lg font-bold border-2 transition active:scale-95
+                ${lit ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-200' : 'border-slate-200 bg-white text-slate-700 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 hover:border-indigo-300'}
+                ${dim ? 'opacity-40' : ''} ${bad && active ? 'border-rose-300' : ''}`}>
+              {t.buf && fits.includes(i) ? <><span className="underline decoration-2">{o.label.slice(0, t.buf.length)}</span>{o.label.slice(t.buf.length)}</> : o.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const PartLine: React.FC<{ p: Part; i: number; t: TypingState; bad: boolean; hl: number; onPick: (i: number) => void }> = ({ p, i, t, bad, hl, onPick }) => {
   const done = t.solved || i < t.cur;
   const active = !t.solved && i === t.cur;
-  const isPath = p.kind === 'path';
+  if (p.kind === 'choice') return <ChoiceLine p={p} done={done} active={active} t={t} hl={hl} bad={bad} onPick={onPick} />;
+  const isPath = p.kind === 'path' || p.kind === 'route';
   const letters = p.kind !== 'number';
   let shown = '';
   if (done) shown = isPath ? showPath(p.answer) : p.answer;
-  else if (active) shown = isPath ? showPath(p.start + t.buf) : t.buf;
+  else if (active) shown = p.kind === 'path' ? showPath(p.start + t.buf) : p.kind === 'route' ? showPath(t.buf) : t.buf;
   const width = `${Math.max(2.2, (isPath ? p.answer.length * 1.6 : p.answer.length) * 0.95 + 1)}rem`;
   return (
     <div className="flex items-end justify-center flex-wrap gap-x-2 gap-y-1">
@@ -43,8 +80,8 @@ const PartLine: React.FC<{ p: Part; i: number; t: TypingState; bad: boolean }> =
         className={`inline-flex items-end justify-center h-11 px-1 border-b-[3px] text-3xl leading-none pb-1 transition-colors ${letters ? 'font-serif italic' : 'font-bold tabular-nums'}
           ${done ? 'border-emerald-500 text-emerald-700 dark:text-emerald-300' : bad && active ? 'border-rose-500 text-rose-600' : active ? 'border-indigo-500 text-slate-900 dark:text-white' : 'border-slate-300 dark:border-slate-600'}`}>
         {shown}
-        {active && !isPath && !t.buf && <span className="w-0.5 h-8 bg-indigo-500 animate-pulse" />}
-        {active && isPath && <span className="w-0.5 h-8 bg-indigo-500 animate-pulse ml-1" />}
+        {active && (!isPath || p.kind === 'route') && !t.buf && <span className="w-0.5 h-8 bg-indigo-500 animate-pulse" />}
+        {active && isPath && (p.kind === 'path' || t.buf) && <span className="w-0.5 h-8 bg-indigo-500 animate-pulse ml-1" />}
       </span>
       {p.suffix && <span className="text-2xl text-slate-500 dark:text-slate-400 pb-1">{p.suffix}</span>}
     </div>
@@ -64,6 +101,8 @@ const TypedPartsGame: React.FC<{ topicKey: string; level: Level; gameType: GameT
   const [bad, setBad] = useState(false);
   const [glow, setGlow] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [hl, setHl] = useState(-1);                 // the option lit up by Tab or the arrow keys
+  const hlRef = useRef(hl); hlRef.current = hl;
   const advancing = useRef(false);
   const typingRef = useRef(typing); typingRef.current = typing;
   const qRef = useRef(q); qRef.current = q;
@@ -90,10 +129,9 @@ const TypedPartsGame: React.FC<{ topicKey: string; level: Level; gameType: GameT
     setQ(topic.generate(level)); setTyping(createTyping()); advancing.current = false;
   }, [topic, level]);
 
-  const handleKey = useCallback((key: string) => {
-    if (advancing.current || sessionRef.current.end) return;
-    const r = press(typingRef.current, qRef.current, key);
+  const apply = useCallback((r: PressResult) => {
     if (r.event === 'none') return;
+    if (r.state.cur !== typingRef.current.cur || r.event === 'wrong') { hlRef.current = -1; setHl(-1); }
     typingRef.current = r.state;   // keys pressed before the next render see the new state
     setTyping(r.state);
     if (r.event === 'reject' || r.event === 'wrong') { setBad(true); setTimeout(() => setBad(false), 350); }
@@ -123,14 +161,43 @@ const TypedPartsGame: React.FC<{ topicKey: string; level: Level; gameType: GameT
     }
   }, [gameType, target, nextQuestion, topic.countSteps]);
 
+  const handleKey = useCallback((key: string) => {
+    if (advancing.current || sessionRef.current.end) return;
+    apply(press(typingRef.current, qRef.current, key));
+  }, [apply]);
+  const pick = useCallback((i: number) => {
+    if (advancing.current || sessionRef.current.end) return;
+    apply(choose(typingRef.current, qRef.current, i));
+  }, [apply]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = typingRef.current, p = qRef.current.parts[t.cur];
+      if (p?.kind === 'choice' && !t.solved) {
+        // Tab / arrow keys move between the options, Enter picks the lit one
+        const n = p.options.length;
+        const step = e.key === 'Tab' ? (e.shiftKey ? -1 : 1) : e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+        if (step) {
+          e.preventDefault();
+          const cur = hlRef.current;
+          const next = cur < 0 ? (step > 0 ? 0 : n - 1) : (cur + step + n) % n;
+          hlRef.current = next; setHl(next);
+          return;
+        }
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          const fits = t.buf ? choiceMatches(p, t.buf) : [];
+          if (hlRef.current >= 0) pick(hlRef.current);
+          else if (fits.length === 1) pick(fits[0]);
+          return;
+        }
+      }
       if (e.key === 'Backspace' || /^[a-zA-Z0-9.]$/.test(e.key)) { e.preventDefault(); handleKey(e.key); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [handleKey]);
+  }, [handleKey, pick]);
 
   const onFigureDown = (e: React.MouseEvent | React.TouchEvent) => {
     const t = (e.target as Element).closest('.cb-letter');
@@ -271,7 +338,7 @@ const TypedPartsGame: React.FC<{ topicKey: string; level: Level; gameType: GameT
         )}
 
         <div key={typing.flash} className={`flex flex-col gap-3 items-center ${bad ? 'animate-shake' : ''}`}>
-          {shownParts.map(({ p, i }) => <PartLine key={i} p={p} i={i} t={typing} bad={bad} />)}
+          {shownParts.map(({ p, i }) => <PartLine key={i} p={p} i={i} t={typing} bad={bad} hl={hl} onPick={pick} />)}
         </div>
 
         <div className="mt-4 min-h-[1.5rem] text-center text-sm text-slate-400 dark:text-slate-500">
@@ -279,7 +346,7 @@ const TypedPartsGame: React.FC<{ topicKey: string; level: Level; gameType: GameT
           {q.onlyCurrent && !typing.solved && <span className="ml-2 text-slate-300 dark:text-slate-600">Step {typing.cur + 1} of {q.parts.length}</span>}
         </div>
         {typing.message && <div className="mt-3 rounded-2xl px-4 py-2.5 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-center">{typing.message}</div>}
-        {typing.reveal && <div className="mt-3 rounded-2xl px-4 py-2.5 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-center">Answer: <span className="font-bold">{typing.reveal}</span> (type it in)</div>}
+        {typing.reveal && <div className="mt-3 rounded-2xl px-4 py-2.5 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-center">Answer: <span className="font-bold">{typing.reveal}</span> ({part?.kind === 'choice' ? 'choose it' : 'type it in'})</div>}
       </div>
 
       {/* phone keypad: only the keys that can be used right now */}

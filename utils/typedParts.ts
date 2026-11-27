@@ -5,13 +5,18 @@
  *   number: digits, checked the moment the answer is complete
  *   letter: one vertex letter
  *   path:   a route through a network, typed vertex by vertex
+ *   choice: one of a few options (a word, "Does not exist"). Students click or tap an
+ *           option, move to it with Tab and press Enter, or type its first letters:
+ *           the page fills in the word once only one option fits.
+ *   route:  a route the student chooses (an Eulerian trail or a Hamiltonian path). Any
+ *           route that does the job is right; it is checked as it is typed.
  */
 
 export interface Slip { value: string; code: string; message: string }
 
 interface PartBase {
   label: string;            // shown before the answer, e.g. "x ="
-  suffix?: string;          // shown after the answer, e.g. "Â°"
+  suffix?: string;          // shown after the answer, e.g. "°"
   ask?: string;             // the grey instruction line for this part
   code?: string;            // recorded for a plain slip on this part
   slips?: Slip[];           // named misconceptions and their one-line message
@@ -23,7 +28,21 @@ export type PathPart = PartBase & {
   adj: Record<string, string[]>;
   pathSlip?: (path: string) => Slip | null;
 };
-export type Part = NumberPart | LetterPart | PathPart;
+export interface ChoiceOption { label: string; value: string; keys: string[] }   // keys: lower-case words that pick it
+export type ChoicePart = PartBase & { kind: 'choice'; answer: string; options: ChoiceOption[] };
+export type RoutePart = PartBase & {
+  kind: 'route'; mode: 'euler' | 'hamilton';
+  closed: boolean;                        // must finish where it started
+  answer: string;                         // one right route, shown after 3 misses
+  adj: Record<string, string[]>;
+  startSlip?: (v: string) => Slip | null; // a first letter that can never work, as a named slip
+  deadSlip?: (route: string) => Slip;     // the message when the route gets stuck
+};
+export type Part = NumberPart | LetterPart | PathPart | ChoicePart | RoutePart;
+
+/** A choice option whose label is its own key word, e.g. opt('Trail') is picked by typing "t…". */
+export const opt = (label: string, value = label, keys?: string[]): ChoiceOption =>
+  ({ label, value, keys: keys || [label.toLowerCase().replace(/[^a-z]/g, '')] });
 
 export interface TPQuestion {
   prompt: string;
@@ -46,7 +65,10 @@ export interface PressResult { state: TypingState; event: TypingEvent; code?: st
 export const createTyping = (): TypingState => ({ cur: 0, buf: '', misses: 0, message: '', reveal: '', solved: false, flash: 0 });
 
 export const showPath = (letters: string) => letters.split('').join('–');
-export const showAnswer = (p: Part) => (p.kind === 'path' ? showPath(p.answer) : p.answer + (p.suffix || ''));
+export const showAnswer = (p: Part) =>
+  p.kind === 'path' || p.kind === 'route' ? showPath(p.answer)
+    : p.kind === 'choice' ? (p.options.find(o => o.value === p.answer)?.label || p.answer)
+      : p.answer + (p.suffix || '');
 
 /** Misconceptions the student can actually finish typing. A value that starts with the
  * answer, or that is the start of the answer or of another misconception, is never reached. */
@@ -86,6 +108,50 @@ export function pathChoices(p: PathPart, buf: string): string[] {
   return (p.adj[lastV] || []).filter(v => !seen.includes(v));
 }
 
+/** Options that still fit the letters typed so far on a choice part. */
+export function choiceMatches(p: ChoicePart, buf: string): number[] {
+  const b = buf.toLowerCase();
+  return p.options.map((o, i) => (o.keys.some(k => k.startsWith(b)) ? i : -1)).filter(i => i >= 0);
+}
+
+/** Pick option i of the current choice part (a click, a tap, or Enter). */
+export function choose(s: TypingState, q: TPQuestion, i: number): PressResult {
+  const p = q.parts[s.cur];
+  if (s.solved || !p || p.kind !== 'choice' || !p.options[i]) return { state: s, event: 'none' };
+  const o = p.options[i];
+  if (o.value === p.answer) return complete(s, q);
+  return wrong(s, p, (p.slips || []).find(sl => sl.value === o.value));
+}
+
+// ---- route parts: an edge is "AB" with the letters in order
+const edgeKey = (a: string, b: string) => (a < b ? a + b : b + a);
+function usedEdges(route: string): Set<string> {
+  const u = new Set<string>();
+  for (let i = 0; i + 1 < route.length; i++) u.add(edgeKey(route[i], route[i + 1]));
+  return u;
+}
+export const edgeCount = (adj: Record<string, string[]>) => Object.values(adj).reduce((t, l) => t + l.length, 0) / 2;
+
+/** Letters that can come next on a route part (any vertex to begin with). */
+export function routeChoices(p: RoutePart, buf: string): string[] {
+  const all = Object.keys(p.adj).sort();
+  if (!buf) return all;
+  const last = buf[buf.length - 1];
+  const nb = p.adj[last] || [];
+  if (p.mode === 'euler') { const used = usedEdges(buf); return nb.filter(v => !used.has(edgeKey(last, v))).sort(); }
+  const everyone = all.every(v => buf.includes(v));
+  if (everyone) return p.closed && nb.includes(buf[0]) && buf.length > 2 ? [buf[0]] : [];
+  return nb.filter(v => !buf.includes(v)).sort();
+}
+
+/** Has the route done its job? */
+export function routeDone(p: RoutePart, route: string): boolean {
+  if (p.mode === 'euler') return route.length - 1 === edgeCount(p.adj) && usedEdges(route).size === edgeCount(p.adj);
+  const all = Object.keys(p.adj);
+  if (p.closed) return route.length === all.length + 1 && route[0] === route[route.length - 1] && all.every(v => route.includes(v));
+  return route.length === all.length && all.every(v => route.includes(v));
+}
+
 export function press(s: TypingState, q: TPQuestion, key: string): PressResult {
   const none: PressResult = { state: s, event: 'none' };
   if (s.solved) return none;
@@ -93,6 +159,15 @@ export function press(s: TypingState, q: TPQuestion, key: string): PressResult {
   if (!p) return none;
   if (key === 'Backspace') return s.buf ? typed(s, s.buf.slice(0, -1)) : none;
   if (key.length !== 1) return none;
+
+  if (p.kind === 'choice') {
+    if (!/[a-zA-Z]/.test(key)) return /[0-9.=]/.test(key) ? reject(s) : none;
+    const nb = s.buf + key.toLowerCase();
+    const fits = choiceMatches(p, nb);
+    if (!fits.length) return reject(s);
+    if (fits.length === 1) return choose(s, q, fits[0]);   // only one option fits: fill it in
+    return typed(s, nb);
+  }
 
   if (p.kind === 'number') {
     const isDigit = /[0-9]/.test(key);
@@ -122,6 +197,15 @@ export function press(s: TypingState, q: TPQuestion, key: string): PressResult {
     return wrong(s, p, (p.slips || []).find(sl => sl.value === k));
   }
 
+  if (p.kind === 'route') {
+    if (!routeChoices(p, s.buf).includes(k)) return reject(s);
+    if (!s.buf && p.startSlip) { const sl = p.startSlip(k); if (sl) return wrong(s, p, sl); }
+    const nb = s.buf + k;
+    if (routeDone(p, nb)) return complete(s, q);
+    if (routeChoices(p, nb).length === 0) return wrong(s, p, p.deadSlip ? p.deadSlip(nb) : null);   // stuck
+    return typed(s, nb);
+  }
+
   // path
   if (!pathChoices(p, s.buf).includes(k)) return reject(s);
   const nb = s.buf + k;
@@ -141,6 +225,8 @@ export function keypadKeys(s: TypingState, q: TPQuestion): string[] {
   if (!p) return [];
   if (p.kind === 'number') return ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', ...(allowsDot(p) ? ['.'] : [])];
   if (p.kind === 'letter') return p.allowed;
+  if (p.kind === 'choice') return [];          // the options are buttons of their own
+  if (p.kind === 'route') return routeChoices(p, s.buf);
   return pathChoices(p, s.buf);
 }
 
