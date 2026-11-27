@@ -21,7 +21,10 @@ interface PartBase {
   code?: string;            // recorded for a plain slip on this part
   slips?: Slip[];           // named misconceptions and their one-line message
 }
-export type NumberPart = PartBase & { kind: 'number'; answer: string };
+/** forms: other spellings that are also right, e.g. answer "1.5" with forms ["3/2", "6/4"].
+ * A part with forms, or with a "." or "/" in its answer, is checked spelling by spelling:
+ * as soon as the typing can no longer become a right spelling (or a named misconception), it is wrong. */
+export type NumberPart = PartBase & { kind: 'number'; answer: string; forms?: string[] };
 export type LetterPart = PartBase & { kind: 'letter'; answer: string; allowed: string[] };
 export type PathPart = PartBase & {
   kind: 'path'; start: string; end: string; answer: string;   // answer includes the start letter, e.g. "ACBDF"
@@ -29,7 +32,10 @@ export type PathPart = PartBase & {
   pathSlip?: (path: string) => Slip | null;
 };
 export interface ChoiceOption { label: string; value: string; keys: string[] }   // keys: lower-case words that pick it
-export type ChoicePart = PartBase & { kind: 'choice'; answer: string; options: ChoiceOption[] };
+/** traps: words that are not options but are named misconceptions (e.g. "aas" on a similarity
+ * question). They must be typed in full, and no option is filled in while one could still be typed. */
+export interface ChoiceTrap { key: string; slip: Slip }
+export type ChoicePart = PartBase & { kind: 'choice'; answer: string; options: ChoiceOption[]; traps?: ChoiceTrap[] };
 export type RoutePart = PartBase & {
   kind: 'route'; mode: 'euler' | 'hamilton';
   closed: boolean;                        // must finish where it started
@@ -75,11 +81,17 @@ export const showAnswer = (p: Part) =>
 export function reachableSlips(p: Part): Slip[] {
   const all = p.slips || [];
   if (p.kind !== 'number') return all;
-  return all.filter(sl => !sl.value.startsWith(p.answer) && !p.answer.startsWith(sl.value)
+  const right = spellings(p);
+  return all.filter(sl => !right.some(r => sl.value.startsWith(r) || r.startsWith(sl.value))
     && !all.some(o => o !== sl && o.value.length > sl.value.length && o.value.startsWith(sl.value)));
 }
 
-const allowsDot =(p: NumberPart) => p.answer.includes('.') || (p.slips || []).some(s => s.value.includes('.'));
+/** Every right spelling of a number part. */
+export const spellings = (p: NumberPart) => [p.answer, ...(p.forms || [])];
+/** Checked spelling by spelling (fractions and decimals), rather than by length. */
+export const exactNumber = (p: NumberPart) => !!p.forms?.length || /[./]/.test(p.answer);
+const allows = (p: NumberPart, ch: string) => [...spellings(p), ...(p.slips || []).map(s => s.value)].some(v => v.includes(ch));
+const allowsDot = (p: NumberPart) => allows(p, '.');
 
 function complete(s: TypingState, q: TPQuestion): PressResult {
   const last = s.cur === q.parts.length - 1;
@@ -113,6 +125,8 @@ export function choiceMatches(p: ChoicePart, buf: string): number[] {
   const b = buf.toLowerCase();
   return p.options.map((o, i) => (o.keys.some(k => k.startsWith(b)) ? i : -1)).filter(i => i >= 0);
 }
+/** Trap words that still fit the letters typed so far. */
+export const trapMatches = (p: ChoicePart, buf: string) => (p.traps || []).filter(t => t.key.startsWith(buf.toLowerCase()));
 
 /** Pick option i of the current choice part (a click, a tap, or Enter). */
 export function choose(s: TypingState, q: TPQuestion, i: number): PressResult {
@@ -163,16 +177,30 @@ export function press(s: TypingState, q: TPQuestion, key: string): PressResult {
   if (p.kind === 'choice') {
     if (!/[a-zA-Z]/.test(key)) return /[0-9.=]/.test(key) ? reject(s) : none;
     const nb = s.buf + key.toLowerCase();
-    const fits = choiceMatches(p, nb);
-    if (!fits.length) return reject(s);
-    if (fits.length === 1) return choose(s, q, fits[0]);   // only one option fits: fill it in
+    const fits = choiceMatches(p, nb), traps = trapMatches(p, nb);
+    const trap = traps.find(t => t.key === nb);
+    if (trap && !fits.length) return wrong(s, p, trap.slip);     // a misconception word, typed in full
+    if (!fits.length && !traps.length) return reject(s);
+    if (fits.length === 1 && !traps.length) return choose(s, q, fits[0]);   // only one option fits: fill it in
     return typed(s, nb);
   }
 
   if (p.kind === 'number') {
     const isDigit = /[0-9]/.test(key);
     const isDot = key === '.' && allowsDot(p) && !s.buf.includes('.') && s.buf.length > 0;
-    if (!isDigit && !isDot) return /[a-zA-Z.=]/.test(key) ? reject(s) : none;
+    const isSlash = key === '/' && allows(p, '/') && !/[./]/.test(s.buf) && s.buf.length > 0;
+    if (!isDigit && !isDot && !isSlash) return /[a-zA-Z.=/]/.test(key) ? reject(s) : none;
+    if (exactNumber(p)) {
+      const nb = s.buf + key;
+      const right = spellings(p), slips = reachableSlips(p);
+      // a 0 nothing could start with is an impossible key
+      if (!s.buf && key === '0' && ![...right, ...slips.map(sl => sl.value)].some(v => v.startsWith('0'))) return reject(s);
+      if (right.includes(nb)) return complete(s, q);
+      if (right.some(r => r.startsWith(nb))) return typed(s, nb);
+      // early-stop rule: let a misconception be typed in full before it is checked
+      if (slips.some(sl => sl.value.length > nb.length && sl.value.startsWith(nb))) return typed(s, nb);
+      return wrong(s, p, slips.find(sl => sl.value === nb));
+    }
     // a whole number never starts with 0
     if (isDigit && s.buf === '0' && !allowsDot(p)) return reject(s);
     if (key === '0' && !s.buf && p.answer !== '0' && !allowsDot(p)) return reject(s);
@@ -223,7 +251,7 @@ export function keypadKeys(s: TypingState, q: TPQuestion): string[] {
   if (s.solved) return [];
   const p = q.parts[s.cur];
   if (!p) return [];
-  if (p.kind === 'number') return ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', ...(allowsDot(p) ? ['.'] : [])];
+  if (p.kind === 'number') return ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', ...(allowsDot(p) ? ['.'] : []), ...(allows(p, '/') ? ['/'] : [])];
   if (p.kind === 'letter') return p.allowed;
   if (p.kind === 'choice') return [];          // the options are buttons of their own
   if (p.kind === 'route') return routeChoices(p, s.buf);
