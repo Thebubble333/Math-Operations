@@ -24,6 +24,7 @@ export interface CongruenceBankAPI {
   checkPair(q: CBQuestion, left: string, right: string, kind?: string): { status: string; code?: string; message?: string; key?: string };
   checkPairs(q: CBQuestion, resp: any): any;
   checkFact(q: CBQuestion, resp: any): any;
+  poolHas(q: CBQuestion, s: string): boolean;
   classifyFacts(facts: any[]): string;
   VALID_TESTS: string[];
 }
